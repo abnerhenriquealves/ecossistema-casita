@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dimdim - Livro Caixa & Envelopes</title>
+  <title>Dimdim - Livro Caixa & Orçamento</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -22,7 +22,16 @@
       </span>
     </header>
 
-    <!-- Resumo de Saldos -->
+    <!-- Seletor de Período (Navegação Temporal) -->
+    <section class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
+        <p class="text-xs text-slate-400">Selecione o mês para filtrar envelopes e extrato</p>
+      </div>
+      <input type="month" id="filtro-mes" class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg p-2.5 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto">
+    </section>
+
+    <!-- Resumo de Saldos do Mês -->
     <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
         <p class="text-xs text-slate-400 uppercase font-semibold">Entradas do Mês</p>
@@ -33,7 +42,7 @@
         <p id="total-saidas" class="text-xl font-bold text-rose-400 mt-1">R$ 0,00</p>
       </div>
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
-        <p class="text-xs text-slate-400 uppercase font-semibold">Saldo Atual em Caixa</p>
+        <p class="text-xs text-slate-400 uppercase font-semibold">Resultado do Mês</p>
         <p id="saldo-atual" class="text-xl font-bold text-sky-400 mt-1">R$ 0,00</p>
       </div>
     </section>
@@ -113,9 +122,9 @@
       </form>
     </section>
 
-    <!-- Extrato de Transações -->
+    <!-- Extrato do Mês -->
     <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
-      <h2 class="text-lg font-semibold text-slate-200">Livro Caixa • Extrato Recente</h2>
+      <h2 class="text-lg font-semibold text-slate-200">Extrato do Mês Selecionado</h2>
       <div id="lista-transacoes" class="space-y-2">
         <p class="text-sm text-slate-500 py-4 text-center">Carregando lançamentos...</p>
       </div>
@@ -139,7 +148,16 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    document.getElementById('data').value = new Date().toISOString().split('T')[0];
+    // Configurar Mês Atual Padrão (YYYY-MM)
+    const hoje = new Date();
+    const anoAtual = hoje.getFullYear();
+    const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+    const mesFormatadoPadrao = `${anoAtual}-${mesAtual}`;
+
+    const filtroMesInput = document.getElementById('filtro-mes');
+    filtroMesInput.value = mesFormatadoPadrao;
+
+    document.getElementById('data').value = hoje.toISOString().split('T')[0];
 
     const form = document.getElementById('form-transacao');
     const listaTransacoes = document.getElementById('lista-transacoes');
@@ -148,7 +166,6 @@
     const elSaidas = document.getElementById('total-saidas');
     const elSaldo = document.getElementById('saldo-atual');
 
-    // Configuração dos Tetos de Envelopes (Matriz Orçamentária)
     const envelopesConfig = {
       "CAT_MERCADO": { nome: "Supermercado", teto: 1500.00 },
       "CAT_COMBUSTIVEL": { nome: "Combustível", teto: 500.00 },
@@ -163,54 +180,29 @@
       });
     }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('btn-salvar');
-      btn.disabled = true;
-      btn.textContent = "Gravando...";
+    let snapshotCache = null;
 
-      const novaTransacao = {
-        date: document.getElementById('data').value,
-        type: document.getElementById('tipo').value,
-        amount: parseFloat(document.getElementById('valor').value),
-        description: document.getElementById('descricao').value,
-        category_id: document.getElementById('categoria').value,
-        account_id: document.getElementById('conta').value,
-        status: "VALIDATED",
-        user_owner: document.getElementById('usuario').value,
-        source_satellite: "core_dimdim",
-        created_at: new Date().toISOString()
-      };
+    // Função de Processamento e Filtro
+    function processarDados() {
+      if (!snapshotCache) return;
 
-      try {
-        await addDoc(collection(db, "transactions"), novaTransacao);
-        form.reset();
-        document.getElementById('data').value = new Date().toISOString().split('T')[0];
-      } catch (err) {
-        alert("Erro ao salvar lançamento: " + err.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Registrar Lançamento";
-      }
-    });
-
-    const q = query(collection(db, "transactions"), orderBy("date", "desc"));
-    
-    onSnapshot(q, (snapshot) => {
+      const mesSelecionado = filtroMesInput.value; // Formato YYYY-MM
       listaTransacoes.innerHTML = "";
-      
+
       let totalEntradas = 0;
       let totalSaidas = 0;
       const acmCategorias = {};
 
-      // Inicializa acumuladores zerados para cada categoria orçamentária
       Object.keys(envelopesConfig).forEach(catId => acmCategorias[catId] = 0);
 
-      if (snapshot.empty) {
-        listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado ainda.</p>`;
-      } else {
-        snapshot.forEach((doc) => {
-          const item = doc.data();
+      let contadorItens = 0;
+
+      snapshotCache.forEach((doc) => {
+        const item = doc.data();
+
+        // Filtro Temporal: Verifica se a data do lançamento inicia com o mês selecionado (YYYY-MM)
+        if (item.date && item.date.startsWith(mesSelecionado)) {
+          contadorItens++;
           const isSaida = item.type === "SAIDA";
 
           if (isSaida) {
@@ -239,16 +231,20 @@
             </div>
           `;
           listaTransacoes.appendChild(card);
-        });
+        }
+      });
+
+      if (contadorItens === 0) {
+        listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado neste mês.</p>`;
       }
 
-      // Atualiza Cards Globais
+      // Atualiza Saldos do Mês
       const saldo = totalEntradas - totalSaidas;
       elEntradas.textContent = `R$ ${totalEntradas.toFixed(2)}`;
       elSaidas.textContent = `R$ ${totalSaidas.toFixed(2)}`;
       elSaldo.textContent = `R$ ${saldo.toFixed(2)}`;
 
-      // Renderiza Envelopes Orçamentários
+      // Renderiza Envelopes do Mês
       listaEnvelopes.innerHTML = "";
       Object.keys(envelopesConfig).forEach(catId => {
         const env = envelopesConfig[catId];
@@ -279,6 +275,58 @@
         `;
         listaEnvelopes.appendChild(envCard);
       });
+    }
+
+    // Escuta Alterações de Data no Filtro
+    filtroMesInput.addEventListener('change', processarDados);
+
+    // Formulário de Lançamento
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-salvar');
+      btn.disabled = true;
+      btn.textContent = "Gravando...";
+
+      const dataLancamento = document.getElementById('data').value;
+
+      const novaTransacao = {
+        date: dataLancamento,
+        type: document.getElementById('tipo').value,
+        amount: parseFloat(document.getElementById('valor').value),
+        description: document.getElementById('descricao').value,
+        category_id: document.getElementById('categoria').value,
+        account_id: document.getElementById('conta').value,
+        status: "VALIDATED",
+        user_owner: document.getElementById('usuario').value,
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString()
+      };
+
+      try {
+        await addDoc(collection(db, "transactions"), novaTransacao);
+        
+        // Se o lançamento for feito em um mês diferente do selecionado no filtro, atualiza o filtro para o mês da transação
+        const mesDoLancamento = dataLancamento.substring(0, 7);
+        if (filtroMesInput.value !== mesDoLancamento) {
+          filtroMesInput.value = mesDoLancamento;
+        }
+
+        form.reset();
+        document.getElementById('data').value = new Date().toISOString().split('T')[0];
+      } catch (err) {
+        alert("Erro ao salvar lançamento: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Registrar Lançamento";
+      }
+    });
+
+    // Realtime Listener
+    const q = query(collection(db, "transactions"), orderBy("date", "desc"));
+    
+    onSnapshot(q, (snapshot) => {
+      snapshotCache = snapshot;
+      processarDados();
     });
   </script>
 </body>
