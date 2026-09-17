@@ -237,10 +237,37 @@
       </form>
     </section>
 
-    <!-- Extrato do Mês -->
+    <!-- Extrato do Mês com Filtros Avançados -->
     <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
-      <h2 class="text-lg font-semibold text-slate-200">Extrato do Mês Selecionado</h2>
-      <div id="lista-transacoes" class="space-y-2">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <h2 class="text-lg font-semibold text-slate-200">Extrato do Mês Selecionado</h2>
+        <span id="contador-extrato" class="text-xs text-slate-400">Exibindo todos os lançamentos</span>
+      </div>
+
+      <!-- Barra de Filtros e Busca -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <input type="text" id="busca-extrato" placeholder="🔍 Buscar descrição ou categoria..." class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+        
+        <select id="filtro-usuario-extrato" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODOS">👥 Lançado por: Todos</option>
+          <option value="Abner">Abner</option>
+          <option value="Lucélia">Lucélia</option>
+        </select>
+
+        <select id="filtro-conta-extrato" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODAS">💳 Conta/Forma: Todas</option>
+          <option value="ACC_BRADESCO_ABNER">Conta Corrente / PIX</option>
+          <option value="ACC_CARTAO_CREDITO">Cartão de Crédito</option>
+        </select>
+
+        <select id="filtro-tipo-extrato" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODOS">↕️ Tipo: Todos</option>
+          <option value="SAIDA">Saídas (-)</option>
+          <option value="ENTRADA">Entradas (+)</option>
+        </select>
+      </div>
+
+      <div id="lista-transacoes" class="space-y-2 pt-2">
         <p class="text-sm text-slate-500 py-4 text-center">Carregando lançamentos...</p>
       </div>
     </section>
@@ -291,6 +318,13 @@
     const btnQuitarFatura = document.getElementById('btn-quitar-fatura');
     const badgeFaturaStatus = document.getElementById('badge-fatura-status');
 
+    // Elementos da Busca e Filtros
+    const buscaExtratoInput = document.getElementById('busca-extrato');
+    const filtroUsuarioExtrato = document.getElementById('filtro-usuario-extrato');
+    const filtroContaExtrato = document.getElementById('filtro-conta-extrato');
+    const filtroTipoExtrato = document.getElementById('filtro-tipo-extrato');
+    const contadorExtrato = document.getElementById('contador-extrato');
+
     // Elementos da Gestão de Categorias
     const btnToggleGerenciarCat = document.getElementById('btn-toggle-gerenciar-cat');
     const painelGerenciarCat = document.getElementById('painel-gerenciar-categorias');
@@ -314,6 +348,11 @@
         navigator.serviceWorker.register('./sw.js').catch(() => {});
       });
     }
+
+    [buscaExtratoInput, filtroUsuarioExtrato, filtroContaExtrato, filtroTipoExtrato].forEach(el => {
+      el.addEventListener('input', processarDados);
+      el.addEventListener('change', processarDados);
+    });
 
     btnToggleGerenciarCat.addEventListener('click', () => {
       painelGerenciarCat.classList.toggle('aberto');
@@ -439,7 +478,7 @@
         btnQuitarFatura.disabled = true;
         btnQuitarFatura.textContent = "Processando quitação...";
 
-        const dataQuitacao = `${mesSel}-28`; // Data padrão para quitação no mês selecionado
+        const dataQuitacao = `${mesSel}-28`;
 
         const dadosTransacao = {
           date: dataQuitacao,
@@ -508,17 +547,25 @@
       const acmCategorias = {};
       Object.keys(envelopesConfig).forEach(catId => acmCategorias[catId] = 0);
 
-      let contadorItens = 0;
+      // Critérios dos Filtros do Extrato
+      const termoBusca = buscaExtratoInput.value.toLowerCase().trim();
+      const usrFiltro = filtroUsuarioExtrato.value;
+      const contaFiltro = filtroContaExtrato.value;
+      const tipoFiltro = filtroTipoExtrato.value;
+
+      let totalItensMes = 0;
+      let totalItensExibidos = 0;
 
       snapshotTransactions.forEach((docSnapshot) => {
         const item = docSnapshot.data();
         const docId = docSnapshot.id;
 
         if (item.date && item.date.startsWith(mesSelecionado)) {
-          contadorItens++;
+          totalItensMes++;
           const isSaida = item.type === "SAIDA";
           const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
           const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
+          const usuarioItem = item.user_owner || 'Abner';
 
           if (isSaida) {
             if (isCartao) {
@@ -540,39 +587,56 @@
             totalEntradas += item.amount;
           }
 
-          const corValor = isSaida ? (isCartao ? "text-amber-400" : (isPagtoFatura ? "text-sky-400" : "text-rose-400")) : "text-emerald-400";
-          const sinal = isSaida ? "-" : "+";
-          const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
+          // Avalia se o item atende aos filtros do Extrato
           const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id);
+          const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
+          const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
+          const matchConta = contaFiltro === "TODAS" || item.account_id === contaFiltro;
+          const matchTipo = tipoFiltro === "TODOS" || item.type === tipoFiltro;
 
-          const card = document.createElement('div');
-          card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
-          
-          card.innerHTML = `
-            <div class="space-y-0.5 overflow-hidden">
-              <p class="font-medium text-slate-200 truncate">${item.description}</p>
-              <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${nomeCatExibicao}</span> • <span class="text-slate-500">${seloConta}</span> • <span class="text-slate-500">${item.user_owner || 'Abner'}</span></p>
-            </div>
+          if (matchBusca && matchUsuario && matchConta && matchTipo) {
+            totalItensExibidos++;
 
-            <div class="flex items-center gap-3 shrink-0">
-              <p class="font-bold font-mono ${corValor}">${sinal} R$ ${item.amount.toFixed(2)}</p>
-              
-              <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
-                <button onclick="prepararEdicao('${docId}', '${item.date}', '${item.type}', ${item.amount}, '${item.description.replace(/'/g, "\\'")}', '${item.category_id}', '${item.account_id}', '${item.user_owner || 'Abner'}')" class="p-1 text-slate-400 hover:text-sky-400 transition-colors" title="Editar">
-                  ✏️
-                </button>
-                <button onclick="excluirTransacao('${docId}', '${item.description.replace(/'/g, "\\'")}')" class="p-1 text-slate-400 hover:text-rose-400 transition-colors" title="Excluir">
-                  🗑️
-                </button>
+            const corValor = isSaida ? (isCartao ? "text-amber-400" : (isPagtoFatura ? "text-sky-400" : "text-rose-400")) : "text-emerald-400";
+            const sinal = isSaida ? "-" : "+";
+            const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
+
+            const card = document.createElement('div');
+            card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
+            
+            card.innerHTML = `
+              <div class="space-y-0.5 overflow-hidden">
+                <p class="font-medium text-slate-200 truncate">${item.description}</p>
+                <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${nomeCatExibicao}</span> • <span class="text-slate-500">${seloConta}</span> • <span class="text-slate-500">${usuarioItem}</span></p>
               </div>
-            </div>
-          `;
-          listaTransacoes.appendChild(card);
+
+              <div class="flex items-center gap-3 shrink-0">
+                <p class="font-bold font-mono ${corValor}">${sinal} R$ ${item.amount.toFixed(2)}</p>
+                
+                <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
+                  <button onclick="prepararEdicao('${docId}', '${item.date}', '${item.type}', ${item.amount}, '${item.description.replace(/'/g, "\\'")}', '${item.category_id}', '${item.account_id}', '${usuarioItem}')" class="p-1 text-slate-400 hover:text-sky-400 transition-colors" title="Editar">
+                    ✏️
+                  </button>
+                  <button onclick="excluirTransacao('${docId}', '${item.description.replace(/'/g, "\\'")}')" class="p-1 text-slate-400 hover:text-rose-400 transition-colors" title="Excluir">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            `;
+            listaTransacoes.appendChild(card);
+          }
         }
       });
 
-      if (contadorItens === 0) {
+      // Atualiza o contador do extrato
+      if (totalItensMes === 0) {
+        contadorExtrato.textContent = "Nenhum lançamento no mês";
         listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado neste mês.</p>`;
+      } else if (totalItensExibidos === 0) {
+        contadorExtrato.textContent = `0 de ${totalItensMes} lançamentos encontrados`;
+        listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento corresponde aos filtros ativos.</p>`;
+      } else {
+        contadorExtrato.textContent = `Exibindo ${totalItensExibidos} de ${totalItensMes} lançamentos`;
       }
 
       // Cálculo de Saldo da Fatura e Reserva
@@ -594,7 +658,6 @@
         btnQuitarFatura.classList.remove('flex');
       }
 
-      // Saldo Livre = Entradas - Saídas Diretas - Reserva da Fatura (Pendente ou Quitada)
       const totalSaidasTotaisConta = totalSaidasDiretasSemFatura + totalPagamentosFatura;
       const saldoLivre = totalEntradas - totalSaidasTotaisConta - valorFaturaPendenteAtual;
 
