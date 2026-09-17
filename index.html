@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dimdim - Livro Caixa</title>
+  <title>Dimdim - Livro Caixa & Envelopes</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -15,7 +15,7 @@
     <header class="flex items-center justify-between border-b border-slate-800 pb-4">
       <div>
         <h1 class="text-2xl font-bold text-emerald-400">Dimdim 💰</h1>
-        <p class="text-xs text-slate-400">Ecossistema Casita • Livro Caixa</p>
+        <p class="text-xs text-slate-400">Ecossistema Casita • Livro Caixa & Orçamento</p>
       </div>
       <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
         Conectado
@@ -35,6 +35,17 @@
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
         <p class="text-xs text-slate-400 uppercase font-semibold">Saldo Atual em Caixa</p>
         <p id="saldo-atual" class="text-xl font-bold text-sky-400 mt-1">R$ 0,00</p>
+      </div>
+    </section>
+
+    <!-- Matriz Orçamentária / Envelopes Virtuais -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-200">Envelopes Orçamentários</h2>
+        <span class="text-xs text-slate-400">Tetos Planejados</span>
+      </div>
+      <div id="lista-envelopes" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <p class="text-sm text-slate-500 py-2 col-span-2 text-center">Calculando envelopes...</p>
       </div>
     </section>
 
@@ -132,21 +143,24 @@
 
     const form = document.getElementById('form-transacao');
     const listaTransacoes = document.getElementById('lista-transacoes');
+    const listaEnvelopes = document.getElementById('lista-envelopes');
     const elEntradas = document.getElementById('total-entradas');
     const elSaidas = document.getElementById('total-saidas');
     const elSaldo = document.getElementById('saldo-atual');
 
-    const catNomes = {
-      "CAT_MERCADO": "Supermercado",
-      "CAT_COMBUSTIVEL": "Combustível",
-      "CAT_PETS": "Pets",
-      "CAT_DIZIMO": "Dízimo & Ofertas",
-      "CAT_CASITA_PREST": "Prestação Casita"
+    // Configuração dos Tetos de Envelopes (Matriz Orçamentária)
+    const envelopesConfig = {
+      "CAT_MERCADO": { nome: "Supermercado", teto: 1500.00 },
+      "CAT_COMBUSTIVEL": { nome: "Combustível", teto: 500.00 },
+      "CAT_PETS": { nome: "Ração, Banho & Pets", teto: 400.00 },
+      "CAT_DIZIMO": { nome: "Dízimo & Ofertas", teto: 600.00 },
+      "CAT_CASITA_PREST": { nome: "Prestação Casita", teto: 2000.00 }
     };
 
-    // Registrar Service Worker
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
     }
 
     form.addEventListener('submit', async (e) => {
@@ -184,8 +198,13 @@
     
     onSnapshot(q, (snapshot) => {
       listaTransacoes.innerHTML = "";
+      
       let totalEntradas = 0;
       let totalSaidas = 0;
+      const acmCategorias = {};
+
+      // Inicializa acumuladores zerados para cada categoria orçamentária
+      Object.keys(envelopesConfig).forEach(catId => acmCategorias[catId] = 0);
 
       if (snapshot.empty) {
         listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado ainda.</p>`;
@@ -196,6 +215,11 @@
 
           if (isSaida) {
             totalSaidas += item.amount;
+            if (acmCategorias[item.category_id] !== undefined) {
+              acmCategorias[item.category_id] += item.amount;
+            } else {
+              acmCategorias[item.category_id] = item.amount;
+            }
           } else {
             totalEntradas += item.amount;
           }
@@ -208,7 +232,7 @@
           card.innerHTML = `
             <div class="space-y-0.5">
               <p class="font-medium text-slate-200">${item.description}</p>
-              <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${catNomes[item.category_id] || item.category_id}</span> • <span class="text-slate-500">${item.user_owner || 'Abner'}</span></p>
+              <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${envelopesConfig[item.category_id]?.nome || item.category_id}</span> • <span class="text-slate-500">${item.user_owner || 'Abner'}</span></p>
             </div>
             <div class="text-right">
               <p class="font-bold font-mono ${corValor}">${sinal} R$ ${item.amount.toFixed(2)}</p>
@@ -218,10 +242,43 @@
         });
       }
 
+      // Atualiza Cards Globais
       const saldo = totalEntradas - totalSaidas;
       elEntradas.textContent = `R$ ${totalEntradas.toFixed(2)}`;
       elSaidas.textContent = `R$ ${totalSaidas.toFixed(2)}`;
       elSaldo.textContent = `R$ ${saldo.toFixed(2)}`;
+
+      // Renderiza Envelopes Orçamentários
+      listaEnvelopes.innerHTML = "";
+      Object.keys(envelopesConfig).forEach(catId => {
+        const env = envelopesConfig[catId];
+        const gasto = acmCategorias[catId] || 0;
+        const pct = Math.min(Math.round((gasto / env.teto) * 100), 100);
+        
+        let corBarra = "bg-emerald-500";
+        let corTextoPct = "text-emerald-400";
+
+        if (pct >= 100) {
+          corBarra = "bg-rose-500";
+          corTextoPct = "text-rose-400";
+        } else if (pct >= 80) {
+          corBarra = "bg-amber-500";
+          corTextoPct = "text-amber-400";
+        }
+
+        const envCard = document.createElement('div');
+        envCard.className = "bg-slate-950/50 border border-slate-800/80 p-3 rounded-lg space-y-2";
+        envCard.innerHTML = `
+          <div class="flex justify-between items-center text-xs">
+            <span class="font-medium text-slate-200">${env.nome}</span>
+            <span class="font-semibold ${corTextoPct}">R$ ${gasto.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div class="${corBarra} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+          </div>
+        `;
+        listaEnvelopes.appendChild(envCard);
+      });
     });
   </script>
 </body>
