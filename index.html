@@ -69,7 +69,7 @@
       </div>
     </section>
 
-    <!-- Resumo de Saldos -->
+    <!-- Resumo de Saldos com Quitação de Fatura -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
         <p class="text-xs text-slate-400 uppercase font-semibold">Entradas em Conta</p>
@@ -79,10 +79,21 @@
         <p class="text-xs text-slate-400 uppercase font-semibold">Saídas Diretas (Conta)</p>
         <p id="total-saidas" class="text-xl font-bold text-rose-400 mt-1">R$ 0,00</p>
       </div>
-      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
-        <p class="text-xs text-slate-400 uppercase font-semibold">Fatura Cartão do Mês</p>
-        <p id="fatura-cartao" class="text-xl font-bold text-amber-400 mt-1">R$ 0,00</p>
+      
+      <!-- Card Fatura com Botão de Quitação -->
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md relative group flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-slate-400 uppercase font-semibold">Fatura Cartão do Mês</p>
+            <span id="badge-fatura-status" class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">QUITADA</span>
+          </div>
+          <p id="fatura-cartao" class="text-xl font-bold text-amber-400 mt-1">R$ 0,00</p>
+        </div>
+        <button id="btn-quitar-fatura" type="button" class="hidden mt-2 w-full py-1.5 px-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all items-center justify-center gap-1">
+          💳 Quitar Fatura do Mês
+        </button>
       </div>
+
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
         <p class="text-xs text-slate-400 uppercase font-semibold">Saldo Livre em Conta</p>
         <p id="saldo-atual" class="text-xl font-bold text-sky-400 mt-1">R$ 0,00</p>
@@ -277,6 +288,8 @@
     const elSaidas = document.getElementById('total-saidas');
     const elFaturaCartao = document.getElementById('fatura-cartao');
     const elSaldo = document.getElementById('saldo-atual');
+    const btnQuitarFatura = document.getElementById('btn-quitar-fatura');
+    const badgeFaturaStatus = document.getElementById('badge-fatura-status');
 
     // Elementos da Gestão de Categorias
     const btnToggleGerenciarCat = document.getElementById('btn-toggle-gerenciar-cat');
@@ -294,6 +307,7 @@
 
     let envelopesConfig = {};
     let snapshotTransactions = null;
+    let valorFaturaPendenteAtual = 0;
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -345,7 +359,7 @@
     btnCancelarEdicao.addEventListener('click', resetarFormulario);
     btnCancelarCat.addEventListener('click', resetarFormCategoria);
 
-    // Seed dos Envelopes Padrão da Casita
+    // Seed dos Envelopes Padrão
     async function restaurarCategoriasPadrao() {
       const padroes = [
         { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé" },
@@ -416,6 +430,41 @@
       }
     };
 
+    // Quitação da Fatura do Cartão
+    btnQuitarFatura.addEventListener('click', async () => {
+      if (valorFaturaPendenteAtual <= 0) return;
+
+      const mesSel = filtroMesInput.value;
+      if (confirm(`Confirmar o pagamento da fatura no valor de R$ ${valorFaturaPendenteAtual.toFixed(2)} debitando da Conta Corrente?`)) {
+        btnQuitarFatura.disabled = true;
+        btnQuitarFatura.textContent = "Processando quitação...";
+
+        const dataQuitacao = `${mesSel}-28`; // Data padrão para quitação no mês selecionado
+
+        const dadosTransacao = {
+          date: dataQuitacao,
+          type: "SAIDA",
+          amount: valorFaturaPendenteAtual,
+          description: `Quitação Fatura Cartão (${mesSel})`,
+          category_id: "CAT_FATURA_CARTAO",
+          account_id: "ACC_BRADESCO_ABNER",
+          status: "VALIDATED",
+          user_owner: document.getElementById('usuario').value || "Abner",
+          source_satellite: "core_dimdim",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        try {
+          await addDoc(collection(db, "transactions"), dadosTransacao);
+        } catch (err) {
+          alert("Erro ao quitar fatura: " + err.message);
+        } finally {
+          btnQuitarFatura.disabled = false;
+        }
+      }
+    });
+
     // Edição / Exclusão de Transações
     window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, conta, usuario) {
       inputTransacaoId.value = id;
@@ -452,10 +501,11 @@
       listaTransacoes.innerHTML = "";
 
       let totalEntradas = 0;
-      let totalSaidasDiretas = 0;
+      let totalSaidasDiretasSemFatura = 0;
       let totalFaturaCartao = 0;
-      const acmCategorias = {};
+      let totalPagamentosFatura = 0;
 
+      const acmCategorias = {};
       Object.keys(envelopesConfig).forEach(catId => acmCategorias[catId] = 0);
 
       let contadorItens = 0;
@@ -468,27 +518,32 @@
           contadorItens++;
           const isSaida = item.type === "SAIDA";
           const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
+          const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
 
           if (isSaida) {
             if (isCartao) {
               totalFaturaCartao += item.amount;
+            } else if (isPagtoFatura) {
+              totalPagamentosFatura += item.amount;
             } else {
-              totalSaidasDiretas += item.amount;
+              totalSaidasDiretasSemFatura += item.amount;
             }
 
-            if (acmCategorias[item.category_id] !== undefined) {
-              acmCategorias[item.category_id] += item.amount;
-            } else {
-              acmCategorias[item.category_id] = item.amount;
+            if (!isPagtoFatura) {
+              if (acmCategorias[item.category_id] !== undefined) {
+                acmCategorias[item.category_id] += item.amount;
+              } else {
+                acmCategorias[item.category_id] = item.amount;
+              }
             }
           } else {
             totalEntradas += item.amount;
           }
 
-          const corValor = isSaida ? (isCartao ? "text-amber-400" : "text-rose-400") : "text-emerald-400";
+          const corValor = isSaida ? (isCartao ? "text-amber-400" : (isPagtoFatura ? "text-sky-400" : "text-rose-400")) : "text-emerald-400";
           const sinal = isSaida ? "-" : "+";
           const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
-          const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (item.category_id === 'CAT_FATURA_CARTAO' ? 'Pagamento Fatura' : item.category_id);
+          const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id);
 
           const card = document.createElement('div');
           card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
@@ -520,9 +575,31 @@
         listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado neste mês.</p>`;
       }
 
-      const saldoLivre = totalEntradas - totalSaidasDiretas - totalFaturaCartao;
+      // Cálculo de Saldo da Fatura e Reserva
+      valorFaturaPendenteAtual = Math.max(0, totalFaturaCartao - totalPagamentosFatura);
+      const faturaEstaQuitada = totalFaturaCartao > 0 && valorFaturaPendenteAtual === 0;
+
+      if (faturaEstaQuitada) {
+        badgeFaturaStatus.classList.remove('hidden');
+        btnQuitarFatura.classList.add('hidden');
+        btnQuitarFatura.classList.remove('flex');
+      } else if (valorFaturaPendenteAtual > 0) {
+        badgeFaturaStatus.classList.add('hidden');
+        btnQuitarFatura.classList.remove('hidden');
+        btnQuitarFatura.classList.add('flex');
+        btnQuitarFatura.textContent = `💳 Quitar R$ ${valorFaturaPendenteAtual.toFixed(2)}`;
+      } else {
+        badgeFaturaStatus.classList.add('hidden');
+        btnQuitarFatura.classList.add('hidden');
+        btnQuitarFatura.classList.remove('flex');
+      }
+
+      // Saldo Livre = Entradas - Saídas Diretas - Reserva da Fatura (Pendente ou Quitada)
+      const totalSaidasTotaisConta = totalSaidasDiretasSemFatura + totalPagamentosFatura;
+      const saldoLivre = totalEntradas - totalSaidasTotaisConta - valorFaturaPendenteAtual;
+
       elEntradas.textContent = `R$ ${totalEntradas.toFixed(2)}`;
-      elSaidas.textContent = `R$ ${totalSaidasDiretas.toFixed(2)}`;
+      elSaidas.textContent = `R$ ${totalSaidasTotaisConta.toFixed(2)}`;
       elFaturaCartao.textContent = `R$ ${totalFaturaCartao.toFixed(2)}`;
       elSaldo.textContent = `R$ ${saldoLivre.toFixed(2)}`;
 
@@ -651,7 +728,7 @@
       }
     });
 
-    // Realtime Listener de Categorias (Optgroups Limpos sem o valor do Teto)
+    // Realtime Listener de Categorias
     onSnapshot(collection(db, "categories"), (snapshot) => {
       if (snapshot.empty) {
         restaurarCategoriasPadrao();
@@ -674,7 +751,6 @@
         if (!gruposSelect[macro]) gruposSelect[macro] = [];
         gruposSelect[macro].push({ id, nome: data.nome, teto: data.teto });
 
-        // Item do Gerenciador de Categorias
         const itemCat = document.createElement('div');
         itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
         itemCat.innerHTML = `
@@ -687,7 +763,6 @@
         listaGerenciadorCat.appendChild(itemCat);
       });
 
-      // Popula o Select com Optgroups Enxutos (Sem o texto do Teto)
       Object.keys(gruposSelect).forEach(macroNome => {
         const optgroup = document.createElement('optgroup');
         optgroup.label = `📁 ${macroNome}`;
@@ -695,14 +770,13 @@
         gruposSelect[macroNome].forEach(cat => {
           const opt = document.createElement('option');
           opt.value = cat.id;
-          opt.textContent = cat.nome; // Exibe apenas o nome limpo do envelope
+          opt.textContent = cat.nome;
           optgroup.appendChild(opt);
         });
 
         selectCategoria.appendChild(optgroup);
       });
 
-      // Opção para Pagamento de Fatura
       const optFatura = document.createElement('option');
       optFatura.value = "CAT_FATURA_CARTAO";
       optFatura.textContent = "💳 Pagamento de Fatura do Cartão";
