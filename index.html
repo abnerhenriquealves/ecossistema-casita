@@ -3,44 +3,118 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dimdim - Core Financeiro</title>
+  <title>Dimdim - Livro Caixa</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
-  <div class="max-w-2xl mx-auto space-y-6">
+  <div class="max-w-4xl mx-auto space-y-6">
     
-    <!-- Cabeçalho -->
+    <!-- Topo -->
     <header class="flex items-center justify-between border-b border-slate-800 pb-4">
       <div>
         <h1 class="text-2xl font-bold text-emerald-400">Dimdim 💰</h1>
-        <p class="text-xs text-slate-400">Ecossistema Casita • Hub Central</p>
+        <p class="text-xs text-slate-400">Ecossistema Casita • Livro Caixa</p>
       </div>
-      <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-        Conectando...
+      <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+        Conectado
       </span>
     </header>
 
-    <!-- Painel de Testes -->
-    <main class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
-      <h2 class="text-lg font-semibold text-slate-200">Inicialização de Dados do Hub</h2>
-      <p class="text-sm text-slate-400">
-        Clique no botão abaixo para semear a estrutura base de categorias e contas no Cloud Firestore.
-      </p>
-
-      <button id="btn-seed" disabled class="w-full py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-white transition-all shadow-lg">
-        Semear Categorias & Contas Iniciais
-      </button>
-
-      <div id="log-output" class="bg-slate-950 rounded-lg p-4 font-mono text-xs text-slate-300 h-48 overflow-y-auto border border-slate-800">
-        > Aguardando inicialização do Firebase...
+    <!-- Resumo de Saldos -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Entradas do Mês</p>
+        <p id="total-entradas" class="text-xl font-bold text-emerald-400 mt-1">R$ 0,00</p>
       </div>
-    </main>
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Saídas do Mês</p>
+        <p id="total-saidas" class="text-xl font-bold text-rose-400 mt-1">R$ 0,00</p>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Saldo Atual em Caixa</p>
+        <p id="saldo-atual" class="text-xl font-bold text-sky-400 mt-1">R$ 0,00</p>
+      </div>
+    </section>
+
+    <!-- Formulário de Lançamento Rápido -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+      <h2 class="text-lg font-semibold text-slate-200">Novo Lançamento</h2>
+      <form id="form-transacao" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Lançado por</label>
+          <select id="usuario" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="Abner">Abner</option>
+            <option value="Lucélia">Lucélia</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tipo</label>
+          <select id="tipo" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="SAIDA">Saída (-)</option>
+            <option value="ENTRADA">Entrada (+)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Valor (R$)</label>
+          <input type="number" step="0.01" id="valor" required placeholder="0,00" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Data</label>
+          <input type="date" id="data" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Descrição</label>
+          <input type="text" id="descricao" required placeholder="Ex: Mercado, Ração, Combustível" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Categoria</label>
+          <select id="categoria" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="CAT_MERCADO">Supermercado</option>
+            <option value="CAT_COMBUSTIVEL">Combustível</option>
+            <option value="CAT_PETS">Ração, Banho & Pets</option>
+            <option value="CAT_DIZIMO">Dízimo & Ofertas</option>
+            <option value="CAT_CASITA_PREST">Prestação Casita</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Conta</label>
+          <select id="conta" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="ACC_BRADESCO_ABNER">Bradesco Abner</option>
+            <option value="ACC_CARTAO_CREDITO">Reserva Cartão de Crédito</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2 lg:col-span-3">
+          <button type="submit" id="btn-salvar" class="w-full py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-medium text-white transition-all shadow-lg mt-2">
+            Registrar Lançamento
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- Extrato de Transações -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+      <h2 class="text-lg font-semibold text-slate-200">Livro Caixa • Extrato Recente</h2>
+      <div id="lista-transacoes" class="space-y-2">
+        <p class="text-sm text-slate-500 py-4 text-center">Carregando lançamentos...</p>
+      </div>
+    </section>
 
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCjGBOUUThDgCqAOQJtXYeKdq2Pb0IG7PU",
@@ -54,60 +128,100 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const statusBadge = document.getElementById('status-badge');
-    const btnSeed = document.getElementById('btn-seed');
-    const logOutput = document.getElementById('log-output');
+    document.getElementById('data').value = new Date().toISOString().split('T')[0];
 
-    function log(msg) {
-      logOutput.innerHTML += `<br>> ${msg}`;
-      logOutput.scrollTop = logOutput.scrollHeight;
+    const form = document.getElementById('form-transacao');
+    const listaTransacoes = document.getElementById('lista-transacoes');
+    const elEntradas = document.getElementById('total-entradas');
+    const elSaidas = document.getElementById('total-saidas');
+    const elSaldo = document.getElementById('saldo-atual');
+
+    const catNomes = {
+      "CAT_MERCADO": "Supermercado",
+      "CAT_COMBUSTIVEL": "Combustível",
+      "CAT_PETS": "Pets",
+      "CAT_DIZIMO": "Dízimo & Ofertas",
+      "CAT_CASITA_PREST": "Prestação Casita"
+    };
+
+    // Registrar Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
     }
 
-    try {
-      statusBadge.textContent = "Conectado ao Firestore";
-      statusBadge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
-      btnSeed.disabled = false;
-      log("Conexão estabelecida com sucesso com o banco ecossistema-casita!");
-    } catch (err) {
-      statusBadge.textContent = "Erro de Conexão";
-      statusBadge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30";
-      log(`Erro: ${err.message}`);
-    }
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-salvar');
+      btn.disabled = true;
+      btn.textContent = "Gravando...";
 
-    const categoriesData = [
-      { id: "CAT_DIZIMO", display_name: "Dízimo & Ofertas", group: "Cuidados Família & Pets" },
-      { id: "CAT_MERCADO", display_name: "Supermercado", group: "Alimentação & Abastecimento" },
-      { id: "CAT_CASITA_PREST", display_name: "Prestação Casita", group: "Fixas & Moradia" },
-      { id: "CAT_PETS", display_name: "Ração, Banho & Pets", group: "Cuidados Família & Pets" },
-      { id: "CAT_COMBUSTIVEL", display_name: "Combustível", group: "Transporte & Veículo" }
-    ];
-
-    const accountsData = [
-      { id: "ACC_BRADESCO_ABNER", type: "CHECKING", current_balance: 0, display_name: "Bradesco Abner" },
-      { id: "ACC_CARTAO_CREDITO", type: "CREDIT_CARD", current_balance: 0, display_name: "Reserva de Fatura Cartão" }
-    ];
-
-    btnSeed.addEventListener('click', async () => {
-      btnSeed.disabled = true;
-      log("Iniciando gravação das coleções no Firestore...");
+      const novaTransacao = {
+        date: document.getElementById('data').value,
+        type: document.getElementById('tipo').value,
+        amount: parseFloat(document.getElementById('valor').value),
+        description: document.getElementById('descricao').value,
+        category_id: document.getElementById('categoria').value,
+        account_id: document.getElementById('conta').value,
+        status: "VALIDATED",
+        user_owner: document.getElementById('usuario').value,
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString()
+      };
 
       try {
-        for (const cat of categoriesData) {
-          await setDoc(doc(db, "categories", cat.id), cat);
-          log(`Categoria gravada: ${cat.display_name} (${cat.id})`);
-        }
-
-        for (const acc of accountsData) {
-          await setDoc(doc(db, "accounts", acc.id), acc);
-          log(`Conta gravada: ${acc.display_name} (${acc.id})`);
-        }
-
-        log("✅ Semeadura concluída com sucesso! O banco do Dimdim está pronto.");
-      } catch (error) {
-        log(`❌ Falha ao gravar dados: ${error.message}`);
+        await addDoc(collection(db, "transactions"), novaTransacao);
+        form.reset();
+        document.getElementById('data').value = new Date().toISOString().split('T')[0];
+      } catch (err) {
+        alert("Erro ao salvar lançamento: " + err.message);
       } finally {
-        btnSeed.disabled = false;
+        btn.disabled = false;
+        btn.textContent = "Registrar Lançamento";
       }
+    });
+
+    const q = query(collection(db, "transactions"), orderBy("date", "desc"));
+    
+    onSnapshot(q, (snapshot) => {
+      listaTransacoes.innerHTML = "";
+      let totalEntradas = 0;
+      let totalSaidas = 0;
+
+      if (snapshot.empty) {
+        listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado ainda.</p>`;
+      } else {
+        snapshot.forEach((doc) => {
+          const item = doc.data();
+          const isSaida = item.type === "SAIDA";
+
+          if (isSaida) {
+            totalSaidas += item.amount;
+          } else {
+            totalEntradas += item.amount;
+          }
+
+          const corValor = isSaida ? "text-rose-400" : "text-emerald-400";
+          const sinal = isSaida ? "-" : "+";
+
+          const card = document.createElement('div');
+          card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm";
+          card.innerHTML = `
+            <div class="space-y-0.5">
+              <p class="font-medium text-slate-200">${item.description}</p>
+              <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${catNomes[item.category_id] || item.category_id}</span> • <span class="text-slate-500">${item.user_owner || 'Abner'}</span></p>
+            </div>
+            <div class="text-right">
+              <p class="font-bold font-mono ${corValor}">${sinal} R$ ${item.amount.toFixed(2)}</p>
+            </div>
+          `;
+          listaTransacoes.appendChild(card);
+        });
+      }
+
+      const saldo = totalEntradas - totalSaidas;
+      elEntradas.textContent = `R$ ${totalEntradas.toFixed(2)}`;
+      elSaidas.textContent = `R$ ${totalSaidas.toFixed(2)}`;
+      elSaldo.textContent = `R$ ${saldo.toFixed(2)}`;
     });
   </script>
 </body>
