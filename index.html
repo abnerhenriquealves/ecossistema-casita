@@ -80,9 +80,48 @@
     <!-- Matriz Orçamentária / Envelopes Virtuais -->
     <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
       <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-slate-200">Envelopes Orçamentários</h2>
-        <span class="text-xs text-slate-400">Tetos Planejados</span>
+        <div>
+          <h2 class="text-lg font-semibold text-slate-200">Envelopes Orçamentários</h2>
+          <p class="text-xs text-slate-400">Consumo em tempo real vs. Tetos do mês</p>
+        </div>
+        <button id="btn-toggle-gerenciar-cat" type="button" class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-emerald-400 rounded-lg transition-all flex items-center gap-1">
+          <span>⚙️</span> Configurar Tetos / Envelopes
+        </button>
       </div>
+
+      <!-- Painel Expansível de Gerenciamento de Categorias & Tetos -->
+      <div id="painel-gerenciar-categorias" class="hidden bg-slate-950/80 border border-slate-700/80 rounded-lg p-4 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 id="titulo-form-cat" class="text-sm font-semibold text-emerald-400">Novo Envelope / Categoria</h3>
+          <button id="btn-cancelar-cat" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar Edição</button>
+        </div>
+
+        <form id="form-categoria" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <input type="hidden" id="cat-id" value="">
+          <div class="sm:col-span-2">
+            <label class="block text-xs text-slate-400 mb-1">Nome do Envelope / Categoria</label>
+            <input type="text" id="cat-nome" required placeholder="Ex: Farmácia, Pet, Lazer" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Teto Mensal (R$)</label>
+            <input type="number" step="0.01" id="cat-teto" required placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          </div>
+          <div class="sm:col-span-3">
+            <button type="submit" id="btn-salvar-cat" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors">
+              Salvar Envelope
+            </button>
+          </div>
+        </form>
+
+        <div class="border-t border-slate-800 pt-3">
+          <p class="text-xs text-slate-400 mb-2 font-medium">Envelopes Cadastrados no Banco:</p>
+          <div id="lista-gerenciador-categorias" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            <p class="text-xs text-slate-500 text-center py-2">Carregando envelopes...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de Envelopes com Progresso -->
       <div id="lista-envelopes" class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <p class="text-sm text-slate-500 py-2 col-span-2 text-center">Calculando envelopes...</p>
       </div>
@@ -129,14 +168,9 @@
         </div>
 
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Categoria</label>
+          <label class="block text-xs text-slate-400 mb-1">Categoria / Envelope</label>
           <select id="categoria" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-            <option value="CAT_MERCADO">Supermercado</option>
-            <option value="CAT_COMBUSTIVEL">Combustível</option>
-            <option value="CAT_PETS">Ração, Banho & Pets</option>
-            <option value="CAT_DIZIMO">Dízimo & Ofertas</option>
-            <option value="CAT_CASITA_PREST">Prestação Casita</option>
-            <option value="CAT_FATURA_CARTAO">Pagamento de Fatura do Cartão</option>
+            <option value="">Carregando categorias...</option>
           </select>
         </div>
 
@@ -169,7 +203,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCjGBOUUThDgCqAOQJtXYeKdq2Pb0IG7PU",
@@ -200,6 +234,8 @@
     const inputTransacaoId = document.getElementById('transacao-id');
     const tituloForm = document.getElementById('titulo-form');
     const btnCancelarEdicao = document.getElementById('btn-cancelar-edicao');
+    
+    const selectCategoria = document.getElementById('categoria');
     const listaTransacoes = document.getElementById('lista-transacoes');
     const listaEnvelopes = document.getElementById('lista-envelopes');
     const elEntradas = document.getElementById('total-entradas');
@@ -207,13 +243,21 @@
     const elFaturaCartao = document.getElementById('fatura-cartao');
     const elSaldo = document.getElementById('saldo-atual');
 
-    const envelopesConfig = {
-      "CAT_MERCADO": { nome: "Supermercado", teto: 1500.00 },
-      "CAT_COMBUSTIVEL": { nome: "Combustível", teto: 500.00 },
-      "CAT_PETS": { nome: "Ração, Banho & Pets", teto: 400.00 },
-      "CAT_DIZIMO": { nome: "Dízimo & Ofertas", teto: 600.00 },
-      "CAT_CASITA_PREST": { nome: "Prestação Casita", teto: 2000.00 }
-    };
+    // Elementos da Gestão de Categorias
+    const btnToggleGerenciarCat = document.getElementById('btn-toggle-gerenciar-cat');
+    const painelGerenciarCat = document.getElementById('painel-gerenciar-categorias');
+    const formCategoria = document.getElementById('form-categoria');
+    const inputCatId = document.getElementById('cat-id');
+    const inputCatNome = document.getElementById('cat-nome');
+    const inputCatTeto = document.getElementById('cat-teto');
+    const tituloFormCat = document.getElementById('titulo-form-cat');
+    const btnCancelarCat = document.getElementById('btn-cancelar-cat');
+    const btnSalvarCat = document.getElementById('btn-salvar-cat');
+    const listaGerenciadorCat = document.getElementById('lista-gerenciador-categorias');
+
+    // Dicionário Dinâmico de Categorias alimentado pelo Firestore
+    let envelopesConfig = {};
+    let snapshotTransactions = null;
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -221,7 +265,10 @@
       });
     }
 
-    let snapshotCache = null;
+    // Toggle do Painel de Categorias
+    btnToggleGerenciarCat.addEventListener('click', () => {
+      painelGerenciarCat.classList.toggle('hidden');
+    });
 
     btnAbrirPicker.addEventListener('click', () => {
       if ('showPicker' in filtroMesInput) {
@@ -243,6 +290,7 @@
     btnAnterior.addEventListener('click', () => alterarMes(-1));
     btnProximo.addEventListener('click', () => alterarMes(1));
 
+    // Reset de Formulários
     function resetarFormulario() {
       inputTransacaoId.value = "";
       form.reset();
@@ -252,8 +300,80 @@
       btnCancelarEdicao.classList.add('hidden');
     }
 
-    btnCancelarEdicao.addEventListener('click', resetarFormulario);
+    function resetarFormCategoria() {
+      inputCatId.value = "";
+      formCategoria.reset();
+      tituloFormCat.textContent = "Novo Envelope / Categoria";
+      btnSalvarCat.textContent = "Salvar Envelope";
+      btnCancelarCat.classList.add('hidden');
+    }
 
+    btnCancelarEdicao.addEventListener('click', resetarFormulario);
+    btnCancelarCat.addEventListener('click', resetarFormCategoria);
+
+    // Seed Inicial de Categorias se a coleção estiver vazia no Firestore
+    async function inicializarCategoriasPadrao() {
+      const padroes = [
+        { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00 },
+        { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00 },
+        { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00 },
+        { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00 },
+        { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00 }
+      ];
+
+      for (const cat of padroes) {
+        await setDoc(doc(db, "categories", cat.id), {
+          nome: cat.nome,
+          teto: cat.teto,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+
+    // CRUD de Categorias / Envelopes
+    formCategoria.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      btnSalvarCat.disabled = true;
+
+      const catId = inputCatId.value;
+      const nome = inputCatNome.value.trim();
+      const teto = parseFloat(inputCatTeto.value);
+
+      try {
+        if (catId) {
+          await updateDoc(doc(db, "categories", catId), { nome, teto, updated_at: new Date().toISOString() });
+        } else {
+          const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+          await setDoc(doc(db, "categories", novoId), { nome, teto, created_at: new Date().toISOString() });
+        }
+        resetarFormCategoria();
+      } catch (err) {
+        alert("Erro ao salvar categoria: " + err.message);
+      } finally {
+        btnSalvarCat.disabled = false;
+      }
+    });
+
+    window.prepararEdicaoCat = function(id, nome, teto) {
+      inputCatId.value = id;
+      inputCatNome.value = nome;
+      inputCatTeto.value = teto;
+      tituloFormCat.textContent = "Editar Envelope / Categoria";
+      btnSalvarCat.textContent = "Atualizar Envelope";
+      btnCancelarCat.classList.remove('hidden');
+    };
+
+    window.excluirCat = async function(id, nome) {
+      if (confirm(`Deseja excluir a categoria "${nome}"? Lançamentos associados a ela serão mantidos.`)) {
+        try {
+          await deleteDoc(doc(db, "categories", id));
+        } catch (err) {
+          alert("Erro ao excluir categoria: " + err.message);
+        }
+      }
+    };
+
+    // Edição / Exclusão de Transações
     window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, conta, usuario) {
       inputTransacaoId.value = id;
       document.getElementById('data').value = data;
@@ -282,8 +402,9 @@
       }
     };
 
+    // Processamento do Dashboard e Envelopes
     function processarDados() {
-      if (!snapshotCache) return;
+      if (!snapshotTransactions) return;
 
       const mesSelecionado = filtroMesInput.value;
       listaTransacoes.innerHTML = "";
@@ -297,7 +418,7 @@
 
       let contadorItens = 0;
 
-      snapshotCache.forEach((docSnapshot) => {
+      snapshotTransactions.forEach((docSnapshot) => {
         const item = docSnapshot.data();
         const docId = docSnapshot.id;
 
@@ -307,14 +428,12 @@
           const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
 
           if (isSaida) {
-            // Se for compra no cartão, acumula na fatura
             if (isCartao) {
               totalFaturaCartao += item.amount;
             } else {
               totalSaidasDiretas += item.amount;
             }
 
-            // Acumula nos envelopes orçamentários independente do meio de pagamento
             if (acmCategorias[item.category_id] !== undefined) {
               acmCategorias[item.category_id] += item.amount;
             } else {
@@ -327,6 +446,7 @@
           const corValor = isSaida ? (isCartao ? "text-amber-400" : "text-rose-400") : "text-emerald-400";
           const sinal = isSaida ? "-" : "+";
           const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
+          const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (item.category_id === 'CAT_FATURA_CARTAO' ? 'Pagamento Fatura' : item.category_id);
 
           const card = document.createElement('div');
           card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
@@ -334,7 +454,7 @@
           card.innerHTML = `
             <div class="space-y-0.5 overflow-hidden">
               <p class="font-medium text-slate-200 truncate">${item.description}</p>
-              <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${envelopesConfig[item.category_id]?.nome || (item.category_id === 'CAT_FATURA_CARTAO' ? 'Pagamento Fatura' : item.category_id)}</span> • <span class="text-slate-500">${seloConta}</span> • <span class="text-slate-500">${item.user_owner || 'Abner'}</span></p>
+              <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${nomeCatExibicao}</span> • <span class="text-slate-500">${seloConta}</span> • <span class="text-slate-500">${item.user_owner || 'Abner'}</span></p>
             </div>
 
             <div class="flex items-center gap-3 shrink-0">
@@ -358,47 +478,54 @@
         listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado neste mês.</p>`;
       }
 
-      // Saldo em conta desconta saídas diretas e reserva da fatura
       const saldoLivre = totalEntradas - totalSaidasDiretas - totalFaturaCartao;
       elEntradas.textContent = `R$ ${totalEntradas.toFixed(2)}`;
       elSaidas.textContent = `R$ ${totalSaidasDiretas.toFixed(2)}`;
       elFaturaCartao.textContent = `R$ ${totalFaturaCartao.toFixed(2)}`;
       elSaldo.textContent = `R$ ${saldoLivre.toFixed(2)}`;
 
+      // Renderização Dinâmica dos Envelopes
       listaEnvelopes.innerHTML = "";
-      Object.keys(envelopesConfig).forEach(catId => {
-        const env = envelopesConfig[catId];
-        const gasto = acmCategorias[catId] || 0;
-        const pct = Math.min(Math.round((gasto / env.teto) * 100), 100);
-        
-        let corBarra = "bg-emerald-500";
-        let corTextoPct = "text-emerald-400";
+      const listaCatIds = Object.keys(envelopesConfig);
 
-        if (pct >= 100) {
-          corBarra = "bg-rose-500";
-          corTextoPct = "text-rose-400";
-        } else if (pct >= 80) {
-          corBarra = "bg-amber-500";
-          corTextoPct = "text-amber-400";
-        }
+      if (listaCatIds.length === 0) {
+        listaEnvelopes.innerHTML = `<p class="text-sm text-slate-500 py-2 col-span-2 text-center">Nenhum envelope configurado.</p>`;
+      } else {
+        listaCatIds.forEach(catId => {
+          const env = envelopesConfig[catId];
+          const gasto = acmCategorias[catId] || 0;
+          const pct = env.teto > 0 ? Math.min(Math.round((gasto / env.teto) * 100), 100) : 0;
+          
+          let corBarra = "bg-emerald-500";
+          let corTextoPct = "text-emerald-400";
 
-        const envCard = document.createElement('div');
-        envCard.className = "bg-slate-950/50 border border-slate-800/80 p-3 rounded-lg space-y-2";
-        envCard.innerHTML = `
-          <div class="flex justify-between items-center text-xs">
-            <span class="font-medium text-slate-200">${env.nome}</span>
-            <span class="font-semibold ${corTextoPct}">R$ ${gasto.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)</span>
-          </div>
-          <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-            <div class="${corBarra} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-          </div>
-        `;
-        listaEnvelopes.appendChild(envCard);
-      });
+          if (pct >= 100) {
+            corBarra = "bg-rose-500";
+            corTextoPct = "text-rose-400";
+          } else if (pct >= 80) {
+            corBarra = "bg-amber-500";
+            corTextoPct = "text-amber-400";
+          }
+
+          const envCard = document.createElement('div');
+          envCard.className = "bg-slate-950/50 border border-slate-800/80 p-3 rounded-lg space-y-2";
+          envCard.innerHTML = `
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-medium text-slate-200">${env.nome}</span>
+              <span class="font-semibold ${corTextoPct}">R$ ${gasto.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+              <div class="${corBarra} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+            </div>
+          `;
+          listaEnvelopes.appendChild(envCard);
+        });
+      }
     }
 
     filtroMesInput.addEventListener('change', processarDados);
 
+    // Form de Lançamento de Transação
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btn-salvar');
@@ -443,10 +570,54 @@
       }
     });
 
+    // Realtime Listener de Categorias no Firestore
+    onSnapshot(collection(db, "categories"), (snapshot) => {
+      if (snapshot.empty) {
+        inicializarCategoriasPadrao();
+        return;
+      }
+
+      envelopesConfig = {};
+      selectCategoria.innerHTML = "";
+      listaGerenciadorCat.innerHTML = "";
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const id = docSnap.id;
+        envelopesConfig[id] = { nome: data.nome, teto: data.teto };
+
+        // Preenche o Select do Formulário
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `${data.nome} (Teto: R$ ${data.teto.toFixed(2)})`;
+        selectCategoria.appendChild(opt);
+
+        // Preenche a Lista do Gerenciador de Categorias
+        const itemCat = document.createElement('div');
+        itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+        itemCat.innerHTML = `
+          <span class="text-slate-200 font-medium">${data.nome} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
+          <div class="flex items-center gap-2">
+            <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto})" class="text-slate-400 hover:text-sky-400">✏️</button>
+            <button onclick="excluirCat('${id}', '${data.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+          </div>
+        `;
+        listaGerenciadorCat.appendChild(itemCat);
+      });
+
+      // Opção para Pagamento de Fatura no Select
+      const optFatura = document.createElement('option');
+      optFatura.value = "CAT_FATURA_CARTAO";
+      optFatura.textContent = "Pagamento de Fatura do Cartão";
+      selectCategoria.appendChild(optFatura);
+
+      processarDados();
+    });
+
+    // Realtime Listener de Transações
     const q = query(collection(db, "transactions"), orderBy("date", "desc"));
-    
     onSnapshot(q, (snapshot) => {
-      snapshotCache = snapshot;
+      snapshotTransactions = snapshot;
       processarDados();
     });
   </script>
