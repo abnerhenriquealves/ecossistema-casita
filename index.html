@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,43 +16,56 @@
     }
   </style>
 </head>
+
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
   <div class="max-w-4xl mx-auto space-y-6">
-    
+
     <!-- Topo -->
     <header class="flex items-center justify-between border-b border-slate-800 pb-4">
       <div>
         <h1 class="text-2xl font-bold text-emerald-400">Dimdim 💰</h1>
         <p class="text-xs text-slate-400">Ecossistema Casita • Livro Caixa & Orçamento</p>
       </div>
-      <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+      <span id="status-badge"
+        class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
         Conectado
       </span>
     </header>
 
     <!-- Seletor de Período (Navegação Temporal) -->
-    <section class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
+    <section
+      class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
       <div>
         <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
         <p class="text-xs text-slate-400">Navegue pelas setas ou clique no calendário para escolher mês/ano</p>
       </div>
-      
+
       <div class="flex items-center gap-2 w-full sm:w-auto">
-        <button id="btn-mes-anterior" class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow" title="Mês Anterior">
+        <button id="btn-mes-anterior"
+          class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
+          title="Mês Anterior">
           ‹
         </button>
-        
+
         <div class="relative flex items-center w-full sm:w-auto">
-          <input type="month" id="filtro-mes" class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg py-2.5 pl-3 pr-10 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto text-center" style="color-scheme: dark;">
-          
-          <button id="btn-abrir-picker" type="button" class="absolute right-2 text-slate-400 hover:text-emerald-400 p-1.5 focus:outline-none transition-colors" title="Clique para escolher mês e ano">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <input type="month" id="filtro-mes"
+            class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg py-2.5 pl-3 pr-10 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto text-center"
+            style="color-scheme: dark;">
+
+          <button id="btn-abrir-picker" type="button"
+            class="absolute right-2 text-slate-400 hover:text-emerald-400 p-1.5 focus:outline-none transition-colors"
+            title="Clique para escolher mês e ano">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </button>
         </div>
 
-        <button id="btn-mes-proximo" class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow" title="Próximo Mês">
+        <button id="btn-mes-proximo"
+          class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
+          title="Próximo Mês">
           ›
         </button>
       </div>
@@ -88,14 +102,16 @@
     <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
       <div class="flex items-center justify-between">
         <h2 id="titulo-form" class="text-lg font-semibold text-slate-200">Novo Lançamento</h2>
-        <button id="btn-cancelar-edicao" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar Edição</button>
+        <button id="btn-cancelar-edicao" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
+          Edição</button>
       </div>
       <form id="form-transacao" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <input type="hidden" id="transacao-id" value="">
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Lançado por</label>
-          <select id="usuario" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          <select id="usuario"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
             <option value="Abner">Abner</option>
             <option value="Lucélia">Lucélia</option>
           </select>
@@ -103,7 +119,8 @@
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Tipo</label>
-          <select id="tipo" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          <select id="tipo"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
             <option value="SAIDA">Saída (-)</option>
             <option value="ENTRADA">Entrada (+)</option>
           </select>
@@ -111,22 +128,27 @@
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Valor (R$)</label>
-          <input type="number" step="0.01" id="valor" required placeholder="0,00" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          <input type="number" step="0.01" id="valor" required placeholder="0,00"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
         </div>
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Data</label>
-          <input type="date" id="data" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500" style="color-scheme: dark;">
+          <input type="date" id="data" required
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+            style="color-scheme: dark;">
         </div>
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Descrição</label>
-          <input type="text" id="descricao" required placeholder="Ex: Mercado, Ração, Combustível" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          <input type="text" id="descricao" required placeholder="Ex: Mercado, Ração, Combustível"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
         </div>
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Categoria</label>
-          <select id="categoria" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          <select id="categoria"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
             <option value="CAT_MERCADO">Supermercado</option>
             <option value="CAT_COMBUSTIVEL">Combustível</option>
             <option value="CAT_PETS">Ração, Banho & Pets</option>
@@ -137,14 +159,16 @@
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Conta</label>
-          <select id="conta" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          <select id="conta"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
             <option value="ACC_BRADESCO_ABNER">Bradesco Abner</option>
             <option value="ACC_CARTAO_CREDITO">Reserva Cartão de Crédito</option>
           </select>
         </div>
 
         <div class="md:col-span-2 lg:col-span-3">
-          <button type="submit" id="btn-salvar" class="w-full py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-medium text-white transition-all shadow-lg mt-2">
+          <button type="submit" id="btn-salvar"
+            class="w-full py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-medium text-white transition-all shadow-lg mt-2">
             Registrar Lançamento
           </button>
         </div>
@@ -210,7 +234,7 @@
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.register('./sw.js').catch(() => { });
       });
     }
 
@@ -247,26 +271,26 @@
 
     btnCancelarEdicao.addEventListener('click', resetarFormulario);
 
-    window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, conta, usuario) {
-  inputTransacaoId.value = id;
-  document.getElementById('data').value = data;
-  document.getElementById('tipo').value = tipo;
-  document.getElementById('valor').value = valor;
-  document.getElementById('descricao').value = descricao;
-  document.getElementById('categoria').value = categoria;
-  document.getElementById('conta').value = conta;
-  document.getElementById('usuario').value = usuario;
+    window.prepararEdicao = function (id, data, tipo, valor, descricao, categoria, conta, usuario) {
+      inputTransacaoId.value = id;
+      document.getElementById('data').value = data;
+      document.getElementById('tipo').value = tipo;
+      document.getElementById('valor').value = valor;
+      document.getElementById('descricao').value = descricao;
+      document.getElementById('categoria').value = categoria;
+      document.getElementById('conta').value = conta;
+      document.getElementById('usuario').value = usuario;
 
-  tituloForm.textContent = "Editar Lançamento";
-  document.getElementById('btn-salvar').textContent = "Atualizar Lançamento";
-  btnCancelarEdicao.classList.remove('hidden');
+      tituloForm.textContent = "Editar Lançamento";
+      document.getElementById('btn-salvar').textContent = "Atualizar Lançamento";
+      btnCancelarEdicao.classList.remove('hidden');
 
-  // Rola a tela até o formulário e coloca o cursor no campo Valor
-  form.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  document.getElementById('valor').focus();
-};
+      // Rola a tela até o formulário e coloca o cursor no campo Valor
+      form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('valor').focus();
+    };
 
-    window.excluirTransacao = async function(id, descricao) {
+    window.excluirTransacao = async function (id, descricao) {
       if (confirm(`Deseja realmente excluir o lançamento "${descricao}"?`)) {
         try {
           await deleteDoc(doc(db, "transactions", id));
@@ -314,7 +338,7 @@
 
           const card = document.createElement('div');
           card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
-          
+
           card.innerHTML = `
             <div class="space-y-0.5 overflow-hidden">
               <p class="font-medium text-slate-200 truncate">${item.description}</p>
@@ -352,7 +376,7 @@
         const env = envelopesConfig[catId];
         const gasto = acmCategorias[catId] || 0;
         const pct = Math.min(Math.round((gasto / env.teto) * 100), 100);
-        
+
         let corBarra = "bg-emerald-500";
         let corTextoPct = "text-emerald-400";
 
@@ -410,7 +434,7 @@
           dadosTransacao.created_at = new Date().toISOString();
           await addDoc(collection(db, "transactions"), dadosTransacao);
         }
-        
+
         const mesDoLancamento = dataLancamento.substring(0, 7);
         if (filtroMesInput.value !== mesDoLancamento) {
           filtroMesInput.value = mesDoLancamento;
@@ -426,11 +450,12 @@
     });
 
     const q = query(collection(db, "transactions"), orderBy("date", "desc"));
-    
+
     onSnapshot(q, (snapshot) => {
       snapshotCache = snapshot;
       processarDados();
     });
   </script>
 </body>
+
 </html>
