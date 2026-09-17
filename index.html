@@ -8,10 +8,11 @@
   <meta name="theme-color" content="#0f172a">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* Força o ícone nativo do calendário no desktop a ficar visível no modo escuro */
+    /* Força a visibilidade e estilo do campo no dark mode */
     input[type="month"]::-webkit-calendar-picker-indicator {
-      filter: invert(1);
-      cursor: pointer;
+      opacity: 0;
+      width: 0;
+      display: none;
     }
   </style>
 </head>
@@ -29,20 +30,28 @@
       </span>
     </header>
 
-    <!-- Seletor de Período (Navegação Temporal com Controles) -->
+    <!-- Seletor de Período (Navegação Temporal com Seletor Visual) -->
     <section class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
       <div>
         <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
-        <p class="text-xs text-slate-400">Navegue pelos meses para filtrar envelopes e extrato</p>
+        <p class="text-xs text-slate-400">Navegue pelas setas ou clique no calendário para escolher mês/ano</p>
       </div>
       
-      <!-- Controles com Setas + Seletor de Data -->
+      <!-- Controles com Setas + Seletor de Data + Botão Calendário -->
       <div class="flex items-center gap-2 w-full sm:w-auto">
         <button id="btn-mes-anterior" class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow" title="Mês Anterior">
           ‹
         </button>
         
-        <input type="month" id="filtro-mes" class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg p-2.5 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto text-center" style="color-scheme: dark;">
+        <div class="relative flex items-center w-full sm:w-auto">
+          <input type="month" id="filtro-mes" class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg py-2.5 pl-3 pr-10 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto text-center" style="color-scheme: dark;">
+          
+          <button id="btn-abrir-picker" type="button" class="absolute right-2 text-slate-400 hover:text-emerald-400 p-1.5 focus:outline-none transition-colors" title="Clique para escolher mês e ano">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+        </div>
 
         <button id="btn-mes-proximo" class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow" title="Próximo Mês">
           ›
@@ -174,6 +183,7 @@
     const filtroMesInput = document.getElementById('filtro-mes');
     const btnAnterior = document.getElementById('btn-mes-anterior');
     const btnProximo = document.getElementById('btn-mes-proximo');
+    const btnAbrirPicker = document.getElementById('btn-abrir-picker');
 
     filtroMesInput.value = `${anoAtual}-${mesAtual}`;
     document.getElementById('data').value = hoje.toISOString().split('T')[0];
@@ -201,7 +211,15 @@
 
     let snapshotCache = null;
 
-    // Função para avançar ou voltar o mês selecionado
+    // Ação do Botão Ícone de Calendário (Abre o seletor nativo do navegador)
+    btnAbrirPicker.addEventListener('click', () => {
+      if ('showPicker' in filtroMesInput) {
+        filtroMesInput.showPicker();
+      } else {
+        filtroMesInput.focus();
+      }
+    });
+
     function alterarMes(delta) {
       const [ano, mes] = filtroMesInput.value.split('-').map(Number);
       const novaData = new Date(ano, mes - 1 + delta, 1);
