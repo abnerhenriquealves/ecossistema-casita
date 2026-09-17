@@ -13,6 +13,19 @@
       width: 0;
       display: none;
     }
+    
+    /* Transição Suave para o Painel de Configuração */
+    .painel-expansivel {
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out, margin-top 0.3s ease;
+    }
+    .painel-expansivel.aberto {
+      max-height: 800px;
+      opacity: 1;
+      margin-top: 1rem;
+    }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
@@ -78,7 +91,7 @@
     </section>
 
     <!-- Matriz Orçamentária / Envelopes Virtuais -->
-    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl">
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-lg font-semibold text-slate-200">Envelopes Orçamentários</h2>
@@ -89,11 +102,16 @@
         </button>
       </div>
 
-      <!-- Painel Expansível de Gerenciamento de Categorias & Tetos -->
-      <div id="painel-gerenciar-categorias" class="hidden bg-slate-950/80 border border-slate-700/80 rounded-lg p-4 space-y-4">
+      <!-- Painel Expansível (Suave) -->
+      <div id="painel-gerenciar-categorias" class="painel-expansivel bg-slate-950/90 border border-slate-700/80 rounded-lg p-4 space-y-4">
         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
           <h3 id="titulo-form-cat" class="text-sm font-semibold text-emerald-400">Novo Envelope / Categoria</h3>
-          <button id="btn-cancelar-cat" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar Edição</button>
+          <div class="flex items-center gap-3">
+            <button id="btn-restaurar-padroes" type="button" class="text-xs text-amber-400 hover:text-amber-300 font-medium hover:underline flex items-center gap-1">
+              ⚡ Restaurar Padrões Casita
+            </button>
+            <button id="btn-cancelar-cat" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar Edição</button>
+          </div>
         </div>
 
         <form id="form-categoria" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -122,7 +140,7 @@
       </div>
 
       <!-- Lista de Envelopes com Progresso -->
-      <div id="lista-envelopes" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div id="lista-envelopes" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
         <p class="text-sm text-slate-500 py-2 col-span-2 text-center">Calculando envelopes...</p>
       </div>
     </section>
@@ -246,6 +264,7 @@
     // Elementos da Gestão de Categorias
     const btnToggleGerenciarCat = document.getElementById('btn-toggle-gerenciar-cat');
     const painelGerenciarCat = document.getElementById('painel-gerenciar-categorias');
+    const btnRestaurarPadroes = document.getElementById('btn-restaurar-padroes');
     const formCategoria = document.getElementById('form-categoria');
     const inputCatId = document.getElementById('cat-id');
     const inputCatNome = document.getElementById('cat-nome');
@@ -255,7 +274,6 @@
     const btnSalvarCat = document.getElementById('btn-salvar-cat');
     const listaGerenciadorCat = document.getElementById('lista-gerenciador-categorias');
 
-    // Dicionário Dinâmico de Categorias alimentado pelo Firestore
     let envelopesConfig = {};
     let snapshotTransactions = null;
 
@@ -265,9 +283,9 @@
       });
     }
 
-    // Toggle do Painel de Categorias
+    // Toggle Suave do Painel
     btnToggleGerenciarCat.addEventListener('click', () => {
-      painelGerenciarCat.classList.toggle('hidden');
+      painelGerenciarCat.classList.toggle('aberto');
     });
 
     btnAbrirPicker.addEventListener('click', () => {
@@ -290,7 +308,6 @@
     btnAnterior.addEventListener('click', () => alterarMes(-1));
     btnProximo.addEventListener('click', () => alterarMes(1));
 
-    // Reset de Formulários
     function resetarFormulario() {
       inputTransacaoId.value = "";
       form.reset();
@@ -311,8 +328,8 @@
     btnCancelarEdicao.addEventListener('click', resetarFormulario);
     btnCancelarCat.addEventListener('click', resetarFormCategoria);
 
-    // Seed Inicial de Categorias se a coleção estiver vazia no Firestore
-    async function inicializarCategoriasPadrao() {
+    // Função para Forçar a Gravação dos 5 Envelopes Padrão da Casita
+    async function restaurarCategoriasPadrao() {
       const padroes = [
         { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00 },
         { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00 },
@@ -330,7 +347,13 @@
       }
     }
 
-    // CRUD de Categorias / Envelopes
+    btnRestaurarPadroes.addEventListener('click', async () => {
+      if (confirm("Deseja restaurar os 5 envelopes padrão da Casita no banco de dados?")) {
+        await restaurarCategoriasPadrao();
+      }
+    });
+
+    // CRUD de Categorias
     formCategoria.addEventListener('submit', async (e) => {
       e.preventDefault();
       btnSalvarCat.disabled = true;
@@ -364,7 +387,7 @@
     };
 
     window.excluirCat = async function(id, nome) {
-      if (confirm(`Deseja excluir a categoria "${nome}"? Lançamentos associados a ela serão mantidos.`)) {
+      if (confirm(`Deseja excluir a categoria "${nome}"?`)) {
         try {
           await deleteDoc(doc(db, "categories", id));
         } catch (err) {
@@ -402,7 +425,6 @@
       }
     };
 
-    // Processamento do Dashboard e Envelopes
     function processarDados() {
       if (!snapshotTransactions) return;
 
@@ -484,7 +506,6 @@
       elFaturaCartao.textContent = `R$ ${totalFaturaCartao.toFixed(2)}`;
       elSaldo.textContent = `R$ ${saldoLivre.toFixed(2)}`;
 
-      // Renderização Dinâmica dos Envelopes
       listaEnvelopes.innerHTML = "";
       const listaCatIds = Object.keys(envelopesConfig);
 
@@ -525,7 +546,6 @@
 
     filtroMesInput.addEventListener('change', processarDados);
 
-    // Form de Lançamento de Transação
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btn-salvar');
@@ -570,10 +590,10 @@
       }
     });
 
-    // Realtime Listener de Categorias no Firestore
+    // Realtime Listener de Categorias
     onSnapshot(collection(db, "categories"), (snapshot) => {
       if (snapshot.empty) {
-        inicializarCategoriasPadrao();
+        restaurarCategoriasPadrao();
         return;
       }
 
@@ -586,13 +606,11 @@
         const id = docSnap.id;
         envelopesConfig[id] = { nome: data.nome, teto: data.teto };
 
-        // Preenche o Select do Formulário
         const opt = document.createElement('option');
         opt.value = id;
         opt.textContent = `${data.nome} (Teto: R$ ${data.teto.toFixed(2)})`;
         selectCategoria.appendChild(opt);
 
-        // Preenche a Lista do Gerenciador de Categorias
         const itemCat = document.createElement('div');
         itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
         itemCat.innerHTML = `
@@ -605,7 +623,6 @@
         listaGerenciadorCat.appendChild(itemCat);
       });
 
-      // Opção para Pagamento de Fatura no Select
       const optFatura = document.createElement('option');
       optFatura.value = "CAT_FATURA_CARTAO";
       optFatura.textContent = "Pagamento de Fatura do Cartão";
@@ -614,7 +631,6 @@
       processarDados();
     });
 
-    // Realtime Listener de Transações
     const q = query(collection(db, "transactions"), orderBy("date", "desc"));
     onSnapshot(q, (snapshot) => {
       snapshotTransactions = snapshot;
