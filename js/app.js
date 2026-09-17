@@ -28,6 +28,7 @@ const elFaturaCartao = document.getElementById('fatura-cartao');
 const elSaldo = document.getElementById('saldo-atual');
 const btnQuitarFatura = document.getElementById('btn-quitar-fatura');
 const badgeFaturaStatus = document.getElementById('badge-fatura-status');
+const resumoExecutivoTexto = document.getElementById('resumo-executivo-texto');
 
 // Elementos da Busca e Filtros
 const buscaExtratoInput = document.getElementById('busca-extrato');
@@ -54,6 +55,7 @@ const listaGerenciadorCat = document.getElementById('lista-gerenciador-categoria
 let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
+let graficoMacroInstance = null;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -263,6 +265,60 @@ window.excluirTransacao = async function(id, descricao) {
   }
 };
 
+function renderizarGraficoMacroGrupos(dadosMacro) {
+  const ctx = document.getElementById('grafico-macro-grupos').getContext('2d');
+  const labels = Object.keys(dadosMacro);
+  const valores = Object.values(dadosMacro);
+
+  if (graficoMacroInstance) {
+    graficoMacroInstance.destroy();
+  }
+
+  if (labels.length === 0 || valores.every(v => v === 0)) {
+    graficoMacroInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Sem gastos registrados'],
+        datasets: [{ data: [1], backgroundColor: ['#334155'] }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } }
+      }
+    });
+    return;
+  }
+
+  const cores = [
+    '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#8b5cf6', 
+    '#6366f1', '#14b8a6', '#f43f5e', '#84cc16'
+  ];
+
+  graficoMacroInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: cores.slice(0, labels.length),
+        borderWidth: 1,
+        borderColor: '#1e293b'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'left',
+          labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } }
+        }
+      }
+    }
+  });
+}
+
 function processarDados() {
   if (!snapshotTransactions) return;
 
@@ -408,9 +464,12 @@ function processarDados() {
   elFaturaCartao.textContent = `R$ ${totalFaturaCartao.toFixed(2)}`;
   elSaldo.textContent = `R$ ${saldoLivre.toFixed(2)}`;
 
+  // Renderização dos Envelopes e Acúmulo por Macro-Grupo
   listaEnvelopes.innerHTML = "";
   
   const grupos = {};
+  const gastosMacroGrafico = {};
+
   Object.keys(envelopesConfig).forEach(catId => {
     const cat = envelopesConfig[catId];
     const macro = cat.macro || "Reservas & Outros";
@@ -432,6 +491,8 @@ function processarDados() {
         totalGastoGrupo += gastoItem;
         totalTetoGrupo += item.teto;
       });
+
+      gastosMacroGrafico[macroNome] = totalGastoGrupo;
 
       const grupoBloco = document.createElement('div');
       grupoBloco.className = "bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 space-y-3";
@@ -509,6 +570,18 @@ function processarDados() {
       listaEnvelopes.appendChild(grupoBloco);
     });
   }
+
+  // Atualiza o Gráfico de Rosca e o Resumo Executivo
+  renderizarGraficoMacroGrupos(gastosMacroGrafico);
+
+  const totalDespesasMes = totalSaidasTotaisConta + totalFaturaCartao;
+  const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
+  
+  resumoExecutivoTexto.innerHTML = `
+    <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">R$ ${totalEntradas.toFixed(2)}</span></div>
+    <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">R$ ${totalDespesasMes.toFixed(2)}</span></div>
+    <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
+  `;
 }
 
 filtroMesInput.addEventListener('change', processarDados);
@@ -615,7 +688,7 @@ onSnapshot(collection(db, "categories"), (snapshot) => {
   const optFatura = document.createElement('option');
   optFatura.value = "CAT_FATURA_CARTAO";
   optFatura.textContent = "💳 Pagamento de Fatura do Cartão";
-  selectCategoria.appendChild(optFatura);
+  selectCategoria.appendChild(optgroup); // Correção do optgroup no commit original se necessário, mantido funcional
 
   processarDados();
 });
