@@ -1,0 +1,627 @@
+import { db, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy } from "./firebase-config.js";
+
+const hoje = new Date();
+const anoAtual = hoje.getFullYear();
+const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+
+// Elementos de Interface
+const filtroMesInput = document.getElementById('filtro-mes');
+const btnAnterior = document.getElementById('btn-mes-anterior');
+const btnProximo = document.getElementById('btn-mes-proximo');
+const btnAbrirPicker = document.getElementById('btn-abrir-picker');
+
+filtroMesInput.value = `${anoAtual}-${mesAtual}`;
+document.getElementById('data').value = hoje.toISOString().split('T')[0];
+
+const form = document.getElementById('form-transacao');
+const secaoFormulario = document.getElementById('secao-formulario');
+const inputTransacaoId = document.getElementById('transacao-id');
+const tituloForm = document.getElementById('titulo-form');
+const btnCancelarEdicao = document.getElementById('btn-cancelar-edicao');
+
+const selectCategoria = document.getElementById('categoria');
+const listaTransacoes = document.getElementById('lista-transacoes');
+const listaEnvelopes = document.getElementById('lista-envelopes');
+const elEntradas = document.getElementById('total-entradas');
+const elSaidas = document.getElementById('total-saidas');
+const elFaturaCartao = document.getElementById('fatura-cartao');
+const elSaldo = document.getElementById('saldo-atual');
+const btnQuitarFatura = document.getElementById('btn-quitar-fatura');
+const badgeFaturaStatus = document.getElementById('badge-fatura-status');
+
+// Elementos da Busca e Filtros
+const buscaExtratoInput = document.getElementById('busca-extrato');
+const filtroUsuarioExtrato = document.getElementById('filtro-usuario-extrato');
+const filtroContaExtrato = document.getElementById('filtro-conta-extrato');
+const filtroTipoExtrato = document.getElementById('filtro-tipo-extrato');
+const contadorExtrato = document.getElementById('contador-extrato');
+
+// Elementos da Gestão de Categorias
+const btnToggleGerenciarCat = document.getElementById('btn-toggle-gerenciar-cat');
+const painelGerenciarCat = document.getElementById('painel-gerenciar-categorias');
+const btnRestaurarPadroes = document.getElementById('btn-restaurar-padroes');
+const formCategoria = document.getElementById('form-categoria');
+const inputCatId = document.getElementById('cat-id');
+const inputCatNome = document.getElementById('cat-nome');
+const inputCatTeto = document.getElementById('cat-teto');
+const selectCatMacro = document.getElementById('cat-macro');
+const checkCatAcumulativa = document.getElementById('cat-acumulativa');
+const tituloFormCat = document.getElementById('titulo-form-cat');
+const btnCancelarCat = document.getElementById('btn-cancelar-cat');
+const btnSalvarCat = document.getElementById('btn-salvar-cat');
+const listaGerenciadorCat = document.getElementById('lista-gerenciador-categorias');
+
+let envelopesConfig = {};
+let snapshotTransactions = null;
+let valorFaturaPendenteAtual = 0;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+[buscaExtratoInput, filtroUsuarioExtrato, filtroContaExtrato, filtroTipoExtrato].forEach(el => {
+  el.addEventListener('input', processarDados);
+  el.addEventListener('change', processarDados);
+});
+
+btnToggleGerenciarCat.addEventListener('click', () => {
+  painelGerenciarCat.classList.toggle('aberto');
+});
+
+btnAbrirPicker.addEventListener('click', () => {
+  if ('showPicker' in filtroMesInput) {
+    filtroMesInput.showPicker();
+  } else {
+    filtroMesInput.focus();
+  }
+});
+
+function alterarMes(delta) {
+  const [ano, mes] = filtroMesInput.value.split('-').map(Number);
+  const novaData = new Date(ano, mes - 1 + delta, 1);
+  const novoAno = novaData.getFullYear();
+  const novoMes = String(novaData.getMonth() + 1).padStart(2, '0');
+  filtroMesInput.value = `${novoAno}-${novoMes}`;
+  processarDados();
+}
+
+btnAnterior.addEventListener('click', () => alterarMes(-1));
+btnProximo.addEventListener('click', () => alterarMes(1));
+
+function resetarFormulario() {
+  inputTransacaoId.value = "";
+  form.reset();
+  document.getElementById('data').value = new Date().toISOString().split('T')[0];
+  tituloForm.textContent = "Novo Lançamento";
+  document.getElementById('btn-salvar').textContent = "Registrar Lançamento";
+  btnCancelarEdicao.classList.add('hidden');
+}
+
+function resetarFormCategoria() {
+  inputCatId.value = "";
+  formCategoria.reset();
+  checkCatAcumulativa.checked = false;
+  tituloFormCat.textContent = "Novo Envelope / Categoria";
+  btnSalvarCat.textContent = "Salvar Envelope";
+  btnCancelarCat.classList.add('hidden');
+}
+
+btnCancelarEdicao.addEventListener('click', resetarFormulario);
+btnCancelarCat.addEventListener('click', resetarFormCategoria);
+
+// Seed dos Envelopes Padrão
+async function restaurarCategoriasPadrao() {
+  const padroes = [
+    { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé", is_sinking_fund: false },
+    { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro: "Habitação & Custos Fixos", is_sinking_fund: false },
+    { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro: "Alimentação & Social", is_sinking_fund: false },
+    { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro: "Transporte", is_sinking_fund: false },
+    { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro: "Nossos Meninos (Pets)", is_sinking_fund: false },
+    { id: "CAT_MANUT_CASITA", nome: "Caixinha Manutenção da Casita", teto: 1000.00, macro: "Habitação & Custos Fixos", is_sinking_fund: true }
+  ];
+
+  for (const cat of padroes) {
+    await setDoc(doc(db, "categories", cat.id), {
+      nome: cat.nome,
+      teto: cat.teto,
+      macro_grupo: cat.macro,
+      is_sinking_fund: cat.is_sinking_fund,
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+btnRestaurarPadroes.addEventListener('click', async () => {
+  if (confirm("Deseja restaurar os envelopes padrão da Casita organizados por Macro-Grupos?")) {
+    await restaurarCategoriasPadrao();
+  }
+});
+
+// CRUD de Categorias
+formCategoria.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  btnSalvarCat.disabled = true;
+
+  const catId = inputCatId.value;
+  const nome = inputCatNome.value.trim();
+  const teto = parseFloat(inputCatTeto.value);
+  const macro = selectCatMacro.value;
+  const isAcumulativa = checkCatAcumulativa.checked;
+
+  try {
+    if (catId) {
+      await updateDoc(doc(db, "categories", catId), { 
+        nome, 
+        teto, 
+        macro_grupo: macro, 
+        is_sinking_fund: isAcumulativa, 
+        updated_at: new Date().toISOString() 
+      });
+    } else {
+      const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+      await setDoc(doc(db, "categories", novoId), { 
+        nome, 
+        teto, 
+        macro_grupo: macro, 
+        is_sinking_fund: isAcumulativa, 
+        created_at: new Date().toISOString() 
+      });
+    }
+    resetarFormCategoria();
+  } catch (err) {
+    alert("Erro ao salvar categoria: " + err.message);
+  } finally {
+    btnSalvarCat.disabled = false;
+  }
+});
+
+window.prepararEdicaoCat = function(id, nome, teto, macro, isAcumulativa) {
+  inputCatId.value = id;
+  inputCatNome.value = nome;
+  inputCatTeto.value = teto;
+  if (macro) selectCatMacro.value = macro;
+  checkCatAcumulativa.checked = !!isAcumulativa;
+  
+  tituloFormCat.textContent = "Editar Envelope / Categoria";
+  btnSalvarCat.textContent = "Atualizar Envelope";
+  btnCancelarCat.classList.remove('hidden');
+};
+
+window.excluirCat = async function(id, nome) {
+  if (confirm(`Deseja excluir a categoria "${nome}"?`)) {
+    try {
+      await deleteDoc(doc(db, "categories", id));
+    } catch (err) {
+      alert("Erro ao excluir categoria: " + err.message);
+    }
+  }
+};
+
+// Quitação da Fatura do Cartão
+btnQuitarFatura.addEventListener('click', async () => {
+  if (valorFaturaPendenteAtual <= 0) return;
+
+  const mesSel = filtroMesInput.value;
+  if (confirm(`Confirmar o pagamento da fatura no valor de R$ ${valorFaturaPendenteAtual.toFixed(2)} debitando da Conta Corrente?`)) {
+    btnQuitarFatura.disabled = true;
+    btnQuitarFatura.textContent = "Processando quitação...";
+
+    const dataQuitacao = `${mesSel}-28`;
+
+    const dadosTransacao = {
+      date: dataQuitacao,
+      type: "SAIDA",
+      amount: valorFaturaPendenteAtual,
+      description: `Quitação Fatura Cartão (${mesSel})`,
+      category_id: "CAT_FATURA_CARTAO",
+      account_id: "ACC_BRADESCO_ABNER",
+      status: "VALIDATED",
+      user_owner: document.getElementById('usuario').value || "Abner",
+      source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      await addDoc(collection(db, "transactions"), dadosTransacao);
+    } catch (err) {
+      alert("Erro ao quitar fatura: " + err.message);
+    } finally {
+      btnQuitarFatura.disabled = false;
+    }
+  }
+});
+
+// Edição / Exclusão de Transações
+window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, conta, usuario) {
+  inputTransacaoId.value = id;
+  document.getElementById('data').value = data;
+  document.getElementById('tipo').value = tipo;
+  document.getElementById('valor').value = valor;
+  document.getElementById('descricao').value = descricao;
+  document.getElementById('categoria').value = categoria;
+  document.getElementById('conta').value = conta;
+  document.getElementById('usuario').value = usuario;
+
+  tituloForm.textContent = "Editar Lançamento";
+  document.getElementById('btn-salvar').textContent = "Atualizar Lançamento";
+  btnCancelarEdicao.classList.remove('hidden');
+
+  secaoFormulario.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.getElementById('valor').focus();
+};
+
+window.excluirTransacao = async function(id, descricao) {
+  if (confirm(`Deseja realmente excluir o lançamento "${descricao}"?`)) {
+    try {
+      await deleteDoc(doc(db, "transactions", id));
+    } catch (err) {
+      alert("Erro ao excluir lançamento: " + err.message);
+    }
+  }
+};
+
+function processarDados() {
+  if (!snapshotTransactions) return;
+
+  const mesSelecionado = filtroMesInput.value;
+  listaTransacoes.innerHTML = "";
+
+  let totalEntradas = 0;
+  let totalSaidasDiretasSemFatura = 0;
+  let totalFaturaCartao = 0;
+  let totalPagamentosFatura = 0;
+
+  const acmCategoriasMes = {};
+  const acmCategoriasHistSaida = {};
+  const acmCategoriasHistEntrada = {};
+
+  Object.keys(envelopesConfig).forEach(catId => {
+    acmCategoriasMes[catId] = 0;
+    acmCategoriasHistSaida[catId] = 0;
+    acmCategoriasHistEntrada[catId] = 0;
+  });
+
+  const termoBusca = buscaExtratoInput.value.toLowerCase().trim();
+  const usrFiltro = filtroUsuarioExtrato.value;
+  const contaFiltro = filtroContaExtrato.value;
+  const tipoFiltro = filtroTipoExtrato.value;
+
+  let totalItensMes = 0;
+  let totalItensExibidos = 0;
+
+  snapshotTransactions.forEach((docSnapshot) => {
+    const item = docSnapshot.data();
+    const docId = docSnapshot.id;
+    if (!item.date) return;
+
+    const itemMes = item.date.substring(0, 7);
+    const isAteMesSelecionado = itemMes <= mesSelecionado;
+    const isMesAtual = itemMes === mesSelecionado;
+    const isSaida = item.type === "SAIDA";
+    const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
+    const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
+
+    if (isAteMesSelecionado && item.category_id && !isPagtoFatura) {
+      if (isSaida) {
+        acmCategoriasHistSaida[item.category_id] = (acmCategoriasHistSaida[item.category_id] || 0) + item.amount;
+      } else {
+        acmCategoriasHistEntrada[item.category_id] = (acmCategoriasHistEntrada[item.category_id] || 0) + item.amount;
+      }
+    }
+
+    if (isMesAtual) {
+      totalItensMes++;
+      const usuarioItem = item.user_owner || 'Abner';
+
+      if (isSaida) {
+        if (isCartao) {
+          totalFaturaCartao += item.amount;
+        } else if (isPagtoFatura) {
+          totalPagamentosFatura += item.amount;
+        } else {
+          totalSaidasDiretasSemFatura += item.amount;
+        }
+
+        if (!isPagtoFatura) {
+          acmCategoriasMes[item.category_id] = (acmCategoriasMes[item.category_id] || 0) + item.amount;
+        }
+      } else {
+        totalEntradas += item.amount;
+      }
+
+      const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id);
+      const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
+      const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
+      const matchConta = contaFiltro === "TODAS" || item.account_id === contaFiltro;
+      const matchTipo = tipoFiltro === "TODOS" || item.type === tipoFiltro;
+
+      if (matchBusca && matchUsuario && matchConta && matchTipo) {
+        totalItensExibidos++;
+
+        const corValor = isSaida ? (isCartao ? "text-amber-400" : (isPagtoFatura ? "text-sky-400" : "text-rose-400")) : "text-emerald-400";
+        const sinal = isSaida ? "-" : "+";
+        const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
+
+        const card = document.createElement('div');
+        card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
+        
+        card.innerHTML = `
+          <div class="space-y-0.5 overflow-hidden">
+            <p class="font-medium text-slate-200 truncate">${item.description}</p>
+            <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${nomeCatExibicao}</span> • <span class="text-slate-500">${seloConta}</span> • <span class="text-slate-500">${usuarioItem}</span></p>
+          </div>
+
+          <div class="flex items-center gap-3 shrink-0">
+            <p class="font-bold font-mono ${corValor}">${sinal} R$ ${item.amount.toFixed(2)}</p>
+            
+            <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
+              <button onclick="prepararEdicao('${docId}', '${item.date}', '${item.type}', ${item.amount}, '${item.description.replace(/'/g, "\\'")}', '${item.category_id}', '${item.account_id}', '${usuarioItem}')" class="p-1 text-slate-400 hover:text-sky-400 transition-colors" title="Editar">
+                ✏️
+              </button>
+              <button onclick="excluirTransacao('${docId}', '${item.description.replace(/'/g, "\\'")}')" class="p-1 text-slate-400 hover:text-rose-400 transition-colors" title="Excluir">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+        listaTransacoes.appendChild(card);
+      }
+    }
+  });
+
+  if (totalItensMes === 0) {
+    contadorExtrato.textContent = "Nenhum lançamento no mês";
+    listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado neste mês.</p>`;
+  } else if (totalItensExibidos === 0) {
+    contadorExtrato.textContent = `0 de ${totalItensMes} lançamentos encontrados`;
+    listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento corresponde aos filtros ativos.</p>`;
+  } else {
+    contadorExtrato.textContent = `Exibindo ${totalItensExibidos} de ${totalItensMes} lançamentos`;
+  }
+
+  valorFaturaPendenteAtual = Math.max(0, totalFaturaCartao - totalPagamentosFatura);
+  const faturaEstaQuitada = totalFaturaCartao > 0 && valorFaturaPendenteAtual === 0;
+
+  if (faturaEstaQuitada) {
+    badgeFaturaStatus.classList.remove('hidden');
+    btnQuitarFatura.classList.add('hidden');
+    btnQuitarFatura.classList.remove('flex');
+  } else if (valorFaturaPendenteAtual > 0) {
+    badgeFaturaStatus.classList.add('hidden');
+    btnQuitarFatura.classList.remove('hidden');
+    btnQuitarFatura.classList.add('flex');
+    btnQuitarFatura.textContent = `💳 Quitar R$ ${valorFaturaPendenteAtual.toFixed(2)}`;
+  } else {
+    badgeFaturaStatus.classList.add('hidden');
+    btnQuitarFatura.classList.add('hidden');
+    btnQuitarFatura.classList.remove('flex');
+  }
+
+  const totalSaidasTotaisConta = totalSaidasDiretasSemFatura + totalPagamentosFatura;
+  const saldoLivre = totalEntradas - totalSaidasTotaisConta - valorFaturaPendenteAtual;
+
+  elEntradas.textContent = `R$ ${totalEntradas.toFixed(2)}`;
+  elSaidas.textContent = `R$ ${totalSaidasTotaisConta.toFixed(2)}`;
+  elFaturaCartao.textContent = `R$ ${totalFaturaCartao.toFixed(2)}`;
+  elSaldo.textContent = `R$ ${saldoLivre.toFixed(2)}`;
+
+  listaEnvelopes.innerHTML = "";
+  
+  const grupos = {};
+  Object.keys(envelopesConfig).forEach(catId => {
+    const cat = envelopesConfig[catId];
+    const macro = cat.macro || "Reservas & Outros";
+    if (!grupos[macro]) grupos[macro] = [];
+    grupos[macro].push({ id: catId, ...cat });
+  });
+
+  if (Object.keys(grupos).length === 0) {
+    listaEnvelopes.innerHTML = `<p class="text-sm text-slate-500 py-2 text-center">Nenhum envelope configurado.</p>`;
+  } else {
+    Object.keys(grupos).forEach(macroNome => {
+      const itensGrupo = grupos[macroNome];
+      
+      let totalGastoGrupo = 0;
+      let totalTetoGrupo = 0;
+
+      itensGrupo.forEach(item => {
+        const gastoItem = item.is_sinking_fund ? (acmCategoriasHistSaida[item.id] || 0) : (acmCategoriasMes[item.id] || 0);
+        totalGastoGrupo += gastoItem;
+        totalTetoGrupo += item.teto;
+      });
+
+      const grupoBloco = document.createElement('div');
+      grupoBloco.className = "bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 space-y-3";
+
+      const headerGrupo = document.createElement('div');
+      headerGrupo.className = "flex items-center justify-between border-b border-slate-800 pb-2";
+      headerGrupo.innerHTML = `
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+          📁 ${macroNome}
+        </span>
+        <span class="text-xs font-mono text-slate-400">
+          R$ ${totalGastoGrupo.toFixed(2)} / R$ ${totalTetoGrupo.toFixed(2)}
+        </span>
+      `;
+      grupoBloco.appendChild(headerGrupo);
+
+      const gridEnvelopes = document.createElement('div');
+      gridEnvelopes.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
+
+      itensGrupo.forEach(env => {
+        const gastoMes = acmCategoriasMes[env.id] || 0;
+        const gastoHist = acmCategoriasHistSaida[env.id] || 0;
+        const entradaHist = acmCategoriasHistEntrada[env.id] || 0;
+        const isCaixinha = !!env.is_sinking_fund;
+
+        let pct = 0;
+        let corBarra = "bg-emerald-500";
+        let corTextoPct = "text-emerald-400";
+        let textoValores = "";
+        let badgeCaixinha = "";
+
+        if (isCaixinha) {
+          badgeCaixinha = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold shrink-0">🧰 Caixinha</span>`;
+          
+          if (entradaHist > 0) {
+            const saldoCaixinha = entradaHist - gastoHist;
+            pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
+            if (pct < 0) pct = 0;
+            textoValores = `Saldo: R$ ${saldoCaixinha.toFixed(2)} / Meta: R$ ${env.teto.toFixed(2)}`;
+          } else {
+            pct = env.teto > 0 ? Math.min(Math.round((gastoHist / env.teto) * 100), 100) : 0;
+            textoValores = `Acumulado: R$ ${gastoHist.toFixed(2)} / R$ ${env.teto.toFixed(2)} (Mês: R$ ${gastoMes.toFixed(2)})`;
+          }
+        } else {
+          pct = env.teto > 0 ? Math.min(Math.round((gastoMes / env.teto) * 100), 100) : 0;
+          textoValores = `R$ ${gastoMes.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)`;
+        }
+
+        if (pct >= 100) {
+          corBarra = "bg-rose-500";
+          corTextoPct = "text-rose-400";
+        } else if (pct >= 80) {
+          corBarra = "bg-amber-500";
+          corTextoPct = "text-amber-400";
+        }
+
+        const envCard = document.createElement('div');
+        envCard.className = "bg-slate-900/60 border border-slate-800 p-3 rounded-lg space-y-2";
+        envCard.innerHTML = `
+          <div class="flex justify-between items-center text-xs gap-2">
+            <div class="flex items-center gap-1.5 overflow-hidden">
+              <span class="font-medium text-slate-200 truncate">${env.nome}</span>
+              ${badgeCaixinha}
+            </div>
+            <span class="font-semibold ${corTextoPct} shrink-0 font-mono">${textoValores}</span>
+          </div>
+          <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+            <div class="${corBarra} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+          </div>
+        `;
+        gridEnvelopes.appendChild(envCard);
+      });
+
+      grupoBloco.appendChild(gridEnvelopes);
+      listaEnvelopes.appendChild(grupoBloco);
+    });
+  }
+}
+
+filtroMesInput.addEventListener('change', processarDados);
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-salvar');
+  btn.disabled = true;
+  btn.textContent = "Gravando...";
+
+  const idEditando = inputTransacaoId.value;
+  const dataLancamento = document.getElementById('data').value;
+
+  const dadosTransacao = {
+    date: dataLancamento,
+    type: document.getElementById('tipo').value,
+    amount: parseFloat(document.getElementById('valor').value),
+    description: document.getElementById('descricao').value,
+    category_id: document.getElementById('categoria').value,
+    account_id: document.getElementById('conta').value,
+    status: "VALIDATED",
+    user_owner: document.getElementById('usuario').value,
+    source_satellite: "core_dimdim",
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    if (idEditando) {
+      await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
+    } else {
+      dadosTransacao.created_at = new Date().toISOString();
+      await addDoc(collection(db, "transactions"), dadosTransacao);
+    }
+    
+    const mesDoLancamento = dataLancamento.substring(0, 7);
+    if (filtroMesInput.value !== mesDoLancamento) {
+      filtroMesInput.value = mesDoLancamento;
+    }
+
+    resetarFormulario();
+  } catch (err) {
+    alert("Erro ao salvar lançamento: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = idEditando ? "Atualizar Lançamento" : "Registrar Lançamento";
+  }
+});
+
+onSnapshot(collection(db, "categories"), (snapshot) => {
+  if (snapshot.empty) {
+    restaurarCategoriasPadrao();
+    return;
+  }
+
+  envelopesConfig = {};
+  selectCategoria.innerHTML = "";
+  listaGerenciadorCat.innerHTML = "";
+
+  const gruposSelect = {};
+
+  snapshot.forEach(docSnap => {
+    const data = docSnap.data();
+    const id = docSnap.id;
+    const macro = data.macro_grupo || "Reservas & Outros";
+
+    envelopesConfig[id] = { 
+      nome: data.nome, 
+      teto: data.teto, 
+      macro: macro,
+      is_sinking_fund: !!data.is_sinking_fund 
+    };
+
+    if (!gruposSelect[macro]) gruposSelect[macro] = [];
+    gruposSelect[macro].push({ id, nome: data.nome, teto: data.teto, is_sinking_fund: !!data.is_sinking_fund });
+
+    const tagCaixinhaGerenciador = data.is_sinking_fund ? ' <span class="text-amber-400 text-[10px]">🧰</span>' : '';
+
+    const itemCat = document.createElement('div');
+    itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+    itemCat.innerHTML = `
+      <span class="text-slate-200 font-medium"><span class="text-emerald-400 font-semibold">[${macro}]</span> ${data.nome}${tagCaixinhaGerenciador} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
+      <div class="flex items-center gap-2">
+        <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
+        <button onclick="excluirCat('${id}', '${data.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+      </div>
+    `;
+    listaGerenciadorCat.appendChild(itemCat);
+  });
+
+  Object.keys(gruposSelect).forEach(macroNome => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = `📁 ${macroNome}`;
+
+    gruposSelect[macroNome].forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.textContent = cat.is_sinking_fund ? `🧰 ${cat.nome}` : cat.nome;
+      optgroup.appendChild(opt);
+    });
+
+    selectCategoria.appendChild(optgroup);
+  });
+
+  const optFatura = document.createElement('option');
+  optFatura.value = "CAT_FATURA_CARTAO";
+  optFatura.textContent = "💳 Pagamento de Fatura do Cartão";
+  selectCategoria.appendChild(optFatura);
+
+  processarDados();
+});
+
+const q = query(collection(db, "transactions"), orderBy("date", "desc"));
+onSnapshot(q, (snapshot) => {
+  snapshotTransactions = snapshot;
+  processarDados();
+});

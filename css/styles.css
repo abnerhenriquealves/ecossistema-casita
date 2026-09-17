@@ -1,0 +1,20 @@
+/* Customizações CSS para o Dimdim */
+input[type="month"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 0;
+  display: none;
+}
+
+/* Transição Suave do Painel de Configurações */
+.painel-expansivel {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out, margin-top 0.3s ease;
+}
+
+.painel-expansivel.aberto {
+  max-height: 950px;
+  opacity: 1;
+  margin-top: 1rem;
+}
