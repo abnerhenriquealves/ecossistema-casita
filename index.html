@@ -345,7 +345,7 @@
     btnCancelarEdicao.addEventListener('click', resetarFormulario);
     btnCancelarCat.addEventListener('click', resetarFormCategoria);
 
-    // Seed dos Envelopes Padrão da Casita com Macro-Grupos
+    // Seed dos Envelopes Padrão da Casita
     async function restaurarCategoriasPadrao() {
       const padroes = [
         { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé" },
@@ -529,7 +529,6 @@
       // Renderização dos Envelopes Agrupados por Macro-Grupo (Nível 1)
       listaEnvelopes.innerHTML = "";
       
-      // Agrupa envelopes por macro_grupo
       const grupos = {};
       Object.keys(envelopesConfig).forEach(catId => {
         const cat = envelopesConfig[catId];
@@ -652,7 +651,7 @@
       }
     });
 
-    // Realtime Listener de Categorias (Monta Optgroups no Select)
+    // Realtime Listener de Categorias (Optgroups Limpos sem o valor do Teto)
     onSnapshot(collection(db, "categories"), (snapshot) => {
       if (snapshot.empty) {
         restaurarCategoriasPadrao();
@@ -688,7 +687,7 @@
         listaGerenciadorCat.appendChild(itemCat);
       });
 
-      // Popula o Select com <optgroup>
+      // Popula o Select com Optgroups Enxutos (Sem o texto do Teto)
       Object.keys(gruposSelect).forEach(macroNome => {
         const optgroup = document.createElement('optgroup');
         optgroup.label = `📁 ${macroNome}`;
@@ -696,7 +695,7 @@
         gruposSelect[macroNome].forEach(cat => {
           const opt = document.createElement('option');
           opt.value = cat.id;
-          opt.textContent = `${cat.nome} (Teto: R$ ${cat.teto.toFixed(2)})`;
+          opt.textContent = cat.nome; // Exibe apenas o nome limpo do envelope
           optgroup.appendChild(opt);
         });
 
