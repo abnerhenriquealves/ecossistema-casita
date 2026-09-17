@@ -21,7 +21,7 @@
       transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out, margin-top 0.3s ease;
     }
     .painel-expansivel.aberto {
-      max-height: 900px;
+      max-height: 950px;
       opacity: 1;
       margin-top: 1rem;
     }
@@ -148,8 +148,16 @@
           </div>
 
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Teto Mensal (R$)</label>
+            <label class="block text-xs text-slate-400 mb-1">Teto Mensal / Meta (R$)</label>
             <input type="number" step="0.01" id="cat-teto" required placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          </div>
+
+          <!-- Opção Caixinha Acumulativa (Sinking Fund) -->
+          <div class="sm:col-span-3 flex items-center gap-2 pt-1 border-t border-slate-800/80">
+            <input type="checkbox" id="cat-acumulativa" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+            <label for="cat-acumulativa" class="text-xs text-amber-300/90 font-medium cursor-pointer select-none flex items-center gap-1">
+              🧰 Caixinha Acumulativa / Reserva (Sinking Fund — o progresso não zera na virada do mês)
+            </label>
           </div>
 
           <div class="sm:col-span-3">
@@ -334,6 +342,7 @@
     const inputCatNome = document.getElementById('cat-nome');
     const inputCatTeto = document.getElementById('cat-teto');
     const selectCatMacro = document.getElementById('cat-macro');
+    const checkCatAcumulativa = document.getElementById('cat-acumulativa');
     const tituloFormCat = document.getElementById('titulo-form-cat');
     const btnCancelarCat = document.getElementById('btn-cancelar-cat');
     const btnSalvarCat = document.getElementById('btn-salvar-cat');
@@ -390,6 +399,7 @@
     function resetarFormCategoria() {
       inputCatId.value = "";
       formCategoria.reset();
+      checkCatAcumulativa.checked = false;
       tituloFormCat.textContent = "Novo Envelope / Categoria";
       btnSalvarCat.textContent = "Salvar Envelope";
       btnCancelarCat.classList.add('hidden');
@@ -401,11 +411,12 @@
     // Seed dos Envelopes Padrão
     async function restaurarCategoriasPadrao() {
       const padroes = [
-        { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé" },
-        { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro: "Habitação & Custos Fixos" },
-        { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro: "Alimentação & Social" },
-        { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro: "Transporte" },
-        { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro: "Nossos Meninos (Pets)" }
+        { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé", is_sinking_fund: false },
+        { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro: "Habitação & Custos Fixos", is_sinking_fund: false },
+        { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro: "Alimentação & Social", is_sinking_fund: false },
+        { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro: "Transporte", is_sinking_fund: false },
+        { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro: "Nossos Meninos (Pets)", is_sinking_fund: false },
+        { id: "CAT_MANUT_CASITA", nome: "Caixinha Manutenção da Casita", teto: 1000.00, macro: "Habitação & Custos Fixos", is_sinking_fund: true }
       ];
 
       for (const cat of padroes) {
@@ -413,6 +424,7 @@
           nome: cat.nome,
           teto: cat.teto,
           macro_grupo: cat.macro,
+          is_sinking_fund: cat.is_sinking_fund,
           created_at: new Date().toISOString()
         });
       }
@@ -433,13 +445,26 @@
       const nome = inputCatNome.value.trim();
       const teto = parseFloat(inputCatTeto.value);
       const macro = selectCatMacro.value;
+      const isAcumulativa = checkCatAcumulativa.checked;
 
       try {
         if (catId) {
-          await updateDoc(doc(db, "categories", catId), { nome, teto, macro_grupo: macro, updated_at: new Date().toISOString() });
+          await updateDoc(doc(db, "categories", catId), { 
+            nome, 
+            teto, 
+            macro_grupo: macro, 
+            is_sinking_fund: isAcumulativa, 
+            updated_at: new Date().toISOString() 
+          });
         } else {
           const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
-          await setDoc(doc(db, "categories", novoId), { nome, teto, macro_grupo: macro, created_at: new Date().toISOString() });
+          await setDoc(doc(db, "categories", novoId), { 
+            nome, 
+            teto, 
+            macro_grupo: macro, 
+            is_sinking_fund: isAcumulativa, 
+            created_at: new Date().toISOString() 
+          });
         }
         resetarFormCategoria();
       } catch (err) {
@@ -449,11 +474,13 @@
       }
     });
 
-    window.prepararEdicaoCat = function(id, nome, teto, macro) {
+    window.prepararEdicaoCat = function(id, nome, teto, macro, isAcumulativa) {
       inputCatId.value = id;
       inputCatNome.value = nome;
       inputCatTeto.value = teto;
       if (macro) selectCatMacro.value = macro;
+      checkCatAcumulativa.checked = !!isAcumulativa;
+      
       tituloFormCat.textContent = "Editar Envelope / Categoria";
       btnSalvarCat.textContent = "Atualizar Envelope";
       btnCancelarCat.classList.remove('hidden');
@@ -544,8 +571,15 @@
       let totalFaturaCartao = 0;
       let totalPagamentosFatura = 0;
 
-      const acmCategorias = {};
-      Object.keys(envelopesConfig).forEach(catId => acmCategorias[catId] = 0);
+      const acmCategoriasMes = {};
+      const acmCategoriasHistSaida = {};
+      const acmCategoriasHistEntrada = {};
+
+      Object.keys(envelopesConfig).forEach(catId => {
+        acmCategoriasMes[catId] = 0;
+        acmCategoriasHistSaida[catId] = 0;
+        acmCategoriasHistEntrada[catId] = 0;
+      });
 
       // Critérios dos Filtros do Extrato
       const termoBusca = buscaExtratoInput.value.toLowerCase().trim();
@@ -559,12 +593,27 @@
       snapshotTransactions.forEach((docSnapshot) => {
         const item = docSnapshot.data();
         const docId = docSnapshot.id;
+        if (!item.date) return;
 
-        if (item.date && item.date.startsWith(mesSelecionado)) {
+        const itemMes = item.date.substring(0, 7);
+        const isAteMesSelecionado = itemMes <= mesSelecionado;
+        const isMesAtual = itemMes === mesSelecionado;
+        const isSaida = item.type === "SAIDA";
+        const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
+        const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
+
+        // Acúmulo Histórico para Caixinhas / Sinking Funds (Até o mês selecionado)
+        if (isAteMesSelecionado && item.category_id && !isPagtoFatura) {
+          if (isSaida) {
+            acmCategoriasHistSaida[item.category_id] = (acmCategoriasHistSaida[item.category_id] || 0) + item.amount;
+          } else {
+            acmCategoriasHistEntrada[item.category_id] = (acmCategoriasHistEntrada[item.category_id] || 0) + item.amount;
+          }
+        }
+
+        // Acúmulo do Mês Selecionado
+        if (isMesAtual) {
           totalItensMes++;
-          const isSaida = item.type === "SAIDA";
-          const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
-          const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
           const usuarioItem = item.user_owner || 'Abner';
 
           if (isSaida) {
@@ -577,17 +626,13 @@
             }
 
             if (!isPagtoFatura) {
-              if (acmCategorias[item.category_id] !== undefined) {
-                acmCategorias[item.category_id] += item.amount;
-              } else {
-                acmCategorias[item.category_id] = item.amount;
-              }
+              acmCategoriasMes[item.category_id] = (acmCategoriasMes[item.category_id] || 0) + item.amount;
             }
           } else {
             totalEntradas += item.amount;
           }
 
-          // Avalia se o item atende aos filtros do Extrato
+          // Avalia Filtros do Extrato
           const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id);
           const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
           const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
@@ -628,7 +673,7 @@
         }
       });
 
-      // Atualiza o contador do extrato
+      // Contador do Extrato
       if (totalItensMes === 0) {
         contadorExtrato.textContent = "Nenhum lançamento no mês";
         listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado neste mês.</p>`;
@@ -639,7 +684,7 @@
         contadorExtrato.textContent = `Exibindo ${totalItensExibidos} de ${totalItensMes} lançamentos`;
       }
 
-      // Cálculo de Saldo da Fatura e Reserva
+      // Cálculo de Saldo da Fatura
       valorFaturaPendenteAtual = Math.max(0, totalFaturaCartao - totalPagamentosFatura);
       const faturaEstaQuitada = totalFaturaCartao > 0 && valorFaturaPendenteAtual === 0;
 
@@ -666,7 +711,7 @@
       elFaturaCartao.textContent = `R$ ${totalFaturaCartao.toFixed(2)}`;
       elSaldo.textContent = `R$ ${saldoLivre.toFixed(2)}`;
 
-      // Renderização dos Envelopes Agrupados por Macro-Grupo (Nível 1)
+      // Renderização dos Envelopes Agrupados por Macro-Grupo (com suporte a Caixinhas / Sinking Funds)
       listaEnvelopes.innerHTML = "";
       
       const grupos = {};
@@ -687,7 +732,8 @@
           let totalTetoGrupo = 0;
 
           itensGrupo.forEach(item => {
-            totalGastoGrupo += (acmCategorias[item.id] || 0);
+            const gastoItem = item.is_sinking_fund ? (acmCategoriasHistSaida[item.id] || 0) : (acmCategoriasMes[item.id] || 0);
+            totalGastoGrupo += gastoItem;
             totalTetoGrupo += item.teto;
           });
 
@@ -710,11 +756,33 @@
           gridEnvelopes.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
 
           itensGrupo.forEach(env => {
-            const gasto = acmCategorias[env.id] || 0;
-            const pct = env.teto > 0 ? Math.min(Math.round((gasto / env.teto) * 100), 100) : 0;
-            
+            const gastoMes = acmCategoriasMes[env.id] || 0;
+            const gastoHist = acmCategoriasHistSaida[env.id] || 0;
+            const entradaHist = acmCategoriasHistEntrada[env.id] || 0;
+            const isCaixinha = !!env.is_sinking_fund;
+
+            let pct = 0;
             let corBarra = "bg-emerald-500";
             let corTextoPct = "text-emerald-400";
+            let textoValores = "";
+            let badgeCaixinha = "";
+
+            if (isCaixinha) {
+              badgeCaixinha = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold shrink-0">🧰 Caixinha</span>`;
+              
+              if (entradaHist > 0) {
+                const saldoCaixinha = entradaHist - gastoHist;
+                pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
+                if (pct < 0) pct = 0;
+                textoValores = `Saldo: R$ ${saldoCaixinha.toFixed(2)} / Meta: R$ ${env.teto.toFixed(2)}`;
+              } else {
+                pct = env.teto > 0 ? Math.min(Math.round((gastoHist / env.teto) * 100), 100) : 0;
+                textoValores = `Acumulado: R$ ${gastoHist.toFixed(2)} / R$ ${env.teto.toFixed(2)} (Mês: R$ ${gastoMes.toFixed(2)})`;
+              }
+            } else {
+              pct = env.teto > 0 ? Math.min(Math.round((gastoMes / env.teto) * 100), 100) : 0;
+              textoValores = `R$ ${gastoMes.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)`;
+            }
 
             if (pct >= 100) {
               corBarra = "bg-rose-500";
@@ -727,9 +795,12 @@
             const envCard = document.createElement('div');
             envCard.className = "bg-slate-900/60 border border-slate-800 p-3 rounded-lg space-y-2";
             envCard.innerHTML = `
-              <div class="flex justify-between items-center text-xs">
-                <span class="font-medium text-slate-200">${env.nome}</span>
-                <span class="font-semibold ${corTextoPct}">R$ ${gasto.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)</span>
+              <div class="flex justify-between items-center text-xs gap-2">
+                <div class="flex items-center gap-1.5 overflow-hidden">
+                  <span class="font-medium text-slate-200 truncate">${env.nome}</span>
+                  ${badgeCaixinha}
+                </div>
+                <span class="font-semibold ${corTextoPct} shrink-0 font-mono">${textoValores}</span>
               </div>
               <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
                 <div class="${corBarra} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
@@ -809,17 +880,24 @@
         const id = docSnap.id;
         const macro = data.macro_grupo || "Reservas & Outros";
 
-        envelopesConfig[id] = { nome: data.nome, teto: data.teto, macro: macro };
+        envelopesConfig[id] = { 
+          nome: data.nome, 
+          teto: data.teto, 
+          macro: macro,
+          is_sinking_fund: !!data.is_sinking_fund 
+        };
 
         if (!gruposSelect[macro]) gruposSelect[macro] = [];
-        gruposSelect[macro].push({ id, nome: data.nome, teto: data.teto });
+        gruposSelect[macro].push({ id, nome: data.nome, teto: data.teto, is_sinking_fund: !!data.is_sinking_fund });
+
+        const tagCaixinhaGerenciador = data.is_sinking_fund ? ' <span class="text-amber-400 text-[10px]">🧰</span>' : '';
 
         const itemCat = document.createElement('div');
         itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
         itemCat.innerHTML = `
-          <span class="text-slate-200 font-medium"><span class="text-emerald-400 font-semibold">[${macro}]</span> ${data.nome} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
+          <span class="text-slate-200 font-medium"><span class="text-emerald-400 font-semibold">[${macro}]</span> ${data.nome}${tagCaixinhaGerenciador} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
           <div class="flex items-center gap-2">
-            <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-sky-400">✏️</button>
+            <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
             <button onclick="excluirCat('${id}', '${data.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
           </div>
         `;
@@ -833,7 +911,7 @@
         gruposSelect[macroNome].forEach(cat => {
           const opt = document.createElement('option');
           opt.value = cat.id;
-          opt.textContent = cat.nome;
+          opt.textContent = cat.is_sinking_fund ? `🧰 ${cat.nome}` : cat.nome;
           optgroup.appendChild(opt);
         });
 
