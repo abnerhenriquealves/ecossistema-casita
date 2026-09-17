@@ -7,6 +7,13 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Força o ícone nativo do calendário no desktop a ficar visível no modo escuro */
+    input[type="month"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
   <div class="max-w-4xl mx-auto space-y-6">
@@ -22,13 +29,25 @@
       </span>
     </header>
 
-    <!-- Seletor de Período (Navegação Temporal) -->
+    <!-- Seletor de Período (Navegação Temporal com Controles) -->
     <section class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
       <div>
         <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
-        <p class="text-xs text-slate-400">Selecione o mês para filtrar envelopes e extrato</p>
+        <p class="text-xs text-slate-400">Navegue pelos meses para filtrar envelopes e extrato</p>
       </div>
-      <input type="month" id="filtro-mes" class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg p-2.5 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto">
+      
+      <!-- Controles com Setas + Seletor de Data -->
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <button id="btn-mes-anterior" class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow" title="Mês Anterior">
+          ‹
+        </button>
+        
+        <input type="month" id="filtro-mes" class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg p-2.5 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto text-center" style="color-scheme: dark;">
+
+        <button id="btn-mes-proximo" class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow" title="Próximo Mês">
+          ›
+        </button>
+      </div>
     </section>
 
     <!-- Resumo de Saldos do Mês -->
@@ -86,7 +105,7 @@
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Data</label>
-          <input type="date" id="data" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          <input type="date" id="data" required class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500" style="color-scheme: dark;">
         </div>
 
         <div>
@@ -148,15 +167,15 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // Configurar Mês Atual Padrão (YYYY-MM)
     const hoje = new Date();
     const anoAtual = hoje.getFullYear();
     const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
-    const mesFormatadoPadrao = `${anoAtual}-${mesAtual}`;
 
     const filtroMesInput = document.getElementById('filtro-mes');
-    filtroMesInput.value = mesFormatadoPadrao;
+    const btnAnterior = document.getElementById('btn-mes-anterior');
+    const btnProximo = document.getElementById('btn-mes-proximo');
 
+    filtroMesInput.value = `${anoAtual}-${mesAtual}`;
     document.getElementById('data').value = hoje.toISOString().split('T')[0];
 
     const form = document.getElementById('form-transacao');
@@ -182,11 +201,23 @@
 
     let snapshotCache = null;
 
-    // Função de Processamento e Filtro
+    // Função para avançar ou voltar o mês selecionado
+    function alterarMes(delta) {
+      const [ano, mes] = filtroMesInput.value.split('-').map(Number);
+      const novaData = new Date(ano, mes - 1 + delta, 1);
+      const novoAno = novaData.getFullYear();
+      const novoMes = String(novaData.getMonth() + 1).padStart(2, '0');
+      filtroMesInput.value = `${novoAno}-${novoMes}`;
+      processarDados();
+    }
+
+    btnAnterior.addEventListener('click', () => alterarMes(-1));
+    btnProximo.addEventListener('click', () => alterarMes(1));
+
     function processarDados() {
       if (!snapshotCache) return;
 
-      const mesSelecionado = filtroMesInput.value; // Formato YYYY-MM
+      const mesSelecionado = filtroMesInput.value;
       listaTransacoes.innerHTML = "";
 
       let totalEntradas = 0;
@@ -200,7 +231,6 @@
       snapshotCache.forEach((doc) => {
         const item = doc.data();
 
-        // Filtro Temporal: Verifica se a data do lançamento inicia com o mês selecionado (YYYY-MM)
         if (item.date && item.date.startsWith(mesSelecionado)) {
           contadorItens++;
           const isSaida = item.type === "SAIDA";
@@ -238,13 +268,11 @@
         listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento registrado neste mês.</p>`;
       }
 
-      // Atualiza Saldos do Mês
       const saldo = totalEntradas - totalSaidas;
       elEntradas.textContent = `R$ ${totalEntradas.toFixed(2)}`;
       elSaidas.textContent = `R$ ${totalSaidas.toFixed(2)}`;
       elSaldo.textContent = `R$ ${saldo.toFixed(2)}`;
 
-      // Renderiza Envelopes do Mês
       listaEnvelopes.innerHTML = "";
       Object.keys(envelopesConfig).forEach(catId => {
         const env = envelopesConfig[catId];
@@ -277,10 +305,8 @@
       });
     }
 
-    // Escuta Alterações de Data no Filtro
     filtroMesInput.addEventListener('change', processarDados);
 
-    // Formulário de Lançamento
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btn-salvar');
@@ -305,7 +331,6 @@
       try {
         await addDoc(collection(db, "transactions"), novaTransacao);
         
-        // Se o lançamento for feito em um mês diferente do selecionado no filtro, atualiza o filtro para o mês da transação
         const mesDoLancamento = dataLancamento.substring(0, 7);
         if (filtroMesInput.value !== mesDoLancamento) {
           filtroMesInput.value = mesDoLancamento;
@@ -321,7 +346,6 @@
       }
     });
 
-    // Realtime Listener
     const q = query(collection(db, "transactions"), orderBy("date", "desc"));
     
     onSnapshot(q, (snapshot) => {
