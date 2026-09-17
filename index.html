@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dimdim - Core Financeiro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
+  <div class="max-w-2xl mx-auto space-y-6">
+    
+    <!-- Cabeçalho -->
+    <header class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold text-emerald-400">Dimdim 💰</h1>
+        <p class="text-xs text-slate-400">Ecossistema Casita • Hub Central</p>
+      </div>
+      <span id="status-badge" class="px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+        Conectando...
+      </span>
+    </header>
+
+    <!-- Painel de Testes -->
+    <main class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+      <h2 class="text-lg font-semibold text-slate-200">Inicialização de Dados do Hub</h2>
+      <p class="text-sm text-slate-400">
+        Clique no botão abaixo para semear a estrutura base de categorias e contas no Cloud Firestore.
+      </p>
+
+      <button id="btn-seed" disabled class="w-full py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-white transition-all shadow-lg">
+        Semear Categorias & Contas Iniciais
+      </button>
+
+      <div id="log-output" class="bg-slate-950 rounded-lg p-4 font-mono text-xs text-slate-300 h-48 overflow-y-auto border border-slate-800">
+        > Aguardando inicialização do Firebase...
+      </div>
+    </main>
+
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCjGBOUUThDgCqAOQJtXYeKdq2Pb0IG7PU",
+      authDomain: "ecossistema-casita.firebaseapp.com",
+      projectId: "ecossistema-casita",
+      storageBucket: "ecossistema-casita.firebasestorage.app",
+      messagingSenderId: "161524545654",
+      appId: "1:161524545654:web:0362a680d6675b5e2e8757"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const statusBadge = document.getElementById('status-badge');
+    const btnSeed = document.getElementById('btn-seed');
+    const logOutput = document.getElementById('log-output');
+
+    function log(msg) {
+      logOutput.innerHTML += `<br>> ${msg}`;
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
+
+    try {
+      statusBadge.textContent = "Conectado ao Firestore";
+      statusBadge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+      btnSeed.disabled = false;
+      log("Conexão estabelecida com sucesso com o banco ecossistema-casita!");
+    } catch (err) {
+      statusBadge.textContent = "Erro de Conexão";
+      statusBadge.className = "px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30";
+      log(`Erro: ${err.message}`);
+    }
+
+    const categoriesData = [
+      { id: "CAT_DIZIMO", display_name: "Dízimo & Ofertas", group: "Cuidados Família & Pets" },
+      { id: "CAT_MERCADO", display_name: "Supermercado", group: "Alimentação & Abastecimento" },
+      { id: "CAT_CASITA_PREST", display_name: "Prestação Casita", group: "Fixas & Moradia" },
+      { id: "CAT_PETS", display_name: "Ração, Banho & Pets", group: "Cuidados Família & Pets" },
+      { id: "CAT_COMBUSTIVEL", display_name: "Combustível", group: "Transporte & Veículo" }
+    ];
+
+    const accountsData = [
+      { id: "ACC_BRADESCO_ABNER", type: "CHECKING", current_balance: 0, display_name: "Bradesco Abner" },
+      { id: "ACC_CARTAO_CREDITO", type: "CREDIT_CARD", current_balance: 0, display_name: "Reserva de Fatura Cartão" }
+    ];
+
+    btnSeed.addEventListener('click', async () => {
+      btnSeed.disabled = true;
+      log("Iniciando gravação das coleções no Firestore...");
+
+      try {
+        for (const cat of categoriesData) {
+          await setDoc(doc(db, "categories", cat.id), cat);
+          log(`Categoria gravada: ${cat.display_name} (${cat.id})`);
+        }
+
+        for (const acc of accountsData) {
+          await setDoc(doc(db, "accounts", acc.id), acc);
+          log(`Conta gravada: ${acc.display_name} (${acc.id})`);
+        }
+
+        log("✅ Semeadura concluída com sucesso! O banco do Dimdim está pronto.");
+      } catch (error) {
+        log(`❌ Falha ao gravar dados: ${error.message}`);
+      } finally {
+        btnSeed.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
