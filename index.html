@@ -14,7 +14,6 @@
       display: none;
     }
     
-    /* Transição Suave para o Painel de Configuração */
     .painel-expansivel {
       max-height: 0;
       opacity: 0;
@@ -22,7 +21,7 @@
       transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out, margin-top 0.3s ease;
     }
     .painel-expansivel.aberto {
-      max-height: 800px;
+      max-height: 900px;
       opacity: 1;
       margin-top: 1rem;
     }
@@ -42,7 +41,7 @@
       </span>
     </header>
 
-    <!-- Seletor de Período (Navegação Temporal) -->
+    <!-- Seletor de Período -->
     <section class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
       <div>
         <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
@@ -70,7 +69,7 @@
       </div>
     </section>
 
-    <!-- Resumo de Saldos e Cartão de Crédito -->
+    <!-- Resumo de Saldos -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
         <p class="text-xs text-slate-400 uppercase font-semibold">Entradas em Conta</p>
@@ -90,19 +89,19 @@
       </div>
     </section>
 
-    <!-- Matriz Orçamentária / Envelopes Virtuais -->
+    <!-- Matriz Orçamentária / Envelopes Virtuais Agrupados -->
     <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl">
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-lg font-semibold text-slate-200">Envelopes Orçamentários</h2>
-          <p class="text-xs text-slate-400">Consumo em tempo real vs. Tetos do mês</p>
+          <p class="text-xs text-slate-400">Organizados por Macro-Grupos (Nível 1)</p>
         </div>
         <button id="btn-toggle-gerenciar-cat" type="button" class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-emerald-400 rounded-lg transition-all flex items-center gap-1">
           <span>⚙️</span> Configurar Tetos / Envelopes
         </button>
       </div>
 
-      <!-- Painel Expansível (Suave) -->
+      <!-- Painel Expansível de Gerenciamento -->
       <div id="painel-gerenciar-categorias" class="painel-expansivel bg-slate-950/90 border border-slate-700/80 rounded-lg p-4 space-y-4">
         <div class="flex items-center justify-between border-b border-slate-800 pb-2">
           <h3 id="titulo-form-cat" class="text-sm font-semibold text-emerald-400">Novo Envelope / Categoria</h3>
@@ -116,14 +115,32 @@
 
         <form id="form-categoria" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <input type="hidden" id="cat-id" value="">
-          <div class="sm:col-span-2">
-            <label class="block text-xs text-slate-400 mb-1">Nome do Envelope / Categoria</label>
+          
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Macro-Grupo (Nível 1)</label>
+            <select id="cat-macro" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+              <option value="Fé">Fé</option>
+              <option value="Habitação & Custos Fixos">Habitação & Custos Fixos</option>
+              <option value="Alimentação & Social">Alimentação & Social</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Saúde & Bem-Estar">Saúde & Bem-Estar</option>
+              <option value="Nossos Meninos (Pets)">Nossos Meninos (Pets)</option>
+              <option value="Estilo de Vida & Assinaturas">Estilo de Vida & Assinaturas</option>
+              <option value="Compromissos & Acordos">Compromissos & Acordos</option>
+              <option value="Reservas & Outros">Reservas & Outros</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Nome do Envelope (Nível 2)</label>
             <input type="text" id="cat-nome" required placeholder="Ex: Farmácia, Pet, Lazer" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
           </div>
+
           <div>
             <label class="block text-xs text-slate-400 mb-1">Teto Mensal (R$)</label>
             <input type="number" step="0.01" id="cat-teto" required placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
           </div>
+
           <div class="sm:col-span-3">
             <button type="submit" id="btn-salvar-cat" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors">
               Salvar Envelope
@@ -139,9 +156,9 @@
         </div>
       </div>
 
-      <!-- Lista de Envelopes com Progresso -->
-      <div id="lista-envelopes" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <p class="text-sm text-slate-500 py-2 col-span-2 text-center">Calculando envelopes...</p>
+      <!-- Lista de Envelopes Agrupados por Macro-Grupo -->
+      <div id="lista-envelopes" class="space-y-6 mt-4">
+        <p class="text-sm text-slate-500 py-2 text-center">Calculando envelopes...</p>
       </div>
     </section>
 
@@ -269,6 +286,7 @@
     const inputCatId = document.getElementById('cat-id');
     const inputCatNome = document.getElementById('cat-nome');
     const inputCatTeto = document.getElementById('cat-teto');
+    const selectCatMacro = document.getElementById('cat-macro');
     const tituloFormCat = document.getElementById('titulo-form-cat');
     const btnCancelarCat = document.getElementById('btn-cancelar-cat');
     const btnSalvarCat = document.getElementById('btn-salvar-cat');
@@ -283,7 +301,6 @@
       });
     }
 
-    // Toggle Suave do Painel
     btnToggleGerenciarCat.addEventListener('click', () => {
       painelGerenciarCat.classList.toggle('aberto');
     });
@@ -328,27 +345,28 @@
     btnCancelarEdicao.addEventListener('click', resetarFormulario);
     btnCancelarCat.addEventListener('click', resetarFormCategoria);
 
-    // Função para Forçar a Gravação dos 5 Envelopes Padrão da Casita
+    // Seed dos Envelopes Padrão da Casita com Macro-Grupos
     async function restaurarCategoriasPadrao() {
       const padroes = [
-        { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00 },
-        { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00 },
-        { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00 },
-        { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00 },
-        { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00 }
+        { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé" },
+        { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro: "Habitação & Custos Fixos" },
+        { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro: "Alimentação & Social" },
+        { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro: "Transporte" },
+        { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro: "Nossos Meninos (Pets)" }
       ];
 
       for (const cat of padroes) {
         await setDoc(doc(db, "categories", cat.id), {
           nome: cat.nome,
           teto: cat.teto,
+          macro_grupo: cat.macro,
           created_at: new Date().toISOString()
         });
       }
     }
 
     btnRestaurarPadroes.addEventListener('click', async () => {
-      if (confirm("Deseja restaurar os 5 envelopes padrão da Casita no banco de dados?")) {
+      if (confirm("Deseja restaurar os envelopes padrão da Casita organizados por Macro-Grupos?")) {
         await restaurarCategoriasPadrao();
       }
     });
@@ -361,13 +379,14 @@
       const catId = inputCatId.value;
       const nome = inputCatNome.value.trim();
       const teto = parseFloat(inputCatTeto.value);
+      const macro = selectCatMacro.value;
 
       try {
         if (catId) {
-          await updateDoc(doc(db, "categories", catId), { nome, teto, updated_at: new Date().toISOString() });
+          await updateDoc(doc(db, "categories", catId), { nome, teto, macro_grupo: macro, updated_at: new Date().toISOString() });
         } else {
           const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
-          await setDoc(doc(db, "categories", novoId), { nome, teto, created_at: new Date().toISOString() });
+          await setDoc(doc(db, "categories", novoId), { nome, teto, macro_grupo: macro, created_at: new Date().toISOString() });
         }
         resetarFormCategoria();
       } catch (err) {
@@ -377,10 +396,11 @@
       }
     });
 
-    window.prepararEdicaoCat = function(id, nome, teto) {
+    window.prepararEdicaoCat = function(id, nome, teto, macro) {
       inputCatId.value = id;
       inputCatNome.value = nome;
       inputCatTeto.value = teto;
+      if (macro) selectCatMacro.value = macro;
       tituloFormCat.textContent = "Editar Envelope / Categoria";
       btnSalvarCat.textContent = "Atualizar Envelope";
       btnCancelarCat.classList.remove('hidden');
@@ -506,46 +526,88 @@
       elFaturaCartao.textContent = `R$ ${totalFaturaCartao.toFixed(2)}`;
       elSaldo.textContent = `R$ ${saldoLivre.toFixed(2)}`;
 
+      // Renderização dos Envelopes Agrupados por Macro-Grupo (Nível 1)
       listaEnvelopes.innerHTML = "";
-      const listaCatIds = Object.keys(envelopesConfig);
+      
+      // Agrupa envelopes por macro_grupo
+      const grupos = {};
+      Object.keys(envelopesConfig).forEach(catId => {
+        const cat = envelopesConfig[catId];
+        const macro = cat.macro || "Reservas & Outros";
+        if (!grupos[macro]) grupos[macro] = [];
+        grupos[macro].push({ id: catId, ...cat });
+      });
 
-      if (listaCatIds.length === 0) {
-        listaEnvelopes.innerHTML = `<p class="text-sm text-slate-500 py-2 col-span-2 text-center">Nenhum envelope configurado.</p>`;
+      if (Object.keys(grupos).length === 0) {
+        listaEnvelopes.innerHTML = `<p class="text-sm text-slate-500 py-2 text-center">Nenhum envelope configurado.</p>`;
       } else {
-        listaCatIds.forEach(catId => {
-          const env = envelopesConfig[catId];
-          const gasto = acmCategorias[catId] || 0;
-          const pct = env.teto > 0 ? Math.min(Math.round((gasto / env.teto) * 100), 100) : 0;
+        Object.keys(grupos).forEach(macroNome => {
+          const itensGrupo = grupos[macroNome];
           
-          let corBarra = "bg-emerald-500";
-          let corTextoPct = "text-emerald-400";
+          let totalGastoGrupo = 0;
+          let totalTetoGrupo = 0;
 
-          if (pct >= 100) {
-            corBarra = "bg-rose-500";
-            corTextoPct = "text-rose-400";
-          } else if (pct >= 80) {
-            corBarra = "bg-amber-500";
-            corTextoPct = "text-amber-400";
-          }
+          itensGrupo.forEach(item => {
+            totalGastoGrupo += (acmCategorias[item.id] || 0);
+            totalTetoGrupo += item.teto;
+          });
 
-          const envCard = document.createElement('div');
-          envCard.className = "bg-slate-950/50 border border-slate-800/80 p-3 rounded-lg space-y-2";
-          envCard.innerHTML = `
-            <div class="flex justify-between items-center text-xs">
-              <span class="font-medium text-slate-200">${env.nome}</span>
-              <span class="font-semibold ${corTextoPct}">R$ ${gasto.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)</span>
-            </div>
-            <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-              <div class="${corBarra} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
-            </div>
+          const grupoBloco = document.createElement('div');
+          grupoBloco.className = "bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 space-y-3";
+
+          const headerGrupo = document.createElement('div');
+          headerGrupo.className = "flex items-center justify-between border-b border-slate-800 pb-2";
+          headerGrupo.innerHTML = `
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+              📁 ${macroNome}
+            </span>
+            <span class="text-xs font-mono text-slate-400">
+              R$ ${totalGastoGrupo.toFixed(2)} / R$ ${totalTetoGrupo.toFixed(2)}
+            </span>
           `;
-          listaEnvelopes.appendChild(envCard);
+          grupoBloco.appendChild(headerGrupo);
+
+          const gridEnvelopes = document.createElement('div');
+          gridEnvelopes.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
+
+          itensGrupo.forEach(env => {
+            const gasto = acmCategorias[env.id] || 0;
+            const pct = env.teto > 0 ? Math.min(Math.round((gasto / env.teto) * 100), 100) : 0;
+            
+            let corBarra = "bg-emerald-500";
+            let corTextoPct = "text-emerald-400";
+
+            if (pct >= 100) {
+              corBarra = "bg-rose-500";
+              corTextoPct = "text-rose-400";
+            } else if (pct >= 80) {
+              corBarra = "bg-amber-500";
+              corTextoPct = "text-amber-400";
+            }
+
+            const envCard = document.createElement('div');
+            envCard.className = "bg-slate-900/60 border border-slate-800 p-3 rounded-lg space-y-2";
+            envCard.innerHTML = `
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-medium text-slate-200">${env.nome}</span>
+                <span class="font-semibold ${corTextoPct}">R$ ${gasto.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div class="${corBarra} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+              </div>
+            `;
+            gridEnvelopes.appendChild(envCard);
+          });
+
+          grupoBloco.appendChild(gridEnvelopes);
+          listaEnvelopes.appendChild(grupoBloco);
         });
       }
     }
 
     filtroMesInput.addEventListener('change', processarDados);
 
+    // Form Lançamento Transação
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('btn-salvar');
@@ -590,7 +652,7 @@
       }
     });
 
-    // Realtime Listener de Categorias
+    // Realtime Listener de Categorias (Monta Optgroups no Select)
     onSnapshot(collection(db, "categories"), (snapshot) => {
       if (snapshot.empty) {
         restaurarCategoriasPadrao();
@@ -601,31 +663,50 @@
       selectCategoria.innerHTML = "";
       listaGerenciadorCat.innerHTML = "";
 
+      const gruposSelect = {};
+
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
         const id = docSnap.id;
-        envelopesConfig[id] = { nome: data.nome, teto: data.teto };
+        const macro = data.macro_grupo || "Reservas & Outros";
 
-        const opt = document.createElement('option');
-        opt.value = id;
-        opt.textContent = `${data.nome} (Teto: R$ ${data.teto.toFixed(2)})`;
-        selectCategoria.appendChild(opt);
+        envelopesConfig[id] = { nome: data.nome, teto: data.teto, macro: macro };
 
+        if (!gruposSelect[macro]) gruposSelect[macro] = [];
+        gruposSelect[macro].push({ id, nome: data.nome, teto: data.teto });
+
+        // Item do Gerenciador de Categorias
         const itemCat = document.createElement('div');
         itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
         itemCat.innerHTML = `
-          <span class="text-slate-200 font-medium">${data.nome} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
+          <span class="text-slate-200 font-medium"><span class="text-emerald-400 font-semibold">[${macro}]</span> ${data.nome} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
           <div class="flex items-center gap-2">
-            <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto})" class="text-slate-400 hover:text-sky-400">✏️</button>
+            <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-sky-400">✏️</button>
             <button onclick="excluirCat('${id}', '${data.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
           </div>
         `;
         listaGerenciadorCat.appendChild(itemCat);
       });
 
+      // Popula o Select com <optgroup>
+      Object.keys(gruposSelect).forEach(macroNome => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = `📁 ${macroNome}`;
+
+        gruposSelect[macroNome].forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat.id;
+          opt.textContent = `${cat.nome} (Teto: R$ ${cat.teto.toFixed(2)})`;
+          optgroup.appendChild(opt);
+        });
+
+        selectCategoria.appendChild(optgroup);
+      });
+
+      // Opção para Pagamento de Fatura
       const optFatura = document.createElement('option');
       optFatura.value = "CAT_FATURA_CARTAO";
-      optFatura.textContent = "Pagamento de Fatura do Cartão";
+      optFatura.textContent = "💳 Pagamento de Fatura do Cartão";
       selectCategoria.appendChild(optFatura);
 
       processarDados();
