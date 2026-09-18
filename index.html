@@ -89,7 +89,7 @@
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <h2 class="text-lg font-semibold text-slate-200">Painel Executivo & Análise Financeira</h2>
-          <p class="text-xs text-slate-400">Distribuição mensal e curva histórica de despesas</p>
+          <p class="text-xs text-slate-400">Distribuição percentual, orçado vs. realizado e evolução temporal</p>
         </div>
       </div>
 
@@ -106,7 +106,15 @@
         </div>
       </div>
 
-      <!-- Linha 2: Gráfico de Evolução Temporal (Linhas) -->
+      <!-- Linha 2: Análise Orçado vs. Realizado (Barras Duplas) -->
+      <div class="border-t border-slate-800/80 pt-4 space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📊 Orçado (Teto) vs. Realizado (Gasto) por Macro-Grupo</h3>
+        <div class="relative w-full h-64">
+          <canvas id="grafico-orcado-vs-realizado"></canvas>
+        </div>
+      </div>
+
+      <!-- Linha 3: Gráfico de Evolução Temporal (Linhas) -->
       <div class="border-t border-slate-800/80 pt-4 space-y-2">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📈 Evolução Histórica de Gastos no Ano</h3>
         <div class="relative w-full h-56">

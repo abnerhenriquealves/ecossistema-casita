@@ -57,6 +57,7 @@ let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
 let graficoMacroInstance = null;
+let graficoOrcadoVsRealizadoInstance = null;
 let graficoHistoricoInstance = null;
 
 if ('serviceWorker' in navigator) {
@@ -325,6 +326,93 @@ function renderizarGraficoMacroGrupos(dadosMacro) {
   });
 }
 
+// Renderização do Gráfico Orçado vs. Realizado (Barras Duplas por Macro-Grupo)
+function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
+  const canvasEl = document.getElementById('grafico-orcado-vs-realizado');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+
+  const labels = Object.keys(tetosMacro).filter(macro => (tetosMacro[macro] || 0) > 0 || (gastosMacro[macro] || 0) > 0);
+  const dataOrcado = labels.map(m => tetosMacro[m] || 0);
+  const dataRealizado = labels.map(m => gastosMacro[m] || 0);
+
+  if (graficoOrcadoVsRealizadoInstance) {
+    graficoOrcadoVsRealizadoInstance.destroy();
+  }
+
+  if (labels.length === 0) {
+    graficoOrcadoVsRealizadoInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Sem envelopes configurados'],
+        datasets: [{ label: 'Sem dados', data: [0], backgroundColor: '#334155' }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } }
+      }
+    });
+    return;
+  }
+
+  const coresRealizado = labels.map(m => (gastosMacro[m] || 0) > (tetosMacro[m] || 0) ? '#f43f5e' : '#10b981');
+
+  graficoOrcadoVsRealizadoInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Teto Orçado (R$)',
+          data: dataOrcado,
+          backgroundColor: '#38bdf8',
+          borderRadius: 4
+        },
+        {
+          label: 'Gasto Realizado (R$)',
+          data: dataRealizado,
+          backgroundColor: coresRealizado,
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { color: 'rgba(51, 65, 85, 0.3)' },
+          ticks: { color: '#94a3b8', font: { size: 10 } }
+        },
+        y: {
+          grid: { color: 'rgba(51, 65, 85, 0.3)' },
+          ticks: { color: '#94a3b8', font: { size: 10 } }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) label += ': ';
+              if (context.parsed.y !== null) {
+                label += 'R$ ' + context.parsed.y.toFixed(2);
+              }
+              return label;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
 // Renderização do Gráfico de Linhas (Evolução Temporal no Ano)
 function renderizarGraficoHistoricoMensal(dadosPorMes) {
   const canvasEl = document.getElementById('grafico-historico-mensal');
@@ -424,7 +512,6 @@ function processarDados() {
     const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
     const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
 
-    // Mapeia histórico do ano para o gráfico de linhas (apenas saídas reais, sem duplicar a quitação da fatura)
     if (itemAno === anoSelecionado && isSaida && !isPagtoFatura) {
       acumuladoHistoricoPorMes[itemMesChave] = (acumuladoHistoricoPorMes[itemMesChave] || 0) + item.amount;
     }
@@ -538,6 +625,7 @@ function processarDados() {
   
   const grupos = {};
   const gastosMacroGrafico = {};
+  const tetosMacroGrafico = {};
 
   Object.keys(envelopesConfig).forEach(catId => {
     const cat = envelopesConfig[catId];
@@ -552,16 +640,19 @@ function processarDados() {
     Object.keys(grupos).forEach(macroNome => {
       const itensGrupo = grupos[macroNome];
       
-      let totalGastoGrupo = 0;
+      let totalGastoGrupoVisual = 0;
+      let totalGastoGrupoMesReal = 0;
       let totalTetoGrupo = 0;
 
       itensGrupo.forEach(item => {
-        const gastoItem = item.is_sinking_fund ? (acmCategoriasHistSaida[item.id] || 0) : (acmCategoriasMes[item.id] || 0);
-        totalGastoGrupo += gastoItem;
+        const gastoItemVisual = item.is_sinking_fund ? (acmCategoriasHistSaida[item.id] || 0) : (acmCategoriasMes[item.id] || 0);
+        totalGastoGrupoVisual += gastoItemVisual;
+        totalGastoGrupoMesReal += (acmCategoriasMes[item.id] || 0);
         totalTetoGrupo += item.teto;
       });
 
-      gastosMacroGrafico[macroNome] = totalGastoGrupo;
+      gastosMacroGrafico[macroNome] = totalGastoGrupoMesReal;
+      tetosMacroGrafico[macroNome] = totalTetoGrupo;
 
       const grupoBloco = document.createElement('div');
       grupoBloco.className = "bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 space-y-3";
@@ -573,7 +664,7 @@ function processarDados() {
           📁 ${macroNome}
         </span>
         <span class="text-xs font-mono text-slate-400">
-          R$ ${totalGastoGrupo.toFixed(2)} / R$ ${totalTetoGrupo.toFixed(2)}
+          R$ ${totalGastoGrupoVisual.toFixed(2)} / R$ ${totalTetoGrupo.toFixed(2)}
         </span>
       `;
       grupoBloco.appendChild(headerGrupo);
@@ -642,6 +733,7 @@ function processarDados() {
 
   // Atualiza os Gráficos
   renderizarGraficoMacroGrupos(gastosMacroGrafico);
+  renderizarGraficoOrcadoVsRealizado(tetosMacroGrafico, gastosMacroGrafico);
   renderizarGraficoHistoricoMensal(acumuladoHistoricoPorMes);
 
   const totalDespesasMes = totalSaidasTotaisConta + totalFaturaCartao;
