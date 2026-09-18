@@ -3,8 +3,9 @@ import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirV
 import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
 import { salvarTransacao, removerTransacao, processarFechamentoMes } from "./core/transactions.js";
 import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPorMacroGrupo } from "./core/envelopes.js";
+import { restaurarContasPadrao } from "./core/accounts.js";
 import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
-import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados, atualizarMargemEManobraUI, atualizarVelocimetroPacingUI } from "./core/ui.js";
+import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados, atualizarMargemEManobraUI, atualizarVelocimetroPacingUI, atualizarSelectsContas } from "./core/ui.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -12,6 +13,7 @@ const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
 
 let saldoLivreMemoria = 0;
 let envelopesConfig = {};
+let contasConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
@@ -30,7 +32,7 @@ aplicarMascaraMoeda(document.getElementById('input-valor-aporte-sobra'));
 filtroMesInput.value = `${anoAtual}-${mesAtual}`;
 document.getElementById('data').value = hoje.toISOString().split('T')[0];
 
-// CENTRALIZADOR UNIFICADO DE ESCUTADORES DE EVENTOS
+// Centralizador Unificado de Escutadores de Eventos
 function inicializarEscutadoresDeEventos() {
   document.getElementById('btn-mes-anterior')?.addEventListener('click', () => alterarMes(-1));
   document.getElementById('btn-mes-proximo')?.addEventListener('click', () => alterarMes(1));
@@ -68,7 +70,7 @@ function inicializarEscutadoresDeEventos() {
   if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
 }
 
-// HANDLERS DOS MODAIS E ACOES DE INTERFACE
+// Modais e Auxiliares
 function abrirModalFechamento() {
   document.getElementById('txt-fechamento-mes-ref').textContent = filtroMesInput.value;
   document.getElementById('txt-fechamento-saldo-sobra').textContent = formatarMoeda(saldoLivreMemoria);
@@ -128,7 +130,7 @@ function resetarFormCategoria() {
   document.getElementById('btn-cancelar-cat').classList.add('hidden');
 }
 
-// ACOES DISPARADAS PELO HTML (WINDOW)
+// Global Window Functions
 window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
   document.getElementById('transacao-id').value = id;
   document.getElementById('data').value = data;
@@ -162,7 +164,7 @@ window.excluirCat = async (id, nome) => {
   if (confirm(`Deseja excluir a categoria "${nome}"?`)) await removerCategoria(id);
 };
 
-// SUBMISSOES DE FORMULARIO
+// Submissões
 async function submeterTransacao(e) {
   e.preventDefault();
   const idEditando = document.getElementById('transacao-id').value;
@@ -233,7 +235,7 @@ async function executarQuitacaoFatura() {
   }
 }
 
-// PROCESSAMENTO CENTRAL
+// Processamento Central
 function processarDados() {
   if (!snapshotTransactions) return;
   const mesSel = filtroMesInput.value;
@@ -255,7 +257,8 @@ function processarDados() {
 
     const itemMes = item.date.substring(0, 7);
     const isSaida = item.type === "SAIDA";
-    const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
+    const contaObj = contasConfig[item.account_id];
+    const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
     const isPagto = item.category_id === "CAT_FATURA_CARTAO";
 
     if (item.date.substring(0, 4) === anoSel && isSaida && !isPagto) {
@@ -295,7 +298,6 @@ function processarDados() {
   valorFaturaPendenteAtual = Math.max(0, totalFatura - totalPagtoFatura);
   saldoLivreMemoria = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendenteAtual);
 
-  // Status Botão Quitar Fatura
   const btnQuitar = document.getElementById('btn-quitar-fatura');
   const badgeFatura = document.getElementById('badge-fatura-status');
   if (btnQuitar && badgeFatura) {
@@ -328,7 +330,6 @@ function processarDados() {
   renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro);
   renderizarGraficoHistoricoMensal(acmHistMes);
 
-  // PACING E MARGEM DE MANOBRA
   const metricas = calcularMetricasOrcamento(envelopesConfig, acmCatMes);
   const pacing = calcularVelocimetroPacing(mesSel, metricas.gastoFlexivelMes, metricas.tetoFlexivelTotal);
 
@@ -367,8 +368,20 @@ function processarDados() {
   }
 }
 
-// SUBSCRIÇÕES FIRESTORE E START
+// Subscrições Firestore e Start
 inicializarEscutadoresDeEventos();
+
+onSnapshot(collection(db, "accounts"), (snapshot) => {
+  contasConfig = {};
+  if (snapshot.empty) restaurarContasPadrao();
+  snapshot.forEach(docSnap => contasConfig[docSnap.id] = docSnap.data());
+  atualizarSelectsContas(
+    document.getElementById('conta'),
+    document.getElementById('filtro-conta-extrato'),
+    contasConfig
+  );
+  processarDados();
+});
 
 onSnapshot(collection(db, "categories"), (snapshot) => {
   envelopesConfig = {};

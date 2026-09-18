@@ -228,3 +228,28 @@ export function renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, ac
     listaEnvelopes.appendChild(grupoBloco);
   });
 }
+export function atualizarSelectsContas(selectConta, filtroContaExtrato, contasConfig) {
+  if (selectConta) selectConta.innerHTML = "";
+  if (filtroContaExtrato) {
+    filtroContaExtrato.innerHTML = '<option value="TODAS">💳 Conta/Forma: Todas</option>';
+  }
+
+  Object.keys(contasConfig).forEach(id => {
+    const acc = contasConfig[id];
+    const selo = acc.tipo === "CARTAO" ? "💳" : "🏦";
+
+    if (selectConta) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `${selo} ${acc.nome}`;
+      selectConta.appendChild(opt);
+    }
+
+    if (filtroContaExtrato) {
+      const optFiltro = document.createElement('option');
+      optFiltro.value = id;
+      optFiltro.textContent = `${selo} ${acc.nome}`;
+      filtroContaExtrato.appendChild(optFiltro);
+    }
+  });
+}
