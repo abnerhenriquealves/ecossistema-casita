@@ -71,6 +71,18 @@ const btnCancelarCat = document.getElementById('btn-cancelar-cat');
 const btnSalvarCat = document.getElementById('btn-salvar-cat');
 const listaGerenciadorCat = document.getElementById('lista-gerenciador-categorias');
 
+// Elementos do Modal de Fechamento de Mês
+const btnAbrirFechamentoMes = document.getElementById('btn-abrir-fechamento-mes');
+const modalFechamentoMes = document.getElementById('modal-fechamento-mes');
+const btnFecharModalFechamento = document.getElementById('btn-fechar-modal-fechamento');
+const btnCancelarFechamento = document.getElementById('btn-cancelar-fechamento');
+const txtFechamentoMesRef = document.getElementById('txt-fechamento-mes-ref');
+const txtFechamentoSaldoSobra = document.getElementById('txt-fechamento-saldo-sobra');
+const boxAlertaFaturaPendente = document.getElementById('box-alerta-fatura-pendente');
+const selectCaixinhaDestino = document.getElementById('select-caixinha-destino');
+const inputValorAporteSobra = document.getElementById('input-valor-aporte-sobra');
+const formFechamentoMes = document.getElementById('form-fechamento-mes');
+
 let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
@@ -1021,3 +1033,110 @@ onSnapshot(q, (snapshot) => {
   snapshotTransactions = snapshot;
   processarDados();
 });
+
+// --- LÓGICA E INTEGRAÇÃO DO ASSISTENTE DE FECHAMENTO DE MÊS ---
+
+function abrirModalFechamento() {
+  const mesSel = filtroMesInput.value;
+  txtFechamentoMesRef.textContent = mesSel;
+
+  // Calcula o Saldo Livre do mês selecionado
+  const txtSaldoAtual = elSaldo.textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+  const saldoLivreAtual = parseFloat(txtSaldoAtual) || 0;
+
+  txtFechamentoSaldoSobra.textContent = `R$ ${saldoLivreAtual.toFixed(2)}`;
+  inputValorAporteSobra.value = Math.max(0, saldoLivreAtual).toFixed(2);
+
+  // Alerta de Fatura Pendente
+  if (valorFaturaPendenteAtual > 0) {
+    boxAlertaFaturaPendente.classList.remove('hidden');
+  } else {
+    boxAlertaFaturaPendente.classList.add('hidden');
+  }
+
+  // Preenche o Select apenas com Caixinhas / Reservas (Sinking Funds)
+  selectCaixinhaDestino.innerHTML = "";
+  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+
+  if (caixinhas.length === 0) {
+    selectCaixinhaDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
+  } else {
+    caixinhas.forEach(catId => {
+      const cat = envelopesConfig[catId];
+      const opt = document.createElement('option');
+      opt.value = catId;
+      opt.textContent = `🧰 ${cat.nome} (Meta: R$ ${cat.teto.toFixed(2)})`;
+      selectCaixinhaDestino.appendChild(opt);
+    });
+  }
+
+  modalFechamentoMes.classList.remove('hidden');
+}
+
+function fecharModalFechamento() {
+  modalFechamentoMes.classList.add('hidden');
+  formFechamentoMes.reset();
+}
+
+if (btnAbrirFechamentoMes) btnAbrirFechamentoMes.addEventListener('click', abrirModalFechamento);
+if (btnFecharModalFechamento) btnFecharModalFechamento.addEventListener('click', fecharModalFechamento);
+if (btnCancelarFechamento) btnCancelarFechamento.addEventListener('click', fecharModalFechamento);
+
+// Evento de Submissão do Aporte da Sobra de Fechamento
+if (formFechamentoMes) {
+  formFechamentoMes.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
+    btnConfirmar.disabled = true;
+    btnConfirmar.textContent = "Processando Fechamento...";
+
+    const mesSel = filtroMesInput.value;
+    const catDestinoId = selectCaixinhaDestino.value;
+    const valorAporte = parseFloat(inputValorAporteSobra.value);
+
+    if (!catDestinoId) {
+      alert("Selecione uma Caixinha / Reserva de destino para aportar a sobra.");
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
+      return;
+    }
+
+    if (valorAporte <= 0) {
+      alert("Informe um valor válido de aporte maior que zero.");
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
+      return;
+    }
+
+    const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
+    const dataUltimoDiaMes = `${mesSel}-28`;
+
+    // Registra a entrada no envelope da Caixinha (Sinking Fund)
+    const dadosAporte = {
+      date: dataUltimoDiaMes,
+      type: "ENTRADA",
+      amount: valorAporte,
+      description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
+      category_id: catDestinoId,
+      account_id: "ACC_BRADESCO_ABNER",
+      status: "VALIDATED",
+      user_owner: document.getElementById('usuario').value || "Abner",
+      source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, "transactions"), dadosAporte);
+      sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosAporte });
+      
+      fecharModalFechamento();
+      alert(`🎉 Fechamento concluído com sucesso! R$ ${valorAporte.toFixed(2)} aportados na caixinha "${nomeCaixinha}".`);
+    } catch (err) {
+      alert("Erro ao realizar fechamento: " + err.message);
+    } finally {
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
+    }
+  });
+}
