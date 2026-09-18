@@ -7,7 +7,7 @@ const hoje = new Date();
 const anoAtual = hoje.getFullYear();
 const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
 
-// Variable Global em Memória para Evitar Erros de Leitura de String no Fechamento
+// Variável Global em Memória para Evitar Erros de Leitura de String no Fechamento
 let saldoLivreMemoria = 0;
 
 // --- UTILITÁRIOS DE FORMATAÇÃO E MÁSCARA BANCÁRIA (PT-BR) ---
@@ -793,7 +793,14 @@ function processarDados() {
       let totalTetoGrupo = 0;
 
       itensGrupo.forEach(item => {
-        const gastoItemVisual = item.is_sinking_fund ? (acmCategoriasHistSaida[item.id] || 0) : (acmCategoriasMes[item.id] || 0);
+        // Para Caixinhas Acumulativas (Sinking Funds), o saldo real acumulado = Entradas (Aportes) - Saídas
+        const entradasCatHist = acmCategoriasHistEntrada[item.id] || 0;
+        const saídasCatHist = acmCategoriasHistSaida[item.id] || 0;
+        
+        const gastoItemVisual = item.is_sinking_fund 
+          ? (entradasCatHist > 0 ? (entradasCatHist - saídasCatHist) : saídasCatHist) 
+          : (acmCategoriasMes[item.id] || 0);
+
         totalGastoGrupoVisual += gastoItemVisual;
         totalGastoGrupoMesReal += (acmCategoriasMes[item.id] || 0);
         totalTetoGrupo += item.teto;
@@ -836,15 +843,11 @@ function processarDados() {
         if (isCaixinha) {
           badgeCaixinha = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold shrink-0">🧰 Caixinha</span>`;
           
-          if (entradaHist > 0) {
-            const saldoCaixinha = entradaHist - gastoHist;
-            pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
-            if (pct < 0) pct = 0;
-            textoValores = `Saldo: ${formatarMoeda(saldoCaixinha)} / Meta: ${formatarMoeda(env.teto)}`;
-          } else {
-            pct = env.teto > 0 ? Math.min(Math.round((gastoHist / env.teto) * 100), 100) : 0;
-            textoValores = `Acumulado: ${formatarMoeda(gastoHist)} / ${formatarMoeda(env.teto)} (Mês: ${formatarMoeda(gastoMes)})`;
-          }
+          // O saldo acumulado na caixinha = Aportes (Saídas de caixa livre) - Resgates
+          const saldoCaixinha = gastoHist - entradaHist;
+          pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
+          if (pct < 0) pct = 0;
+          textoValores = `Saldo: ${formatarMoeda(saldoCaixinha)} / Meta: ${formatarMoeda(env.teto)}`;
         } else {
           pct = env.teto > 0 ? Math.min(Math.round((gastoMes / env.teto) * 100), 100) : 0;
           textoValores = `${formatarMoeda(gastoMes)} / ${formatarMoeda(env.teto)} (${pct}%)`;
@@ -1030,20 +1033,19 @@ if (form) {
   });
 }
 
-// --- LÓGICA DO ASSISTENTE DE FECHAMENTO DE MÊS (USANDO VARIÁVEL EM MEMÓRIA) ---
+// --- LÓGICA DO ASSISTENTE DE FECHAMENTO DE MÊS (CORRIGIDO: ABORDAGEM 1 - SAÍDA DE CAIXA LIVRE) ---
 
 function abrirModalFechamento() {
   const mesSel = filtroMesInput.value;
   txtFechamentoMesRef.textContent = mesSel;
 
-  // LEITURA DIRETA E SEGURA DA VARIÁVEL EM MEMÓRIA (SEM ERROS DE STRING HTML)
   txtFechamentoSaldoSobra.textContent = formatarMoeda(saldoLivreMemoria);
   definirValorMascara(inputValorAporteSobra, Math.max(0, saldoLivreMemoria));
 
   if (valorFaturaPendenteAtual > 0) {
     boxAlertaFaturaPendente.classList.remove('hidden');
   } else {
-    boxAlertaFaturaPendente.classList.add('hidden');
+    boxAlertaFartaPendente.classList.add('hidden');
   }
 
   selectCaixinhaDestino.innerHTML = "";
@@ -1102,9 +1104,10 @@ if (formFechamentoMes) {
     const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
     const dataUltimoDiaMes = `${mesSel}-28`;
 
+    // ABORDAGEM 1: Gravado como SAIDA da Conta Corrente com destino à Caixinha
     const dadosAporte = {
       date: dataUltimoDiaMes,
-      type: "ENTRADA",
+      type: "SAIDA",
       amount: valorAporte,
       description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
       category_id: catDestinoId,
