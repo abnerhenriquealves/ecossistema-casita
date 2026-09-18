@@ -100,6 +100,15 @@
           class="hidden mt-2 w-full py-1.5 px-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all items-center justify-center gap-1">
           💳 Quitar Fatura do Mês
         </button>
+        <!-- 📌 [Seletor de Conta Pagadora no Modal/Ação de Quitação] -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Debitar Pagamento Da Conta:</label>
+          <select id="select-conta-pagadora-fatura"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+            <option value="">Carregando contas disponíveis...</option>
+          </select>
+        </div>
+
       </div>
 
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">

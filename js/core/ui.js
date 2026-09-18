@@ -228,8 +228,10 @@ export function renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, ac
     listaEnvelopes.appendChild(grupoBloco);
   });
 }
-export function atualizarSelectsContas(selectConta, filtroContaExtrato, contasConfig) {
+// 📌 [Atualiza todos os selects de contas da interface dinamicamente]
+export function atualizarSelectsContas(selectConta, filtroContaExtrato, selectPagadora, contasConfig) {
   if (selectConta) selectConta.innerHTML = "";
+  if (selectPagadora) selectPagadora.innerHTML = "";
   if (filtroContaExtrato) {
     filtroContaExtrato.innerHTML = '<option value="TODAS">💳 Conta/Forma: Todas</option>';
   }
@@ -238,6 +240,7 @@ export function atualizarSelectsContas(selectConta, filtroContaExtrato, contasCo
     const acc = contasConfig[id];
     const selo = acc.tipo === "CARTAO" ? "💳" : "🏦";
 
+    // Preenche seletor de lançamento
     if (selectConta) {
       const opt = document.createElement('option');
       opt.value = id;
@@ -245,11 +248,20 @@ export function atualizarSelectsContas(selectConta, filtroContaExtrato, contasCo
       selectConta.appendChild(opt);
     }
 
+    // Preenche seletor do filtro do extrato
     if (filtroContaExtrato) {
       const optFiltro = document.createElement('option');
       optFiltro.value = id;
       optFiltro.textContent = `${selo} ${acc.nome}`;
       filtroContaExtrato.appendChild(optFiltro);
+    }
+
+    // Preenche apenas contas correntes para pagar a fatura
+    if (selectPagadora && acc.tipo === "CORRENTE") {
+      const optPagadora = document.createElement('option');
+      optPagadora.value = id;
+      optPagadora.textContent = `🏦 ${acc.nome}`;
+      selectPagadora.appendChild(optPagadora);
     }
   });
 }

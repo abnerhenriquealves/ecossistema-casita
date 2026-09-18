@@ -227,19 +227,30 @@ async function submeterFechamentoMes(e) {
   alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
 }
 
+// 📌 [Executa a quitação da fatura utilizando a conta selecionada pelo usuário]
 async function executarQuitacaoFatura() {
   if (valorFaturaPendenteAtual <= 0) return;
   const mesSel = filtroMesInput.value;
-  if (confirm(`Confirmar quitação da fatura de ${formatarMoeda(valorFaturaPendenteAtual)}?`)) {
+  const contaPagadoraId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value;
+
+  if (!contaPagadoraId) {
+    alert("Selecione uma conta corrente válida para debitar o pagamento da fatura.");
+    return;
+  }
+
+  const nomeConta = contasConfig[contaPagadoraId]?.nome || "Conta Corrente";
+
+  if (confirm(`Confirmar quitação da fatura de ${formatarMoeda(valorFaturaPendenteAtual)} debitando de "${nomeConta}"?`)) {
     const [anoSel, mSel] = mesSel.split('-').map(Number);
     const ultimoDia = new Date(anoSel, mSel, 0).getDate();
+
     await salvarTransacao("", {
       date: `${mesSel}-${String(ultimoDia).padStart(2, '0')}`,
       type: "SAIDA",
       amount: valorFaturaPendenteAtual,
       description: `Quitação Fatura Cartão (${mesSel})`,
       category_id: "CAT_FATURA_CARTAO",
-      account_id: "ACC_BRADESCO_ABNER",
+      account_id: contaPagadoraId, // 🟢 Dinâmico
       status: "VALIDATED",
       user_owner: document.getElementById('usuario').value || "Abner",
       source_satellite: "core_dimdim",
@@ -409,15 +420,19 @@ function processarDados() {
 // Subscrições Firestore e Start
 inicializarEscutadoresDeEventos();
 
+// 📌 [Escuta mudanças em Accounts e popula todos os seletores]
 onSnapshot(collection(db, "accounts"), (snapshot) => {
   contasConfig = {};
   if (snapshot.empty) restaurarContasPadrao();
   snapshot.forEach(docSnap => contasConfig[docSnap.id] = docSnap.data());
+  
   atualizarSelectsContas(
     document.getElementById('conta'),
     document.getElementById('filtro-conta-extrato'),
+    document.getElementById('select-conta-pagadora-fatura'),
     contasConfig
   );
+  
   renderizarListaGerenciadorContas(
     document.getElementById('lista-gerenciador-contas'),
     contasConfig
