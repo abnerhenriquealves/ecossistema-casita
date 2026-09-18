@@ -79,15 +79,17 @@ let graficoMacroInstance = null;
 let graficoOrcadoVsRealizadoInstance = null;
 let graficoHistoricoInstance = null;
 
-// Função de Envio de Dados em Segundo Plano para o Google Sheets
+/// Função de Envio de Dados em Segundo Plano para o Google Sheets (Com ajuste de CORS)
 async function sincronizarGoogleSheets(payload) {
   if (!GOOGLE_SHEETS_WEBHOOK_URL) return;
   try {
     await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
       method: "POST",
+      mode: "no-cors", // <--- Adicionado para liberar a trava do navegador com o Google
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     });
+    console.log("[Sheets Sync] Dados enviados para o Google Sheets.");
   } catch (err) {
     console.warn("[Sheets Sync] Aviso: Não foi possível espelhar no Google Sheets no momento.", err);
   }
@@ -216,23 +218,23 @@ formCategoria.addEventListener('submit', async (e) => {
 
   try {
     if (catId) {
-      await updateDoc(doc(db, "categories", catId), { 
-        nome, 
-        teto, 
-        macro_grupo: macro, 
+      await updateDoc(doc(db, "categories", catId), {
+        nome,
+        teto,
+        macro_grupo: macro,
         rigidez: rigidez,
-        is_sinking_fund: isAcumulativa, 
-        updated_at: new Date().toISOString() 
+        is_sinking_fund: isAcumulativa,
+        updated_at: new Date().toISOString()
       });
     } else {
       const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
-      await setDoc(doc(db, "categories", novoId), { 
-        nome, 
-        teto, 
-        macro_grupo: macro, 
+      await setDoc(doc(db, "categories", novoId), {
+        nome,
+        teto,
+        macro_grupo: macro,
         rigidez: rigidez,
-        is_sinking_fund: isAcumulativa, 
-        created_at: new Date().toISOString() 
+        is_sinking_fund: isAcumulativa,
+        created_at: new Date().toISOString()
       });
     }
     resetarFormCategoria();
@@ -243,20 +245,20 @@ formCategoria.addEventListener('submit', async (e) => {
   }
 });
 
-window.prepararEdicaoCat = function(id, nome, teto, macro, rigidez, isAcumulativa) {
+window.prepararEdicaoCat = function (id, nome, teto, macro, rigidez, isAcumulativa) {
   inputCatId.value = id;
   inputCatNome.value = nome;
   inputCatTeto.value = teto;
   if (macro) selectCatMacro.value = macro;
   if (rigidez) selectCatRigidez.value = rigidez;
   checkCatAcumulativa.checked = !!isAcumulativa;
-  
+
   tituloFormCat.textContent = "Editar Envelope / Categoria";
   btnSalvarCat.textContent = "Atualizar Envelope";
   btnCancelarCat.classList.remove('hidden');
 };
 
-window.excluirCat = async function(id, nome) {
+window.excluirCat = async function (id, nome) {
   if (confirm(`Deseja excluir a categoria "${nome}"?`)) {
     try {
       await deleteDoc(doc(db, "categories", id));
@@ -303,7 +305,7 @@ btnQuitarFatura.addEventListener('click', async () => {
 });
 
 // Edição / Exclusão de Transações
-window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, conta, usuario) {
+window.prepararEdicao = function (id, data, tipo, valor, descricao, categoria, conta, usuario) {
   inputTransacaoId.value = id;
   document.getElementById('data').value = data;
   document.getElementById('tipo').value = tipo;
@@ -321,7 +323,7 @@ window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, co
   document.getElementById('valor').focus();
 };
 
-window.excluirTransacao = async function(id, descricao) {
+window.excluirTransacao = async function (id, descricao) {
   if (confirm(`Deseja realmente excluir o lançamento "${descricao}"?`)) {
     try {
       await deleteDoc(doc(db, "transactions", id));
@@ -337,7 +339,7 @@ function renderizarGraficoMacroGrupos(dadosMacro) {
   const canvasEl = document.getElementById('grafico-macro-grupos');
   if (!canvasEl) return;
   const ctx = canvasEl.getContext('2d');
-  
+
   const labels = Object.keys(dadosMacro);
   const valores = Object.values(dadosMacro);
 
@@ -362,7 +364,7 @@ function renderizarGraficoMacroGrupos(dadosMacro) {
   }
 
   const cores = [
-    '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#8b5cf6', 
+    '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#8b5cf6',
     '#6366f1', '#14b8a6', '#f43f5e', '#84cc16'
   ];
 
@@ -462,7 +464,7 @@ function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
         },
         tooltip: {
           callbacks: {
-            label: function(context) {
+            label: function (context) {
               let label = context.dataset.label || '';
               if (label) label += ': ';
               if (context.parsed.y !== null) {
@@ -623,7 +625,7 @@ function processarDados() {
 
         const card = document.createElement('div');
         card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
-        
+
         card.innerHTML = `
           <div class="space-y-0.5 overflow-hidden">
             <p class="font-medium text-slate-200 truncate">${item.description}</p>
@@ -686,7 +688,7 @@ function processarDados() {
 
   // Renderização dos Envelopes e Acúmulo por Macro-Grupo
   listaEnvelopes.innerHTML = "";
-  
+
   const grupos = {};
   const gastosMacroGrafico = {};
   const tetosMacroGrafico = {};
@@ -714,7 +716,7 @@ function processarDados() {
   } else {
     Object.keys(grupos).forEach(macroNome => {
       const itensGrupo = grupos[macroNome];
-      
+
       let totalGastoGrupoVisual = 0;
       let totalGastoGrupoMesReal = 0;
       let totalTetoGrupo = 0;
@@ -762,7 +764,7 @@ function processarDados() {
 
         if (isCaixinha) {
           badgeCaixinha = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold shrink-0">🧰 Caixinha</span>`;
-          
+
           if (entradaHist > 0) {
             const saldoCaixinha = entradaHist - gastoHist;
             pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
@@ -892,7 +894,7 @@ function processarDados() {
 
   const totalDespesasMes = totalSaidasTotaisConta + totalFaturaCartao;
   const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
-  
+
   resumoExecutivoTexto.innerHTML = `
     <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">R$ ${totalEntradas.toFixed(2)}</span></div>
     <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">R$ ${totalDespesasMes.toFixed(2)}</span></div>
@@ -933,7 +935,7 @@ form.addEventListener('submit', async (e) => {
       const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
       sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
     }
-    
+
     const mesDoLancamento = dataLancamento.substring(0, 7);
     if (filtroMesInput.value !== mesDoLancamento) {
       filtroMesInput.value = mesDoLancamento;
@@ -966,12 +968,12 @@ onSnapshot(collection(db, "categories"), (snapshot) => {
     const macro = data.macro_grupo || "Reservas & Outros";
     const rigidez = data.rigidez || "RIGIDO";
 
-    envelopesConfig[id] = { 
-      nome: data.nome, 
-      teto: data.teto, 
+    envelopesConfig[id] = {
+      nome: data.nome,
+      teto: data.teto,
       macro: macro,
       rigidez: rigidez,
-      is_sinking_fund: !!data.is_sinking_fund 
+      is_sinking_fund: !!data.is_sinking_fund
     };
 
     if (!gruposSelect[macro]) gruposSelect[macro] = [];
