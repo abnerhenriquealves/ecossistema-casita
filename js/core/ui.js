@@ -127,13 +127,14 @@ export function atualizarSelectsCategorias(selectCategoria, listaGerenciadorCat,
     gruposSelect[macro].push({ id, ...data });
 
     if (listaGerenciadorCat) {
+      const nomeCat = data.nome || "Sem Nome";
       const itemCat = document.createElement('div');
       itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
       itemCat.innerHTML = `
-        <span class="text-slate-200 font-medium">[${macro}] ${data.nome} - <span class="text-emerald-400 font-mono">${formatarMoeda(data.teto)}</span></span>
+        <span class="text-slate-200 font-medium">[${macro}] ${nomeCat} - <span class="text-emerald-400 font-mono">${formatarMoeda(data.teto)}</span></span>
         <div class="flex items-center gap-2">
-          <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', '${data.rigidez}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
-          <button onclick="excluirCat('${id}', '${data.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+          <button onclick="prepararEdicaoCat('${id}', '${nomeCat.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', '${data.rigidez}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
+          <button onclick="excluirCat('${id}', '${nomeCat.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
         </div>
       `;
       listaGerenciadorCat.appendChild(itemCat);
@@ -146,7 +147,7 @@ export function atualizarSelectsCategorias(selectCategoria, listaGerenciadorCat,
     gruposSelect[macroNome].forEach(cat => {
       const opt = document.createElement('option');
       opt.value = cat.id;
-      opt.textContent = `${cat.rigidez === 'FLEXIVEL' ? '🎈' : '📌'} ${cat.is_sinking_fund ? '🧰 ' + cat.nome : cat.nome}`;
+      opt.textContent = `${cat.rigidez === 'FLEXIVEL' ? '🎈' : '📌'} ${cat.is_sinking_fund ? '🧰 ' + (cat.nome || 'Sem Nome') : (cat.nome || 'Sem Nome')}`;
       optgroup.appendChild(opt);
     });
     selectCategoria.appendChild(optgroup);
@@ -177,7 +178,7 @@ export function renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, ac
     let totalGastoVisual = 0, totalTetoGrupo = 0;
     grupos[macroNome].forEach(item => {
       const isCaixinha = !!item.is_sinking_fund;
-      const gastoVisual = isCaixinha
+      const gastoVisual = isCaixinha 
         ? ((acmCatSaidaHist[item.id] || 0) - (acmCatEntradaHist[item.id] || 0))
         : (acmCatMes[item.id] || 0);
       totalGastoVisual += gastoVisual;
@@ -214,7 +215,7 @@ export function renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, ac
       envCard.className = "bg-slate-900/60 border border-slate-800 p-3 rounded-lg space-y-2";
       envCard.innerHTML = `
         <div class="flex justify-between items-center text-xs">
-          <span class="font-medium text-slate-200">${env.nome} ${isCaixinha ? '🧰' : ''}</span>
+          <span class="font-medium text-slate-200">${env.nome || 'Sem Nome'} ${isCaixinha ? '🧰' : ''}</span>
           <span class="font-mono text-emerald-400">${textoValores}</span>
         </div>
         <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
@@ -228,7 +229,7 @@ export function renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, ac
     listaEnvelopes.appendChild(grupoBloco);
   });
 }
-// 📌 [Atualiza todos os selects de contas da interface dinamicamente]
+
 export function atualizarSelectsContas(selectConta, filtroContaExtrato, selectPagadora, contasConfig) {
   if (selectConta) selectConta.innerHTML = "";
   if (selectPagadora) selectPagadora.innerHTML = "";
@@ -238,48 +239,50 @@ export function atualizarSelectsContas(selectConta, filtroContaExtrato, selectPa
 
   Object.keys(contasConfig).forEach(id => {
     const acc = contasConfig[id];
-    const selo = acc.tipo === "CARTAO" ? "💳" : "🏦";
+    const nomeConta = acc.nome || "Conta Sem Nome";
+    const tipoConta = acc.tipo || "CORRENTE";
+    const selo = tipoConta === "CARTAO" ? "💳" : "🏦";
 
-    // Preenche seletor de lançamento
     if (selectConta) {
       const opt = document.createElement('option');
       opt.value = id;
-      opt.textContent = `${selo} ${acc.nome}`;
+      opt.textContent = `${selo} ${nomeConta}`;
       selectConta.appendChild(opt);
     }
 
-    // Preenche seletor do filtro do extrato
     if (filtroContaExtrato) {
       const optFiltro = document.createElement('option');
       optFiltro.value = id;
-      optFiltro.textContent = `${selo} ${acc.nome}`;
+      optFiltro.textContent = `${selo} ${nomeConta}`;
       filtroContaExtrato.appendChild(optFiltro);
     }
 
-    // Preenche apenas contas correntes para pagar a fatura
-    if (selectPagadora && acc.tipo === "CORRENTE") {
+    if (selectPagadora && tipoConta === "CORRENTE") {
       const optPagadora = document.createElement('option');
       optPagadora.value = id;
-      optPagadora.textContent = `🏦 ${acc.nome}`;
+      optPagadora.textContent = `🏦 ${nomeConta}`;
       selectPagadora.appendChild(optPagadora);
     }
   });
 }
+
 export function renderizarListaGerenciadorContas(listaEl, contasConfig) {
   if (!listaEl) return;
   listaEl.innerHTML = "";
 
   Object.keys(contasConfig).forEach(id => {
     const acc = contasConfig[id];
-    const selo = acc.tipo === "CARTAO" ? "💳" : "🏦";
+    const nomeConta = acc.nome || "Conta Sem Nome";
+    const tipoConta = acc.tipo || "CORRENTE";
+    const selo = tipoConta === "CARTAO" ? "💳" : "🏦";
 
     const itemAcc = document.createElement('div');
     itemAcc.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
     itemAcc.innerHTML = `
-      <span class="text-slate-200 font-medium">${selo} ${acc.nome} <span class="text-slate-500">(${acc.tipo})</span></span>
+      <span class="text-slate-200 font-medium">${selo} ${nomeConta} <span class="text-slate-500">(${tipoConta})</span></span>
       <div class="flex items-center gap-2">
-        <button onclick="prepararEdicaoConta('${id}', '${acc.nome.replace(/'/g, "\\'")}', '${acc.tipo}')" class="text-slate-400 hover:text-sky-400">✏️</button>
-        <button onclick="excluirConta('${id}', '${acc.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+        <button onclick="prepararEdicaoConta('${id}', '${nomeConta.replace(/'/g, "\\'")}', '${tipoConta}')" class="text-slate-400 hover:text-sky-400">✏️</button>
+        <button onclick="excluirConta('${id}', '${nomeConta.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
       </div>
     `;
     listaEl.appendChild(itemAcc);
