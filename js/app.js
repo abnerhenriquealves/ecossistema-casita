@@ -1,5 +1,8 @@
 import { db, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy } from "./firebase-config.js";
 
+// Endpoint Webhook do Google Apps Script (Sincronização com Google Sheets)
+const GOOGLE_SHEETS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbx18ow_I8Clf0K1hw4X3QnBQjfbfX2ZHLD__-sYuDqJPp37l0i0pPepAL4DG1Nzj0TS/exec";
+
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
 const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
@@ -75,6 +78,20 @@ let valorFaturaPendenteAtual = 0;
 let graficoMacroInstance = null;
 let graficoOrcadoVsRealizadoInstance = null;
 let graficoHistoricoInstance = null;
+
+// Função de Envio de Dados em Segundo Plano para o Google Sheets
+async function sincronizarGoogleSheets(payload) {
+  if (!GOOGLE_SHEETS_WEBHOOK_URL) return;
+  try {
+    await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.warn("[Sheets Sync] Aviso: Não foi possível espelhar no Google Sheets no momento.", err);
+  }
+}
 
 // Registro do Service Worker com Auto-Update e Recarga Inteligente
 if ('serviceWorker' in navigator) {
@@ -275,7 +292,8 @@ btnQuitarFatura.addEventListener('click', async () => {
     };
 
     try {
-      await addDoc(collection(db, "transactions"), dadosTransacao);
+      const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
+      sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
     } catch (err) {
       alert("Erro ao quitar fatura: " + err.message);
     } finally {
@@ -307,6 +325,7 @@ window.excluirTransacao = async function(id, descricao) {
   if (confirm(`Deseja realmente excluir o lançamento "${descricao}"?`)) {
     try {
       await deleteDoc(doc(db, "transactions", id));
+      sincronizarGoogleSheets({ action: "DELETE", id: id });
     } catch (err) {
       alert("Erro ao excluir lançamento: " + err.message);
     }
@@ -908,9 +927,11 @@ form.addEventListener('submit', async (e) => {
   try {
     if (idEditando) {
       await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
+      sincronizarGoogleSheets({ action: "UPSERT", id: idEditando, ...dadosTransacao });
     } else {
       dadosTransacao.created_at = new Date().toISOString();
-      await addDoc(collection(db, "transactions"), dadosTransacao);
+      const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
+      sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
     }
     
     const mesDoLancamento = dataLancamento.substring(0, 7);
