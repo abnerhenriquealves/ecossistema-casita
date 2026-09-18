@@ -345,7 +345,9 @@ if (btnQuitarFatura) {
       btnQuitarFatura.disabled = true;
       btnQuitarFatura.textContent = "Processando quitação...";
 
-      const dataQuitacao = `${mesSel}-28`;
+      const [anoSel, mSel] = mesSel.split('-').map(Number);
+      const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
+      const dataQuitacao = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
 
       const dadosTransacao = {
         date: dataQuitacao,
@@ -793,12 +795,12 @@ function processarDados() {
       let totalTetoGrupo = 0;
 
       itensGrupo.forEach(item => {
-        // Para Caixinhas Acumulativas (Sinking Funds), o saldo real acumulado = Entradas (Aportes) - Saídas
         const entradasCatHist = acmCategoriasHistEntrada[item.id] || 0;
-        const saídasCatHist = acmCategoriasHistSaida[item.id] || 0;
+        const saidasCatHist = acmCategoriasHistSaida[item.id] || 0;
         
+        // Para Caixinhas Acumulativas (Sinking Funds), o saldo real = Aportes (SAÍDAS) - Resgates (ENTRADAS)
         const gastoItemVisual = item.is_sinking_fund 
-          ? (entradasCatHist > 0 ? (entradasCatHist - saídasCatHist) : saídasCatHist) 
+          ? (saidasCatHist - entradasCatHist) 
           : (acmCategoriasMes[item.id] || 0);
 
         totalGastoGrupoVisual += gastoItemVisual;
@@ -843,7 +845,7 @@ function processarDados() {
         if (isCaixinha) {
           badgeCaixinha = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold shrink-0">🧰 Caixinha</span>`;
           
-          // O saldo acumulado na caixinha = Aportes (Saídas de caixa livre) - Resgates
+          // O saldo acumulado na caixinha = Aportes (Saídas) - Resgates (Entradas)
           const saldoCaixinha = gastoHist - entradaHist;
           pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
           if (pct < 0) pct = 0;
@@ -1042,10 +1044,12 @@ function abrirModalFechamento() {
   txtFechamentoSaldoSobra.textContent = formatarMoeda(saldoLivreMemoria);
   definirValorMascara(inputValorAporteSobra, Math.max(0, saldoLivreMemoria));
 
-  if (valorFaturaPendenteAtual > 0) {
-    boxAlertaFaturaPendente.classList.remove('hidden');
-  } else {
-    boxAlertaFartaPendente.classList.add('hidden');
+  if (boxAlertaFaturaPendente) {
+    if (valorFaturaPendenteAtual > 0) {
+      boxAlertaFaturaPendente.classList.remove('hidden');
+    } else {
+      boxAlertaFaturaPendente.classList.add('hidden');
+    }
   }
 
   selectCaixinhaDestino.innerHTML = "";
@@ -1102,7 +1106,11 @@ if (formFechamentoMes) {
     }
 
     const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
-    const dataUltimoDiaMes = `${mesSel}-28`;
+    
+    // Cálculo exato do último dia do mês selecionado (Ex: 28/29 Fev, 30 Abr, 31 Out)
+    const [anoSel, mSel] = mesSel.split('-').map(Number);
+    const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
+    const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
 
     // ABORDAGEM 1: Gravado como SAIDA da Conta Corrente com destino à Caixinha
     const dadosAporte = {
