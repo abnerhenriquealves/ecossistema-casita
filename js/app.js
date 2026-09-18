@@ -1,4 +1,4 @@
-import { db, collection, onSnapshot, query, orderBy, setDoc, doc, updateDoc, deleteDoc } from "./firebase-config.js";
+import { db, collection, onSnapshot, query, orderBy, setDoc, doc, updateDoc, deleteDoc, addDoc } from "./firebase-config.js";
 import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirValorMascara } from "./core/formatters.js";
 import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
 import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarGoogleSheets } from "./core/transactions.js";
@@ -16,7 +16,7 @@ let graficoMacroInstance = null;
 let graficoOrcadoVsRealizadoInstance = null;
 let graficoHistoricoInstance = null;
 
-// Elementos de Interface
+// Elementos DOM
 const filtroMesInput = document.getElementById('filtro-mes');
 const btnAnterior = document.getElementById('btn-mes-anterior');
 const btnProximo = document.getElementById('btn-mes-proximo');
@@ -43,7 +43,7 @@ const btnQuitarFatura = document.getElementById('btn-quitar-fatura');
 const badgeFaturaStatus = document.getElementById('badge-fatura-status');
 const resumoExecutivoTexto = document.getElementById('resumo-executivo-texto');
 
-// Metrics DOM
+// Métricas DOM
 const badgeDiagnosticoMargem = document.getElementById('badge-diagnostico-margem');
 const barraRigido = document.getElementById('barra-rigido');
 const barraFlexivel = document.getElementById('barra-flexivel');
@@ -98,7 +98,7 @@ aplicarMascaraMoeda(inputValorTransacao);
 aplicarMascaraMoeda(inputCatTeto);
 aplicarMascaraMoeda(inputValorAporteSobra);
 
-// Funções Globais no Window para cliques do HTML
+// Funções Globais para Ações do HTML
 window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, conta, usuario) {
   inputTransacaoId.value = id;
   document.getElementById('data').value = data;
@@ -122,7 +122,7 @@ window.excluirTransacao = async function(id, descricao) {
     try {
       await removerTransacao(id);
     } catch (err) {
-      alert("Erro ao excluir: " + err.message);
+      alert("Erro ao excluir lançamento: " + err.message);
     }
   }
 };
@@ -150,6 +150,7 @@ window.excluirCat = async function(id, nome) {
   }
 };
 
+// Eventos de Filtro e Navegação
 [buscaExtratoInput, filtroUsuarioExtrato, filtroContaExtrato, filtroTipoExtrato].forEach(el => {
   if (el) {
     el.addEventListener('input', processarDados);
@@ -159,6 +160,13 @@ window.excluirCat = async function(id, nome) {
 
 if (btnToggleGerenciarCat) {
   btnToggleGerenciarCat.addEventListener('click', () => painelGerenciarCat.classList.toggle('aberto'));
+}
+
+if (btnAbrirPicker) {
+  btnAbrirPicker.addEventListener('click', () => {
+    if ('showPicker' in filtroMesInput) filtroMesInput.showPicker();
+    else filtroMesInput.focus();
+  });
 }
 
 function alterarMes(delta) {
@@ -181,8 +189,244 @@ function resetarFormulario() {
   btnCancelarEdicao.classList.add('hidden');
 }
 
-if (btnCancelarEdicao) btnCancelarEdicao.addEventListener('click', resetarFormulario);
+function resetarFormCategoria() {
+  inputCatId.value = "";
+  formCategoria.reset();
+  definirValorMascara(inputCatTeto, 0);
+  checkCatAcumulativa.checked = false;
+  selectCatRigidez.value = "RIGIDO";
+  tituloFormCat.textContent = "Novo Envelope / Categoria";
+  btnSalvarCat.textContent = "Salvar Envelope";
+  btnCancelarCat.classList.add('hidden');
+}
 
+if (btnCancelarEdicao) btnCancelarEdicao.addEventListener('click', resetarFormulario);
+if (btnCancelarCat) btnCancelarCat.addEventListener('click', resetarFormCategoria);
+
+// Restauração de Envelopes Padrão
+async function restaurarCategoriasPadrao() {
+  const padroes = [
+    { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro: "Habitação & Custos Fixos", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro: "Alimentação & Social", rigidez: "FLEXIVEL", is_sinking_fund: false },
+    { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro: "Transporte", rigidez: "FLEXIVEL", is_sinking_fund: false },
+    { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro: "Nossos Meninos (Pets)", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_MANUT_CASITA", nome: "Caixinha Manutenção da Casita", teto: 1000.00, macro: "Habitação & Custos Fixos", rigidez: "FLEXIVEL", is_sinking_fund: true }
+  ];
+
+  for (const cat of padroes) {
+    await setDoc(doc(db, "categories", cat.id), {
+      nome: cat.nome,
+      teto: cat.teto,
+      macro_grupo: cat.macro,
+      rigidez: cat.rigidez,
+      is_sinking_fund: cat.is_sinking_fund,
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+if (btnRestaurarPadroes) {
+  btnRestaurarPadroes.addEventListener('click', async () => {
+    if (confirm("Deseja restaurar os envelopes padrão da Casita organizados por Macro-Grupos?")) {
+      await restaurarCategoriasPadrao();
+    }
+  });
+}
+
+// Submissão do Form de Categoria
+if (formCategoria) {
+  formCategoria.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btnSalvarCat.disabled = true;
+
+    const catId = inputCatId.value;
+    const nome = inputCatNome.value.trim();
+    const teto = obterValorNumericoMascara(inputCatTeto);
+    const macro = selectCatMacro.value;
+    const rigidez = selectCatRigidez.value;
+    const isAcumulativa = checkCatAcumulativa.checked;
+
+    try {
+      if (catId) {
+        await updateDoc(doc(db, "categories", catId), { 
+          nome, teto, macro_grupo: macro, rigidez, is_sinking_fund: isAcumulativa, updated_at: new Date().toISOString() 
+        });
+      } else {
+        const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+        await setDoc(doc(db, "categories", novoId), { 
+          nome, teto, macro_grupo: macro, rigidez, is_sinking_fund: isAcumulativa, created_at: new Date().toISOString() 
+        });
+      }
+      resetarFormCategoria();
+    } catch (err) {
+      alert("Erro ao salvar categoria: " + err.message);
+    } finally {
+      btnSalvarCat.disabled = false;
+    }
+  });
+}
+
+// Quitação de Fatura
+if (btnQuitarFatura) {
+  btnQuitarFatura.addEventListener('click', async () => {
+    if (valorFaturaPendenteAtual <= 0) return;
+    const mesSel = filtroMesInput.value;
+    if (confirm(`Confirmar o pagamento da fatura no valor de ${formatarMoeda(valorFaturaPendenteAtual)} debitando da Conta Corrente?`)) {
+      btnQuitarFatura.disabled = true;
+      btnQuitarFatura.textContent = "Processando quitação...";
+
+      const [anoSel, mSel] = mesSel.split('-').map(Number);
+      const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
+      const dataQuitacao = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
+
+      const dadosTransacao = {
+        date: dataQuitacao,
+        type: "SAIDA",
+        amount: valorFaturaPendenteAtual,
+        description: `Quitação Fatura Cartão (${mesSel})`,
+        category_id: "CAT_FATURA_CARTAO",
+        account_id: "ACC_BRADESCO_ABNER",
+        status: "VALIDATED",
+        user_owner: document.getElementById('usuario').value || "Abner",
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
+        sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
+      } catch (err) {
+        alert("Erro ao quitar fatura: " + err.message);
+      } finally {
+        btnQuitarFatura.disabled = false;
+      }
+    }
+  });
+}
+
+// RENDERIZAÇÃO DE GRÁFICOS (CHART.JS)
+function renderizarGraficoMacroGrupos(dadosMacro) {
+  const canvasEl = document.getElementById('grafico-macro-grupos');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+  const labels = Object.keys(dadosMacro);
+  const valores = Object.values(dadosMacro);
+
+  if (graficoMacroInstance) graficoMacroInstance.destroy();
+
+  if (labels.length === 0 || valores.every(v => v === 0)) {
+    graficoMacroInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: ['Sem gastos registrados'], datasets: [{ data: [1], backgroundColor: ['#334155'] }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+    return;
+  }
+
+  const cores = ['#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#8b5cf6', '#6366f1', '#14b8a6', '#f43f5e', '#84cc16'];
+  graficoMacroInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{ data: valores, backgroundColor: cores.slice(0, labels.length), borderWidth: 1, borderColor: '#1e293b' }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'left', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } } }
+    }
+  });
+}
+
+function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
+  const canvasEl = document.getElementById('grafico-orcado-vs-realizado');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+
+  const labels = Object.keys(tetosMacro).filter(macro => (tetosMacro[macro] || 0) > 0 || (gastosMacro[macro] || 0) > 0);
+  const dataOrcado = labels.map(m => tetosMacro[m] || 0);
+  const dataRealizado = labels.map(m => gastosMacro[m] || 0);
+
+  if (graficoOrcadoVsRealizadoInstance) graficoOrcadoVsRealizadoInstance.destroy();
+
+  if (labels.length === 0) {
+    graficoOrcadoVsRealizadoInstance = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: ['Sem envelopes configurados'], datasets: [{ label: 'Sem dados', data: [0], backgroundColor: '#334155' }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+    return;
+  }
+
+  const coresRealizado = labels.map(m => (gastosMacro[m] || 0) > (tetosMacro[m] || 0) ? '#f43f5e' : '#10b981');
+
+  graficoOrcadoVsRealizadoInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Teto Orçado (R$)', data: dataOrcado, backgroundColor: '#38bdf8', borderRadius: 4 },
+        { label: 'Gasto Realizado (R$)', data: dataRealizado, backgroundColor: coresRealizado, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+      },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label || ''}: ${formatarMoeda(ctx.parsed.y)}`
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderizarGraficoHistoricoMensal(dadosPorMes) {
+  const canvasEl = document.getElementById('grafico-historico-mensal');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+
+  const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const valores = mesesNomes.map((_, idx) => dadosPorMes[String(idx + 1).padStart(2, '0')] || 0);
+
+  if (graficoHistoricoInstance) graficoHistoricoInstance.destroy();
+
+  graficoHistoricoInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: mesesNomes,
+      datasets: [{
+        label: 'Total de Gastos (R$)',
+        data: valores,
+        borderColor: '#38bdf8',
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#38bdf8',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+// PROCESSAMENTO PRINCIPAL
 function processarDados() {
   if (!snapshotTransactions) return;
 
@@ -198,6 +442,7 @@ function processarDados() {
   const acmCategoriasMes = {};
   const acmCategoriasHistSaida = {};
   const acmCategoriasHistEntrada = {};
+  const acumuladoHistoricoPorMes = {};
 
   Object.keys(envelopesConfig).forEach(catId => {
     acmCategoriasMes[catId] = 0;
@@ -218,12 +463,19 @@ function processarDados() {
     const docId = docSnapshot.id;
     if (!item.date) return;
 
+    const itemAno = item.date.substring(0, 4);
+    const itemMesChave = item.date.substring(5, 7);
     const itemMesFormatado = item.date.substring(0, 7);
+
     const isAteMesSelecionado = itemMesFormatado <= mesSelecionado;
     const isMesAtual = itemMesFormatado === mesSelecionado;
     const isSaida = item.type === "SAIDA";
     const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
     const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
+
+    if (itemAno === anoSelecionado && isSaida && !isPagtoFatura) {
+      acumuladoHistoricoPorMes[itemMesChave] = (acumuladoHistoricoPorMes[itemMesChave] || 0) + item.amount;
+    }
 
     if (isAteMesSelecionado && item.category_id && !isPagtoFatura) {
       if (isSaida) acmCategoriasHistSaida[item.category_id] = (acmCategoriasHistSaida[item.category_id] || 0) + item.amount;
@@ -276,11 +528,26 @@ function processarDados() {
     }
   });
 
-  if (totalItensMes === 0) listaTransacoes.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento no mês.</p>`;
+  if (totalItensMes === 0) contadorExtrato.textContent = "Nenhum lançamento no mês";
+  else contadorExtrato.textContent = `Exibindo ${totalItensExibidos} de ${totalItensMes} lançamentos`;
 
   valorFaturaPendenteAtual = Math.max(0, totalFaturaCartao - totalPagamentosFatura);
+  const faturaEstaQuitada = totalFaturaCartao > 0 && valorFaturaPendenteAtual === 0;
+
+  if (faturaEstaQuitada) {
+    badgeFaturaStatus.classList.remove('hidden');
+    btnQuitarFatura.classList.add('hidden');
+  } else if (valorFaturaPendenteAtual > 0) {
+    badgeFaturaStatus.classList.add('hidden');
+    btnQuitarFatura.classList.remove('hidden');
+    btnQuitarFatura.classList.add('flex');
+    btnQuitarFatura.textContent = `💳 Quitar ${formatarMoeda(valorFaturaPendenteAtual)}`;
+  } else {
+    badgeFaturaStatus.classList.add('hidden');
+    btnQuitarFatura.classList.add('hidden');
+  }
+
   const totalSaidasTotaisConta = totalSaidasDiretasSemFatura + totalPagamentosFatura;
-  
   saldoLivreMemoria = calcularSaldoLivre(totalEntradas, totalSaidasDiretasSemFatura, totalPagamentosFatura, valorFaturaPendenteAtual);
 
   elEntradas.textContent = formatarMoeda(totalEntradas);
@@ -291,6 +558,10 @@ function processarDados() {
   // Renderização dos Envelopes
   listaEnvelopes.innerHTML = "";
   const grupos = {};
+  const gastosMacroGrafico = {};
+  const tetosMacroGrafico = {};
+
+  const metricas = calcularMetricasOrcamento(envelopesConfig, acmCategoriasMes);
 
   Object.keys(envelopesConfig).forEach(catId => {
     const cat = envelopesConfig[catId];
@@ -300,26 +571,75 @@ function processarDados() {
   });
 
   Object.keys(grupos).forEach(macroNome => {
+    const itensGrupo = grupos[macroNome];
+    let totalGastoGrupoVisual = 0;
+    let totalGastoGrupoMesReal = 0;
+    let totalTetoGrupo = 0;
+
+    itensGrupo.forEach(item => {
+      const entradasCatHist = acmCategoriasHistEntrada[item.id] || 0;
+      const saidasCatHist = acmCategoriasHistSaida[item.id] || 0;
+      const gastoItemVisual = item.is_sinking_fund ? (saidasCatHist - entradasCatHist) : (acmCategoriasMes[item.id] || 0);
+
+      totalGastoGrupoVisual += gastoItemVisual;
+      totalGastoGrupoMesReal += (acmCategoriasMes[item.id] || 0);
+      totalTetoGrupo += item.teto;
+    });
+
+    gastosMacroGrafico[macroNome] = totalGastoGrupoMesReal;
+    tetosMacroGrafico[macroNome] = totalTetoGrupo;
+
     const grupoBloco = document.createElement('div');
     grupoBloco.className = "bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 space-y-3";
-    grupoBloco.innerHTML = `<span class="text-xs font-bold uppercase tracking-wider text-emerald-400">📁 ${macroNome}</span>`;
+    grupoBloco.innerHTML = `
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">📁 ${macroNome}</span>
+        <span class="text-xs font-mono text-slate-400">${formatarMoeda(totalGastoGrupoVisual)} / ${formatarMoeda(totalTetoGrupo)}</span>
+      </div>
+    `;
 
     const gridEnvelopes = document.createElement('div');
     gridEnvelopes.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
 
-    grupos[macroNome].forEach(env => {
+    itensGrupo.forEach(env => {
       const gastoMes = acmCategoriasMes[env.id] || 0;
-      const pct = env.teto > 0 ? Math.min(Math.round((gastoMes / env.teto) * 100), 100) : 0;
+      const gastoHist = acmCategoriasHistSaida[env.id] || 0;
+      const entradaHist = acmCategoriasHistEntrada[env.id] || 0;
+      const isCaixinha = !!env.is_sinking_fund;
+      const seloRigidez = env.rigidez === "FLEXIVEL" ? "🎈" : "📌";
+
+      let pct = 0;
+      let corBarra = "bg-emerald-500";
+      let corTextoPct = "text-emerald-400";
+      let textoValores = "";
+      let badgeCaixinha = "";
+
+      if (isCaixinha) {
+        badgeCaixinha = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold shrink-0">🧰 Caixinha</span>`;
+        const saldoCaixinha = gastoHist - entradaHist;
+        pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
+        textoValores = `Saldo: ${formatarMoeda(saldoCaixinha)} / Meta: ${formatarMoeda(env.teto)}`;
+      } else {
+        pct = env.teto > 0 ? Math.min(Math.round((gastoMes / env.teto) * 100), 100) : 0;
+        textoValores = `${formatarMoeda(gastoMes)} / ${formatarMoeda(env.teto)} (${pct}%)`;
+      }
+
+      if (pct >= 100) { corBarra = "bg-rose-500"; corTextoPct = "text-rose-400"; }
+      else if (pct >= 80) { corBarra = "bg-amber-500"; corTextoPct = "text-amber-400"; }
 
       const envCard = document.createElement('div');
       envCard.className = "bg-slate-900/60 border border-slate-800 p-3 rounded-lg space-y-2";
       envCard.innerHTML = `
-        <div class="flex justify-between items-center text-xs">
-          <span class="font-medium text-slate-200">${env.nome}</span>
-          <span class="font-mono text-emerald-400">${formatarMoeda(gastoMes)} / ${formatarMoeda(env.teto)}</span>
+        <div class="flex justify-between items-center text-xs gap-2">
+          <div class="flex items-center gap-1.5 overflow-hidden">
+            <span>${seloRigidez}</span>
+            <span class="font-medium text-slate-200 truncate">${env.nome}</span>
+            ${badgeCaixinha}
+          </div>
+          <span class="font-semibold ${corTextoPct} font-mono">${textoValores}</span>
         </div>
         <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-          <div class="bg-emerald-500 h-2 rounded-full" style="width: ${pct}%"></div>
+          <div class="${corBarra} h-2 rounded-full transition-all duration-500" style="width: ${pct}%"></div>
         </div>
       `;
       gridEnvelopes.appendChild(envCard);
@@ -328,9 +648,45 @@ function processarDados() {
     grupoBloco.appendChild(gridEnvelopes);
     listaEnvelopes.appendChild(grupoBloco);
   });
+
+  // Atualização do Pacing e Margem de Manobra
+  const tetoGeralMetrica = metricas.tetoRigidoTotal + metricas.tetoFlexivelTotal;
+  const pctRigido = tetoGeralMetrica > 0 ? Math.round((metricas.tetoRigidoTotal / tetoGeralMetrica) * 100) : 0;
+  const pctFlexivel = tetoGeralMetrica > 0 ? (100 - pctRigido) : 0;
+
+  if (barraRigido && barraFlexivel) {
+    barraRigido.style.width = `${pctRigido}%`;
+    barraFlexivel.style.width = `${pctFlexivel}%`;
+  }
+
+  if (txtValorRigido) txtValorRigido.textContent = `📌 Rígidos: ${formatarMoeda(metricas.tetoRigidoTotal)} (${pctRigido}%)`;
+  if (txtValorFlexivel) txtValorFlexivel.textContent = `🎈 Flexíveis: ${formatarMoeda(metricas.tetoFlexivelTotal)} (${pctFlexivel}%)`;
+
+  const pacing = calcularVelocimetroPacing(mesSelecionado, metricas.gastoFlexivelMes, metricas.tetoFlexivelTotal);
+
+  if (txtPacingTempo) txtPacingTempo.textContent = `${pacing.pctTempo}% (Dia ${pacing.diasDecorridos}/${pacing.totalDiasNoMes})`;
+  if (barraPacingTempo) barraPacingTempo.style.width = `${pacing.pctTempo}%`;
+
+  if (txtPacingConsumo) txtPacingConsumo.textContent = `${formatarMoeda(metricas.gastoFlexivelMes)} / ${formatarMoeda(metricas.tetoFlexivelTotal)} (${pacing.pctConsumoFlexivel}%)`;
+  if (barraPacingConsumo) barraPacingConsumo.style.width = `${Math.min(pacing.pctConsumoFlexivel, 100)}%`;
+
+  // Renderiza Gráficos
+  renderizarGraficoMacroGrupos(gastosMacroGrafico);
+  renderizarGraficoOrcadoVsRealizado(tetosMacroGrafico, gastosMacroGrafico);
+  renderizarGraficoHistoricoMensal(acumuladoHistoricoPorMes);
+
+  const totalDespesasMes = totalSaidasTotaisConta + totalFaturaCartao;
+  const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
+  if (resumoExecutivoTexto) {
+    resumoExecutivoTexto.innerHTML = `
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(totalEntradas)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">${formatarMoeda(totalDespesasMes)}</span></div>
+      <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
+    `;
+  }
 }
 
-// Submissão do Formulário de Lançamento
+// Eventos de Formulário Principal
 if (form) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -353,25 +709,36 @@ if (form) {
   });
 }
 
-// Modal de Fechamento
+// Fechamento de Mês
 function abrirModalFechamento() {
   txtFechamentoMesRef.textContent = filtroMesInput.value;
   txtFechamentoSaldoSobra.textContent = formatarMoeda(saldoLivreMemoria);
   definirValorMascara(inputValorAporteSobra, Math.max(0, saldoLivreMemoria));
 
+  if (boxAlertaFaturaPendente) {
+    if (valorFaturaPendenteAtual > 0) boxAlertaFaturaPendente.classList.remove('hidden');
+    else boxAlertaFaturaPendente.classList.add('hidden');
+  }
+
   selectCaixinhaDestino.innerHTML = "";
-  Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund).forEach(catId => {
-    const opt = document.createElement('option');
-    opt.value = catId;
-    opt.textContent = `🧰 ${envelopesConfig[catId].nome}`;
-    selectCaixinhaDestino.appendChild(opt);
-  });
+  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+  if (caixinhas.length === 0) {
+    selectCaixinhaDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
+  } else {
+    caixinhas.forEach(catId => {
+      const opt = document.createElement('option');
+      opt.value = catId;
+      opt.textContent = `🧰 ${envelopesConfig[catId].nome}`;
+      selectCaixinhaDestino.appendChild(opt);
+    });
+  }
 
   modalFechamentoMes.classList.remove('hidden');
 }
 
 if (btnAbrirFechamentoMes) btnAbrirFechamentoMes.addEventListener('click', abrirModalFechamento);
 if (btnFecharModalFechamento) btnFecharModalFechamento.addEventListener('click', () => modalFechamentoMes.classList.add('hidden'));
+if (btnCancelarFechamento) btnCancelarFechamento.addEventListener('click', () => modalFechamentoMes.classList.add('hidden'));
 
 if (formFechamentoMes) {
   formFechamentoMes.addEventListener('submit', async (e) => {
@@ -386,18 +753,60 @@ if (formFechamentoMes) {
   });
 }
 
-// Subscrições do Firebase
+// Subscrições Firestore
 onSnapshot(collection(db, "categories"), (snapshot) => {
+  if (snapshot.empty) {
+    restaurarCategoriasPadrao();
+    return;
+  }
+
   envelopesConfig = {};
   selectCategoria.innerHTML = "";
+  listaGerenciadorCat.innerHTML = "";
+  const gruposSelect = {};
+
   snapshot.forEach(docSnap => {
     const data = docSnap.data();
-    envelopesConfig[docSnap.id] = data;
-    const opt = document.createElement('option');
-    opt.value = docSnap.id;
-    opt.textContent = data.nome;
-    selectCategoria.appendChild(opt);
+    const id = docSnap.id;
+    const macro = data.macro_grupo || "Reservas & Outros";
+    const rigidez = data.rigidez || "RIGIDO";
+
+    envelopesConfig[id] = { nome: data.nome, teto: data.teto, macro, rigidez, is_sinking_fund: !!data.is_sinking_fund };
+
+    if (!gruposSelect[macro]) gruposSelect[macro] = [];
+    gruposSelect[macro].push({ id, nome: data.nome, teto: data.teto, rigidez, is_sinking_fund: !!data.is_sinking_fund });
+
+    const itemCat = document.createElement('div');
+    itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+    itemCat.innerHTML = `
+      <span class="text-slate-200 font-medium">[${macro}] ${data.nome} - <span class="text-emerald-400 font-mono">${formatarMoeda(data.teto)}</span></span>
+      <div class="flex items-center gap-2">
+        <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', '${rigidez}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
+        <button onclick="excluirCat('${id}', '${data.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+      </div>
+    `;
+    listaGerenciadorCat.appendChild(itemCat);
   });
+
+  Object.keys(gruposSelect).forEach(macroNome => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = `📁 ${macroNome}`;
+
+    gruposSelect[macroNome].forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.textContent = `${cat.rigidez === 'FLEXIVEL' ? '🎈' : '📌'} ${cat.is_sinking_fund ? '🧰 ' + cat.nome : cat.nome}`;
+      optgroup.appendChild(opt);
+    });
+
+    selectCategoria.appendChild(optgroup);
+  });
+
+  const optFatura = document.createElement('option');
+  optFatura.value = "CAT_FATURA_CARTAO";
+  optFatura.textContent = "💳 Pagamento de Fatura do Cartão";
+  selectCategoria.appendChild(optFatura);
+
   processarDados();
 });
 
