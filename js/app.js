@@ -91,13 +91,13 @@ let graficoMacroInstance = null;
 let graficoOrcadoVsRealizadoInstance = null;
 let graficoHistoricoInstance = null;
 
-/// Função de Envio de Dados em Segundo Plano para o Google Sheets (Com ajuste de CORS)
+// Função de Envio de Dados em Segundo Plano para o Google Sheets (Com ajuste CORS)
 async function sincronizarGoogleSheets(payload) {
   if (!GOOGLE_SHEETS_WEBHOOK_URL) return;
   try {
     await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
       method: "POST",
-      mode: "no-cors", // <--- Adicionado para liberar a trava do navegador com o Google
+      mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     });
@@ -137,21 +137,27 @@ if ('serviceWorker' in navigator) {
 }
 
 [buscaExtratoInput, filtroUsuarioExtrato, filtroContaExtrato, filtroTipoExtrato].forEach(el => {
-  el.addEventListener('input', processarDados);
-  el.addEventListener('change', processarDados);
-});
-
-btnToggleGerenciarCat.addEventListener('click', () => {
-  painelGerenciarCat.classList.toggle('aberto');
-});
-
-btnAbrirPicker.addEventListener('click', () => {
-  if ('showPicker' in filtroMesInput) {
-    filtroMesInput.showPicker();
-  } else {
-    filtroMesInput.focus();
+  if (el) {
+    el.addEventListener('input', processarDados);
+    el.addEventListener('change', processarDados);
   }
 });
+
+if (btnToggleGerenciarCat) {
+  btnToggleGerenciarCat.addEventListener('click', () => {
+    painelGerenciarCat.classList.toggle('aberto');
+  });
+}
+
+if (btnAbrirPicker) {
+  btnAbrirPicker.addEventListener('click', () => {
+    if ('showPicker' in filtroMesInput) {
+      filtroMesInput.showPicker();
+    } else {
+      filtroMesInput.focus();
+    }
+  });
+}
 
 function alterarMes(delta) {
   const [ano, mes] = filtroMesInput.value.split('-').map(Number);
@@ -162,8 +168,8 @@ function alterarMes(delta) {
   processarDados();
 }
 
-btnAnterior.addEventListener('click', () => alterarMes(-1));
-btnProximo.addEventListener('click', () => alterarMes(1));
+if (btnAnterior) btnAnterior.addEventListener('click', () => alterarMes(-1));
+if (btnProximo) btnProximo.addEventListener('click', () => alterarMes(1));
 
 function resetarFormulario() {
   inputTransacaoId.value = "";
@@ -184,8 +190,8 @@ function resetarFormCategoria() {
   btnCancelarCat.classList.add('hidden');
 }
 
-btnCancelarEdicao.addEventListener('click', resetarFormulario);
-btnCancelarCat.addEventListener('click', resetarFormCategoria);
+if (btnCancelarEdicao) btnCancelarEdicao.addEventListener('click', resetarFormulario);
+if (btnCancelarCat) btnCancelarCat.addEventListener('click', resetarFormCategoria);
 
 // Seed dos Envelopes Padrão com Natureza (Rígido vs. Flexível)
 async function restaurarCategoriasPadrao() {
@@ -210,67 +216,71 @@ async function restaurarCategoriasPadrao() {
   }
 }
 
-btnRestaurarPadroes.addEventListener('click', async () => {
-  if (confirm("Deseja restaurar os envelopes padrão da Casita organizados por Macro-Grupos?")) {
-    await restaurarCategoriasPadrao();
-  }
-});
+if (btnRestaurarPadroes) {
+  btnRestaurarPadroes.addEventListener('click', async () => {
+    if (confirm("Deseja restaurar os envelopes padrão da Casita organizados por Macro-Grupos?")) {
+      await restaurarCategoriasPadrao();
+    }
+  });
+}
 
 // CRUD de Categorias
-formCategoria.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  btnSalvarCat.disabled = true;
+if (formCategoria) {
+  formCategoria.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btnSalvarCat.disabled = true;
 
-  const catId = inputCatId.value;
-  const nome = inputCatNome.value.trim();
-  const teto = parseFloat(inputCatTeto.value);
-  const macro = selectCatMacro.value;
-  const rigidez = selectCatRigidez.value;
-  const isAcumulativa = checkCatAcumulativa.checked;
+    const catId = inputCatId.value;
+    const nome = inputCatNome.value.trim();
+    const teto = parseFloat(inputCatTeto.value);
+    const macro = selectCatMacro.value;
+    const rigidez = selectCatRigidez.value;
+    const isAcumulativa = checkCatAcumulativa.checked;
 
-  try {
-    if (catId) {
-      await updateDoc(doc(db, "categories", catId), {
-        nome,
-        teto,
-        macro_grupo: macro,
-        rigidez: rigidez,
-        is_sinking_fund: isAcumulativa,
-        updated_at: new Date().toISOString()
-      });
-    } else {
-      const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
-      await setDoc(doc(db, "categories", novoId), {
-        nome,
-        teto,
-        macro_grupo: macro,
-        rigidez: rigidez,
-        is_sinking_fund: isAcumulativa,
-        created_at: new Date().toISOString()
-      });
+    try {
+      if (catId) {
+        await updateDoc(doc(db, "categories", catId), { 
+          nome, 
+          teto, 
+          macro_grupo: macro, 
+          rigidez: rigidez,
+          is_sinking_fund: isAcumulativa, 
+          updated_at: new Date().toISOString() 
+        });
+      } else {
+        const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+        await setDoc(doc(db, "categories", novoId), { 
+          nome, 
+          teto, 
+          macro_grupo: macro, 
+          rigidez: rigidez,
+          is_sinking_fund: isAcumulativa, 
+          created_at: new Date().toISOString() 
+        });
+      }
+      resetarFormCategoria();
+    } catch (err) {
+      alert("Erro ao salvar categoria: " + err.message);
+    } finally {
+      btnSalvarCat.disabled = false;
     }
-    resetarFormCategoria();
-  } catch (err) {
-    alert("Erro ao salvar categoria: " + err.message);
-  } finally {
-    btnSalvarCat.disabled = false;
-  }
-});
+  });
+}
 
-window.prepararEdicaoCat = function (id, nome, teto, macro, rigidez, isAcumulativa) {
+window.prepararEdicaoCat = function(id, nome, teto, macro, rigidez, isAcumulativa) {
   inputCatId.value = id;
   inputCatNome.value = nome;
   inputCatTeto.value = teto;
   if (macro) selectCatMacro.value = macro;
   if (rigidez) selectCatRigidez.value = rigidez;
   checkCatAcumulativa.checked = !!isAcumulativa;
-
+  
   tituloFormCat.textContent = "Editar Envelope / Categoria";
   btnSalvarCat.textContent = "Atualizar Envelope";
   btnCancelarCat.classList.remove('hidden');
 };
 
-window.excluirCat = async function (id, nome) {
+window.excluirCat = async function(id, nome) {
   if (confirm(`Deseja excluir a categoria "${nome}"?`)) {
     try {
       await deleteDoc(doc(db, "categories", id));
@@ -281,43 +291,45 @@ window.excluirCat = async function (id, nome) {
 };
 
 // Quitação da Fatura do Cartão
-btnQuitarFatura.addEventListener('click', async () => {
-  if (valorFaturaPendenteAtual <= 0) return;
+if (btnQuitarFatura) {
+  btnQuitarFatura.addEventListener('click', async () => {
+    if (valorFaturaPendenteAtual <= 0) return;
 
-  const mesSel = filtroMesInput.value;
-  if (confirm(`Confirmar o pagamento da fatura no valor de R$ ${valorFaturaPendenteAtual.toFixed(2)} debitando da Conta Corrente?`)) {
-    btnQuitarFatura.disabled = true;
-    btnQuitarFatura.textContent = "Processando quitação...";
+    const mesSel = filtroMesInput.value;
+    if (confirm(`Confirmar o pagamento da fatura no valor de R$ ${valorFaturaPendenteAtual.toFixed(2)} debitando da Conta Corrente?`)) {
+      btnQuitarFatura.disabled = true;
+      btnQuitarFatura.textContent = "Processando quitação...";
 
-    const dataQuitacao = `${mesSel}-28`;
+      const dataQuitacao = `${mesSel}-28`;
 
-    const dadosTransacao = {
-      date: dataQuitacao,
-      type: "SAIDA",
-      amount: valorFaturaPendenteAtual,
-      description: `Quitação Fatura Cartão (${mesSel})`,
-      category_id: "CAT_FATURA_CARTAO",
-      account_id: "ACC_BRADESCO_ABNER",
-      status: "VALIDATED",
-      user_owner: document.getElementById('usuario').value || "Abner",
-      source_satellite: "core_dimdim",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+      const dadosTransacao = {
+        date: dataQuitacao,
+        type: "SAIDA",
+        amount: valorFaturaPendenteAtual,
+        description: `Quitação Fatura Cartão (${mesSel})`,
+        category_id: "CAT_FATURA_CARTAO",
+        account_id: "ACC_BRADESCO_ABNER",
+        status: "VALIDATED",
+        user_owner: document.getElementById('usuario').value || "Abner",
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-    try {
-      const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
-      sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
-    } catch (err) {
-      alert("Erro ao quitar fatura: " + err.message);
-    } finally {
-      btnQuitarFatura.disabled = false;
+      try {
+        const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
+        sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
+      } catch (err) {
+        alert("Erro ao quitar fatura: " + err.message);
+      } finally {
+        btnQuitarFatura.disabled = false;
+      }
     }
-  }
-});
+  });
+}
 
 // Edição / Exclusão de Transações
-window.prepararEdicao = function (id, data, tipo, valor, descricao, categoria, conta, usuario) {
+window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, conta, usuario) {
   inputTransacaoId.value = id;
   document.getElementById('data').value = data;
   document.getElementById('tipo').value = tipo;
@@ -335,7 +347,7 @@ window.prepararEdicao = function (id, data, tipo, valor, descricao, categoria, c
   document.getElementById('valor').focus();
 };
 
-window.excluirTransacao = async function (id, descricao) {
+window.excluirTransacao = async function(id, descricao) {
   if (confirm(`Deseja realmente excluir o lançamento "${descricao}"?`)) {
     try {
       await deleteDoc(doc(db, "transactions", id));
@@ -351,7 +363,7 @@ function renderizarGraficoMacroGrupos(dadosMacro) {
   const canvasEl = document.getElementById('grafico-macro-grupos');
   if (!canvasEl) return;
   const ctx = canvasEl.getContext('2d');
-
+  
   const labels = Object.keys(dadosMacro);
   const valores = Object.values(dadosMacro);
 
@@ -376,7 +388,7 @@ function renderizarGraficoMacroGrupos(dadosMacro) {
   }
 
   const cores = [
-    '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#8b5cf6',
+    '#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#8b5cf6', 
     '#6366f1', '#14b8a6', '#f43f5e', '#84cc16'
   ];
 
@@ -476,7 +488,7 @@ function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
         },
         tooltip: {
           callbacks: {
-            label: function (context) {
+            label: function(context) {
               let label = context.dataset.label || '';
               if (label) label += ': ';
               if (context.parsed.y !== null) {
@@ -637,7 +649,7 @@ function processarDados() {
 
         const card = document.createElement('div');
         card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
-
+        
         card.innerHTML = `
           <div class="space-y-0.5 overflow-hidden">
             <p class="font-medium text-slate-200 truncate">${item.description}</p>
@@ -700,7 +712,7 @@ function processarDados() {
 
   // Renderização dos Envelopes e Acúmulo por Macro-Grupo
   listaEnvelopes.innerHTML = "";
-
+  
   const grupos = {};
   const gastosMacroGrafico = {};
   const tetosMacroGrafico = {};
@@ -728,7 +740,7 @@ function processarDados() {
   } else {
     Object.keys(grupos).forEach(macroNome => {
       const itensGrupo = grupos[macroNome];
-
+      
       let totalGastoGrupoVisual = 0;
       let totalGastoGrupoMesReal = 0;
       let totalTetoGrupo = 0;
@@ -776,7 +788,7 @@ function processarDados() {
 
         if (isCaixinha) {
           badgeCaixinha = `<span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold shrink-0">🧰 Caixinha</span>`;
-
+          
           if (entradaHist > 0) {
             const saldoCaixinha = entradaHist - gastoHist;
             pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
@@ -829,24 +841,28 @@ function processarDados() {
   const pctRigido = tetoGeralMetrica > 0 ? Math.round((tetoRigidoTotal / tetoGeralMetrica) * 100) : 0;
   const pctFlexivel = tetoGeralMetrica > 0 ? (100 - pctRigido) : 0;
 
-  barraRigido.style.width = `${pctRigido}%`;
-  barraFlexivel.style.width = `${pctFlexivel}%`;
+  if (barraRigido && barraFlexivel) {
+    barraRigido.style.width = `${pctRigido}%`;
+    barraFlexivel.style.width = `${pctFlexivel}%`;
+  }
 
-  txtValorRigido.textContent = `📌 Rígidos: R$ ${tetoRigidoTotal.toFixed(2)} (${pctRigido}%)`;
-  txtValorFlexivel.textContent = `🎈 Flexíveis: R$ ${tetoFlexivelTotal.toFixed(2)} (${pctFlexivel}%)`;
+  if (txtValorRigido) txtValorRigido.textContent = `📌 Rígidos: R$ ${tetoRigidoTotal.toFixed(2)} (${pctRigido}%)`;
+  if (txtValorFlexivel) txtValorFlexivel.textContent = `🎈 Flexíveis: R$ ${tetoFlexivelTotal.toFixed(2)} (${pctFlexivel}%)`;
 
-  if (pctRigido <= 65) {
-    badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-    badgeDiagnosticoMargem.textContent = "🟢 Excelente";
-    txtRaioxMargem.textContent = `💡 Estrutura saudável: Você tem R$ ${tetoFlexivelTotal.toFixed(2)} (${pctFlexivel}%) de margem flexível para manobras ou cortes de emergência.`;
-  } else if (pctRigido <= 80) {
-    badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
-    badgeDiagnosticoMargem.textContent = "🟡 Equilibrada";
-    txtRaioxMargem.textContent = `💡 Atenção moderada: ${pctRigido}% do seu orçamento orçado é de compromissos rígidos. Mantenha os envelopes flexíveis sob vigilância.`;
-  } else {
-    badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30";
-    badgeDiagnosticoMargem.textContent = "🔴 Engessada";
-    txtRaioxMargem.textContent = `💡 Pouca flexibilidade: ${pctRigido}% do seu orçamento é composto por compromissos fixos/rígidos. Resta pouca margem para manobras.`;
+  if (badgeDiagnosticoMargem && txtRaioxMargem) {
+    if (pctRigido <= 65) {
+      badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+      badgeDiagnosticoMargem.textContent = "🟢 Excelente";
+      txtRaioxMargem.textContent = `💡 Estrutura saudável: Você tem R$ ${tetoFlexivelTotal.toFixed(2)} (${pctFlexivel}%) de margem flexível para manobras ou cortes de emergência.`;
+    } else if (pctRigido <= 80) {
+      badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
+      badgeDiagnosticoMargem.textContent = "🟡 Equilibrada";
+      txtRaioxMargem.textContent = `💡 Atenção moderada: ${pctRigido}% do seu orçamento orçado é de compromissos rígidos. Mantenha os envelopes flexíveis sob vigilância.`;
+    } else {
+      badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30";
+      badgeDiagnosticoMargem.textContent = "🔴 Engessada";
+      txtRaioxMargem.textContent = `💡 Pouca flexibilidade: ${pctRigido}% do seu orçamento é composto por compromissos fixos/rígidos. Resta pouca margem para manobras.`;
+    }
   }
 
   // 2. Velocímetro Orçamentário (Gastos Flexíveis / Pacing)
@@ -866,37 +882,39 @@ function processarDados() {
   const pctConsumoFlexivel = tetoFlexivelTotal > 0 ? Math.round((gastoFlexivelMes / tetoFlexivelTotal) * 100) : 0;
   const deltaPacing = pctConsumoFlexivel - pctTempo;
 
-  txtPacingTempo.textContent = `${pctTempo}% (Dia ${diasDecorridos}/${totalDiasNoMes})`;
-  barraPacingTempo.style.width = `${pctTempo}%`;
+  if (txtPacingTempo) txtPacingTempo.textContent = `${pctTempo}% (Dia ${diasDecorridos}/${totalDiasNoMes})`;
+  if (barraPacingTempo) barraPacingTempo.style.width = `${pctTempo}%`;
 
-  txtPacingConsumo.textContent = `R$ ${gastoFlexivelMes.toFixed(2)} / R$ ${tetoFlexivelTotal.toFixed(2)} (${pctConsumoFlexivel}%)`;
-  barraPacingConsumo.style.width = `${Math.min(pctConsumoFlexivel, 100)}%`;
+  if (txtPacingConsumo) txtPacingConsumo.textContent = `R$ ${gastoFlexivelMes.toFixed(2)} / R$ ${tetoFlexivelTotal.toFixed(2)} (${pctConsumoFlexivel}%)`;
+  if (barraPacingConsumo) barraPacingConsumo.style.width = `${Math.min(pctConsumoFlexivel, 100)}%`;
 
-  if (tetoFlexivelTotal === 0) {
-    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
-    badgeStatusPacing.textContent = "⚪ Sem Tetos Flexíveis";
-    txtStatusPacingMensagem.textContent = "Cadastre ou edite um envelope definindo-o como 'Flexível' para ativar a medição do velocímetro.";
-    barraPacingConsumo.className = "bg-slate-600 h-2 rounded-full transition-all duration-500";
-  } else if (diasDecorridos === 0) {
-    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
-    badgeStatusPacing.textContent = "📅 Mês Futuro";
-    txtStatusPacingMensagem.textContent = "Período orçamentário ainda não iniciado.";
-    barraPacingConsumo.className = "bg-slate-600 h-2 rounded-full transition-all duration-500";
-  } else if (deltaPacing > 10) {
-    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
-    badgeStatusPacing.textContent = "⚠️ Acelerado";
-    txtStatusPacingMensagem.textContent = `Atenção: Seus gastos flexíveis estão ${deltaPacing}% à frente do ritmo esperado para o dia do mês.`;
-    barraPacingConsumo.className = "bg-amber-500 h-2 rounded-full transition-all duration-500";
-  } else if (deltaPacing < -10) {
-    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
-    badgeStatusPacing.textContent = "🛡️ Ritmo Poupador";
-    txtStatusPacingMensagem.textContent = `Excelente! Seus gastos flexíveis estão ${Math.abs(deltaPacing)}% abaixo da média de dias transcorridos.`;
-    barraPacingConsumo.className = "bg-emerald-400 h-2 rounded-full transition-all duration-500";
-  } else {
-    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30";
-    badgeStatusPacing.textContent = "🟢 No Ritmo";
-    txtStatusPacingMensagem.textContent = "Seus gastos flexíveis acompanham perfeitamente o ritmo dos dias do mês.";
-    barraPacingConsumo.className = "bg-sky-400 h-2 rounded-full transition-all duration-500";
+  if (badgeStatusPacing && txtStatusPacingMensagem) {
+    if (tetoFlexivelTotal === 0) {
+      badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+      badgeStatusPacing.textContent = "⚪ Sem Tetos Flexíveis";
+      txtStatusPacingMensagem.textContent = "Cadastre ou edite um envelope definindo-o como 'Flexível' para ativar a medição do velocímetro.";
+      if (barraPacingConsumo) barraPacingConsumo.className = "bg-slate-600 h-2 rounded-full transition-all duration-500";
+    } else if (diasDecorridos === 0) {
+      badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+      badgeStatusPacing.textContent = "📅 Mês Futuro";
+      txtStatusPacingMensagem.textContent = "Período orçamentário ainda não iniciado.";
+      if (barraPacingConsumo) barraPacingConsumo.className = "bg-slate-600 h-2 rounded-full transition-all duration-500";
+    } else if (deltaPacing > 10) {
+      badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
+      badgeStatusPacing.textContent = "⚠️ Acelerado";
+      txtStatusPacingMensagem.textContent = `Atenção: Seus gastos flexíveis estão ${deltaPacing}% à frente do ritmo esperado para o dia do mês.`;
+      if (barraPacingConsumo) barraPacingConsumo.className = "bg-amber-500 h-2 rounded-full transition-all duration-500";
+    } else if (deltaPacing < -10) {
+      badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+      badgeStatusPacing.textContent = "🛡️ Ritmo Poupador";
+      txtStatusPacingMensagem.textContent = `Excelente! Seus gastos flexíveis estão ${Math.abs(deltaPacing)}% abaixo da média de dias transcorridos.`;
+      if (barraPacingConsumo) barraPacingConsumo.className = "bg-emerald-400 h-2 rounded-full transition-all duration-500";
+    } else {
+      badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30";
+      badgeStatusPacing.textContent = "🟢 No Ritmo";
+      txtStatusPacingMensagem.textContent = "Seus gastos flexíveis acompanham perfeitamente o ritmo dos dias do mês.";
+      if (barraPacingConsumo) barraPacingConsumo.className = "bg-sky-400 h-2 rounded-full transition-all duration-500";
+    }
   }
 
   // Atualização dos Gráficos Existentes
@@ -906,61 +924,167 @@ function processarDados() {
 
   const totalDespesasMes = totalSaidasTotaisConta + totalFaturaCartao;
   const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
-
-  resumoExecutivoTexto.innerHTML = `
-    <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">R$ ${totalEntradas.toFixed(2)}</span></div>
-    <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">R$ ${totalDespesasMes.toFixed(2)}</span></div>
-    <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
-  `;
+  
+  if (resumoExecutivoTexto) {
+    resumoExecutivoTexto.innerHTML = `
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">R$ ${totalEntradas.toFixed(2)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">R$ ${totalDespesasMes.toFixed(2)}</span></div>
+      <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
+    `;
+  }
 }
 
-filtroMesInput.addEventListener('change', processarDados);
+if (filtroMesInput) filtroMesInput.addEventListener('change', processarDados);
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById('btn-salvar');
-  btn.disabled = true;
-  btn.textContent = "Gravando...";
+if (form) {
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-salvar');
+    btn.disabled = true;
+    btn.textContent = "Gravando...";
 
-  const idEditando = inputTransacaoId.value;
-  const dataLancamento = document.getElementById('data').value;
+    const idEditando = inputTransacaoId.value;
+    const dataLancamento = document.getElementById('data').value;
 
-  const dadosTransacao = {
-    date: dataLancamento,
-    type: document.getElementById('tipo').value,
-    amount: parseFloat(document.getElementById('valor').value),
-    description: document.getElementById('descricao').value,
-    category_id: document.getElementById('categoria').value,
-    account_id: document.getElementById('conta').value,
-    status: "VALIDATED",
-    user_owner: document.getElementById('usuario').value,
-    source_satellite: "core_dimdim",
-    updated_at: new Date().toISOString()
-  };
+    const dadosTransacao = {
+      date: dataLancamento,
+      type: document.getElementById('tipo').value,
+      amount: parseFloat(document.getElementById('valor').value),
+      description: document.getElementById('descricao').value,
+      category_id: document.getElementById('categoria').value,
+      account_id: document.getElementById('conta').value,
+      status: "VALIDATED",
+      user_owner: document.getElementById('usuario').value,
+      source_satellite: "core_dimdim",
+      updated_at: new Date().toISOString()
+    };
 
-  try {
-    if (idEditando) {
-      await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
-      sincronizarGoogleSheets({ action: "UPSERT", id: idEditando, ...dadosTransacao });
-    } else {
-      dadosTransacao.created_at = new Date().toISOString();
-      const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
-      sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
+    try {
+      if (idEditando) {
+        await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
+        sincronizarGoogleSheets({ action: "UPSERT", id: idEditando, ...dadosTransacao });
+      } else {
+        dadosTransacao.created_at = new Date().toISOString();
+        const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
+        sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
+      }
+      
+      const mesDoLancamento = dataLancamento.substring(0, 7);
+      if (filtroMesInput.value !== mesDoLancamento) {
+        filtroMesInput.value = mesDoLancamento;
+      }
+
+      resetarFormulario();
+    } catch (err) {
+      alert("Erro ao salvar lançamento: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = idEditando ? "Atualizar Lançamento" : "Registrar Lançamento";
     }
+  });
+}
 
-    const mesDoLancamento = dataLancamento.substring(0, 7);
-    if (filtroMesInput.value !== mesDoLancamento) {
-      filtroMesInput.value = mesDoLancamento;
-    }
+// --- LÓGICA DO ASSISTENTE DE FECHAMENTO DE MÊS ---
 
-    resetarFormulario();
-  } catch (err) {
-    alert("Erro ao salvar lançamento: " + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = idEditando ? "Atualizar Lançamento" : "Registrar Lançamento";
+function abrirModalFechamento() {
+  const mesSel = filtroMesInput.value;
+  txtFechamentoMesRef.textContent = mesSel;
+
+  const txtSaldoAtual = elSaldo.textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
+  const saldoLivreAtual = parseFloat(txtSaldoAtual) || 0;
+
+  txtFechamentoSaldoSobra.textContent = `R$ ${saldoLivreAtual.toFixed(2)}`;
+  inputValorAporteSobra.value = Math.max(0, saldoLivreAtual).toFixed(2);
+
+  if (valorFaturaPendenteAtual > 0) {
+    boxAlertaFaturaPendente.classList.remove('hidden');
+  } else {
+    boxAlertaFaturaPendente.classList.add('hidden');
   }
-});
+
+  selectCaixinhaDestino.innerHTML = "";
+  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+
+  if (caixinhas.length === 0) {
+    selectCaixinhaDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
+  } else {
+    caixinhas.forEach(catId => {
+      const cat = envelopesConfig[catId];
+      const opt = document.createElement('option');
+      opt.value = catId;
+      opt.textContent = `🧰 ${cat.nome} (Meta: R$ ${cat.teto.toFixed(2)})`;
+      selectCaixinhaDestino.appendChild(opt);
+    });
+  }
+
+  modalFechamentoMes.classList.remove('hidden');
+}
+
+function fecharModalFechamento() {
+  modalFechamentoMes.classList.add('hidden');
+  if (formFechamentoMes) formFechamentoMes.reset();
+}
+
+if (btnAbrirFechamentoMes) btnAbrirFechamentoMes.addEventListener('click', abrirModalFechamento);
+if (btnFecharModalFechamento) btnFecharModalFechamento.addEventListener('click', fecharModalFechamento);
+if (btnCancelarFechamento) btnCancelarFechamento.addEventListener('click', fecharModalFechamento);
+
+if (formFechamentoMes) {
+  formFechamentoMes.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
+    btnConfirmar.disabled = true;
+    btnConfirmar.textContent = "Processando Fechamento...";
+
+    const mesSel = filtroMesInput.value;
+    const catDestinoId = selectCaixinhaDestino.value;
+    const valorAporte = parseFloat(inputValorAporteSobra.value);
+
+    if (!catDestinoId) {
+      alert("Selecione uma Caixinha / Reserva de destino para aportar a sobra.");
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
+      return;
+    }
+
+    if (valorAporte <= 0) {
+      alert("Informe um valor válido de aporte maior que zero.");
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
+      return;
+    }
+
+    const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
+    const dataUltimoDiaMes = `${mesSel}-28`;
+
+    const dadosAporte = {
+      date: dataUltimoDiaMes,
+      type: "ENTRADA",
+      amount: valorAporte,
+      description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
+      category_id: catDestinoId,
+      account_id: "ACC_BRADESCO_ABNER",
+      status: "VALIDATED",
+      user_owner: document.getElementById('usuario').value || "Abner",
+      source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, "transactions"), dadosAporte);
+      sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosAporte });
+      
+      fecharModalFechamento();
+      alert(`🎉 Fechamento concluído com sucesso! R$ ${valorAporte.toFixed(2)} aportados na caixinha "${nomeCaixinha}".`);
+    } catch (err) {
+      alert("Erro ao realizar fechamento: " + err.message);
+    } finally {
+      btnConfirmar.disabled = false;
+      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
+    }
+  });
+}
 
 onSnapshot(collection(db, "categories"), (snapshot) => {
   if (snapshot.empty) {
@@ -980,12 +1104,12 @@ onSnapshot(collection(db, "categories"), (snapshot) => {
     const macro = data.macro_grupo || "Reservas & Outros";
     const rigidez = data.rigidez || "RIGIDO";
 
-    envelopesConfig[id] = {
-      nome: data.nome,
-      teto: data.teto,
+    envelopesConfig[id] = { 
+      nome: data.nome, 
+      teto: data.teto, 
       macro: macro,
       rigidez: rigidez,
-      is_sinking_fund: !!data.is_sinking_fund
+      is_sinking_fund: !!data.is_sinking_fund 
     };
 
     if (!gruposSelect[macro]) gruposSelect[macro] = [];
@@ -1033,110 +1157,3 @@ onSnapshot(q, (snapshot) => {
   snapshotTransactions = snapshot;
   processarDados();
 });
-
-// --- LÓGICA E INTEGRAÇÃO DO ASSISTENTE DE FECHAMENTO DE MÊS ---
-
-function abrirModalFechamento() {
-  const mesSel = filtroMesInput.value;
-  txtFechamentoMesRef.textContent = mesSel;
-
-  // Calcula o Saldo Livre do mês selecionado
-  const txtSaldoAtual = elSaldo.textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-  const saldoLivreAtual = parseFloat(txtSaldoAtual) || 0;
-
-  txtFechamentoSaldoSobra.textContent = `R$ ${saldoLivreAtual.toFixed(2)}`;
-  inputValorAporteSobra.value = Math.max(0, saldoLivreAtual).toFixed(2);
-
-  // Alerta de Fatura Pendente
-  if (valorFaturaPendenteAtual > 0) {
-    boxAlertaFaturaPendente.classList.remove('hidden');
-  } else {
-    boxAlertaFaturaPendente.classList.add('hidden');
-  }
-
-  // Preenche o Select apenas com Caixinhas / Reservas (Sinking Funds)
-  selectCaixinhaDestino.innerHTML = "";
-  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
-
-  if (caixinhas.length === 0) {
-    selectCaixinhaDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
-  } else {
-    caixinhas.forEach(catId => {
-      const cat = envelopesConfig[catId];
-      const opt = document.createElement('option');
-      opt.value = catId;
-      opt.textContent = `🧰 ${cat.nome} (Meta: R$ ${cat.teto.toFixed(2)})`;
-      selectCaixinhaDestino.appendChild(opt);
-    });
-  }
-
-  modalFechamentoMes.classList.remove('hidden');
-}
-
-function fecharModalFechamento() {
-  modalFechamentoMes.classList.add('hidden');
-  formFechamentoMes.reset();
-}
-
-if (btnAbrirFechamentoMes) btnAbrirFechamentoMes.addEventListener('click', abrirModalFechamento);
-if (btnFecharModalFechamento) btnFecharModalFechamento.addEventListener('click', fecharModalFechamento);
-if (btnCancelarFechamento) btnCancelarFechamento.addEventListener('click', fecharModalFechamento);
-
-// Evento de Submissão do Aporte da Sobra de Fechamento
-if (formFechamentoMes) {
-  formFechamentoMes.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
-    btnConfirmar.disabled = true;
-    btnConfirmar.textContent = "Processando Fechamento...";
-
-    const mesSel = filtroMesInput.value;
-    const catDestinoId = selectCaixinhaDestino.value;
-    const valorAporte = parseFloat(inputValorAporteSobra.value);
-
-    if (!catDestinoId) {
-      alert("Selecione uma Caixinha / Reserva de destino para aportar a sobra.");
-      btnConfirmar.disabled = false;
-      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
-      return;
-    }
-
-    if (valorAporte <= 0) {
-      alert("Informe um valor válido de aporte maior que zero.");
-      btnConfirmar.disabled = false;
-      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
-      return;
-    }
-
-    const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
-    const dataUltimoDiaMes = `${mesSel}-28`;
-
-    // Registra a entrada no envelope da Caixinha (Sinking Fund)
-    const dadosAporte = {
-      date: dataUltimoDiaMes,
-      type: "ENTRADA",
-      amount: valorAporte,
-      description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
-      category_id: catDestinoId,
-      account_id: "ACC_BRADESCO_ABNER",
-      status: "VALIDATED",
-      user_owner: document.getElementById('usuario').value || "Abner",
-      source_satellite: "core_dimdim",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    try {
-      const docRef = await addDoc(collection(db, "transactions"), dadosAporte);
-      sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosAporte });
-      
-      fecharModalFechamento();
-      alert(`🎉 Fechamento concluído com sucesso! R$ ${valorAporte.toFixed(2)} aportados na caixinha "${nomeCaixinha}".`);
-    } catch (err) {
-      alert("Erro ao realizar fechamento: " + err.message);
-    } finally {
-      btnConfirmar.disabled = false;
-      btnConfirmar.textContent = "Confirmar Fechamento & Aporte";
-    }
-  });
-}
