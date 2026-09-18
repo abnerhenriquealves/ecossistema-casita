@@ -55,7 +55,9 @@ const listaGerenciadorCat = document.getElementById('lista-gerenciador-categoria
 let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
+
 let graficoMacroInstance = null;
+let graficoHistoricoInstance = null;
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -265,8 +267,12 @@ window.excluirTransacao = async function(id, descricao) {
   }
 };
 
+// Renderização do Gráfico de Rosca (Macro-Grupos)
 function renderizarGraficoMacroGrupos(dadosMacro) {
-  const ctx = document.getElementById('grafico-macro-grupos').getContext('2d');
+  const canvasEl = document.getElementById('grafico-macro-grupos');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+  
   const labels = Object.keys(dadosMacro);
   const valores = Object.values(dadosMacro);
 
@@ -319,10 +325,64 @@ function renderizarGraficoMacroGrupos(dadosMacro) {
   });
 }
 
+// Renderização do Gráfico de Linhas (Evolução Temporal no Ano)
+function renderizarGraficoHistoricoMensal(dadosPorMes) {
+  const canvasEl = document.getElementById('grafico-historico-mensal');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+
+  const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const valores = mesesNomes.map((_, idx) => {
+    const chaveMes = String(idx + 1).padStart(2, '0');
+    return dadosPorMes[chaveMes] || 0;
+  });
+
+  if (graficoHistoricoInstance) {
+    graficoHistoricoInstance.destroy();
+  }
+
+  graficoHistoricoInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: mesesNomes,
+      datasets: [{
+        label: 'Total de Gastos (R$)',
+        data: valores,
+        borderColor: '#38bdf8',
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#38bdf8',
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          grid: { color: 'rgba(51, 65, 85, 0.3)' },
+          ticks: { color: '#94a3b8', font: { size: 10 } }
+        },
+        y: {
+          grid: { color: 'rgba(51, 65, 85, 0.3)' },
+          ticks: { color: '#94a3b8', font: { size: 10 } }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
 function processarDados() {
   if (!snapshotTransactions) return;
 
   const mesSelecionado = filtroMesInput.value;
+  const anoSelecionado = mesSelecionado.substring(0, 4);
   listaTransacoes.innerHTML = "";
 
   let totalEntradas = 0;
@@ -333,6 +393,7 @@ function processarDados() {
   const acmCategoriasMes = {};
   const acmCategoriasHistSaida = {};
   const acmCategoriasHistEntrada = {};
+  const acumuladoHistoricoPorMes = {};
 
   Object.keys(envelopesConfig).forEach(catId => {
     acmCategoriasMes[catId] = 0;
@@ -353,12 +414,20 @@ function processarDados() {
     const docId = docSnapshot.id;
     if (!item.date) return;
 
-    const itemMes = item.date.substring(0, 7);
-    const isAteMesSelecionado = itemMes <= mesSelecionado;
-    const isMesAtual = itemMes === mesSelecionado;
+    const itemAno = item.date.substring(0, 4);
+    const itemMesChave = item.date.substring(5, 7);
+    const itemMesFormatado = item.date.substring(0, 7);
+
+    const isAteMesSelecionado = itemMesFormatado <= mesSelecionado;
+    const isMesAtual = itemMesFormatado === mesSelecionado;
     const isSaida = item.type === "SAIDA";
     const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
     const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
+
+    // Mapeia histórico do ano para o gráfico de linhas (apenas saídas reais, sem duplicar a quitação da fatura)
+    if (itemAno === anoSelecionado && isSaida && !isPagtoFatura) {
+      acumuladoHistoricoPorMes[itemMesChave] = (acumuladoHistoricoPorMes[itemMesChave] || 0) + item.amount;
+    }
 
     if (isAteMesSelecionado && item.category_id && !isPagtoFatura) {
       if (isSaida) {
@@ -571,8 +640,9 @@ function processarDados() {
     });
   }
 
-  // Atualiza o Gráfico de Rosca e o Resumo Executivo
+  // Atualiza os Gráficos
   renderizarGraficoMacroGrupos(gastosMacroGrafico);
+  renderizarGraficoHistoricoMensal(acumuladoHistoricoPorMes);
 
   const totalDespesasMes = totalSaidasTotaisConta + totalFaturaCartao;
   const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
@@ -688,7 +758,7 @@ onSnapshot(collection(db, "categories"), (snapshot) => {
   const optFatura = document.createElement('option');
   optFatura.value = "CAT_FATURA_CARTAO";
   optFatura.textContent = "💳 Pagamento de Fatura do Cartão";
-  selectCategoria.appendChild(optgroup); // Correção do optgroup no commit original se necessário, mantido funcional
+  selectCategoria.appendChild(optFatura);
 
   processarDados();
 });

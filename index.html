@@ -85,22 +85,32 @@
     </section>
 
     <!-- Painel Executivo & Gráficos Visuais -->
-    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-6">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
-          <h2 class="text-lg font-semibold text-slate-200">Painel Executivo & Gráficos</h2>
-          <p class="text-xs text-slate-400">Distribuição percentual dos gastos por Macro-Grupo (Nível 1)</p>
+          <h2 class="text-lg font-semibold text-slate-200">Painel Executivo & Análise Financeira</h2>
+          <p class="text-xs text-slate-400">Distribuição mensal e curva histórica de despesas</p>
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center pt-2">
-        <div class="relative w-full h-64 flex justify-center">
+
+      <!-- Linha 1: Gráfico de Rosca por Macro-Grupo + Comprometimento -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+        <div class="relative w-full h-60 flex justify-center">
           <canvas id="grafico-macro-grupos"></canvas>
         </div>
         <div class="space-y-3 text-xs text-slate-300">
-          <p class="font-medium text-slate-200">Resumo de Comprometimento:</p>
+          <p class="font-medium text-slate-200">Resumo de Comprometimento (Mês Atual):</p>
           <div id="resumo-executivo-texto" class="space-y-1.5 bg-slate-950/50 border border-slate-800 p-3 rounded-lg">
             <p class="text-slate-400">Carregando métricas executivas...</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Linha 2: Gráfico de Evolução Temporal (Linhas) -->
+      <div class="border-t border-slate-800/80 pt-4 space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📈 Evolução Histórica de Gastos no Ano</h3>
+        <div class="relative w-full h-56">
+          <canvas id="grafico-historico-mensal"></canvas>
         </div>
       </div>
     </section>
