@@ -14,24 +14,144 @@ let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
-// Seletores do DOM
+// Elementos de Interface
 const filtroMesInput = document.getElementById('filtro-mes');
-const form = document.getElementById('form-transacao');
-const inputTransacaoId = document.getElementById('transacao-id');
-const inputValorTransacao = document.getElementById('valor');
-const listaTransacoes = document.getElementById('lista-transacoes');
-const listaEnvelopes = document.getElementById('lista-envelopes');
-const selectCategoria = document.getElementById('categoria');
-const listaGerenciadorCat = document.getElementById('lista-gerenciador-categorias');
+const btnAnterior = document.getElementById('btn-mes-anterior');
+const btnProximo = document.getElementById('btn-mes-proximo');
+const btnAbrirPicker = document.getElementById('btn-abrir-picker');
 
 filtroMesInput.value = `${anoAtual}-${mesAtual}`;
 document.getElementById('data').value = hoje.toISOString().split('T')[0];
 
-aplicarMascaraMoeda(inputValorTransacao);
-aplicarMascaraMoeda(document.getElementById('cat-teto'));
-aplicarMascaraMoeda(document.getElementById('input-valor-aporte-sobra'));
+const form = document.getElementById('form-transacao');
+const secaoFormulario = document.getElementById('secao-formulario');
+const inputTransacaoId = document.getElementById('transacao-id');
+const inputValorTransacao = document.getElementById('valor');
+const tituloForm = document.getElementById('titulo-form');
+const btnCancelarEdicao = document.getElementById('btn-cancelar-edicao');
 
-// Handlers Globais para Ações
+const selectCategoria = document.getElementById('categoria');
+const listaTransacoes = document.getElementById('lista-transacoes');
+const listaEnvelopes = document.getElementById('lista-envelopes');
+const elEntradas = document.getElementById('total-entradas');
+const elSaidas = document.getElementById('total-saidas');
+const elFaturaCartao = document.getElementById('fatura-cartao');
+const elSaldo = document.getElementById('saldo-atual');
+const btnQuitarFatura = document.getElementById('btn-quitar-fatura');
+const badgeFaturaStatus = document.getElementById('badge-fatura-status');
+
+// Métricas DOM
+const badgeDiagnosticoMargem = document.getElementById('badge-diagnostico-margem');
+const barraRigido = document.getElementById('barra-rigido');
+const barraFlexivel = document.getElementById('barra-flexivel');
+const txtValorRigido = document.getElementById('txt-valor-rigido');
+const txtValorFlexivel = document.getElementById('txt-valor-flexivel');
+const txtRaioxMargem = document.getElementById('txt-raiox-margem');
+
+const badgeStatusPacing = document.getElementById('badge-status-pacing');
+const txtPacingTempo = document.getElementById('txt-pacing-tempo');
+const barraPacingTempo = document.getElementById('barra-pacing-tempo');
+const txtPacingConsumo = document.getElementById('txt-pacing-consumo');
+const barraPacingConsumo = document.getElementById('barra-pacing-consumo');
+const txtStatusPacingMensagem = document.getElementById('txt-status-pacing-mensagem');
+
+// Busca e Filtros DOM
+const buscaExtratoInput = document.getElementById('busca-extrato');
+const filtroUsuarioExtrato = document.getElementById('filtro-usuario-extrato');
+const filtroContaExtrato = document.getElementById('filtro-conta-extrato');
+const filtroTipoExtrato = document.getElementById('filtro-tipo-extrato');
+const contadorExtrato = document.getElementById('contador-extrato');
+
+// Categorias e Envelopes DOM
+const btnToggleGerenciarCat = document.getElementById('btn-toggle-gerenciar-cat');
+const painelGerenciarCat = document.getElementById('painel-gerenciar-categorias');
+const btnRestaurarPadroes = document.getElementById('btn-restaurar-padroes');
+const formCategoria = document.getElementById('form-categoria');
+const inputCatId = document.getElementById('cat-id');
+const inputCatNome = document.getElementById('cat-nome');
+const inputCatTeto = document.getElementById('cat-teto');
+const selectCatMacro = document.getElementById('cat-macro');
+const selectCatRigidez = document.getElementById('cat-rigidez');
+const checkCatAcumulativa = document.getElementById('cat-acumulativa');
+const tituloFormCat = document.getElementById('titulo-form-cat');
+const btnCancelarCat = document.getElementById('btn-cancelar-cat');
+const btnSalvarCat = document.getElementById('btn-salvar-cat');
+const listaGerenciadorCat = document.getElementById('lista-gerenciador-categorias');
+
+// Modal Fechamento DOM
+const btnAbrirFechamentoMes = document.getElementById('btn-abrir-fechamento-mes');
+const modalFechamentoMes = document.getElementById('modal-fechamento-mes');
+const btnFecharModalFechamento = document.getElementById('btn-fechar-modal-fechamento');
+const btnCancelarFechamento = document.getElementById('btn-cancelar-fechamento');
+const txtFechamentoMesRef = document.getElementById('txt-fechamento-mes-ref');
+const txtFechamentoSaldoSobra = document.getElementById('txt-fechamento-saldo-sobra');
+const boxAlertaFaturaPendente = document.getElementById('box-alerta-fatura-pendente');
+const selectCaixinhaDestino = document.getElementById('select-caixinha-destino');
+const inputValorAporteSobra = document.getElementById('input-valor-aporte-sobra');
+const formFechamentoMes = document.getElementById('form-fechamento-mes');
+
+// Aplicação de Máscaras Bancárias
+aplicarMascaraMoeda(inputValorTransacao);
+aplicarMascaraMoeda(inputCatTeto);
+aplicarMascaraMoeda(inputValorAporteSobra);
+
+// ESCUTADORES DE EVENTOS DE PAINEL E NAVEGAÇÃO
+if (btnToggleGerenciarCat) {
+  btnToggleGerenciarCat.addEventListener('click', () => {
+    painelGerenciarCat.classList.toggle('aberto');
+  });
+}
+
+if (btnAbrirPicker) {
+  btnAbrirPicker.addEventListener('click', () => {
+    if ('showPicker' in filtroMesInput) filtroMesInput.showPicker();
+    else filtroMesInput.focus();
+  });
+}
+
+function alterarMes(delta) {
+  const [ano, mes] = filtroMesInput.value.split('-').map(Number);
+  const novaData = new Date(ano, mes - 1 + delta, 1);
+  filtroMesInput.value = `${novaData.getFullYear()}-${String(novaData.getMonth() + 1).padStart(2, '0')}`;
+  processarDados();
+}
+
+if (btnAnterior) btnAnterior.addEventListener('click', () => alterarMes(-1));
+if (btnProximo) btnProximo.addEventListener('click', () => alterarMes(1));
+if (filtroMesInput) filtroMesInput.addEventListener('change', processarDados);
+
+[buscaExtratoInput, filtroUsuarioExtrato, filtroContaExtrato, filtroTipoExtrato].forEach(el => {
+  if (el) {
+    el.addEventListener('input', processarDados);
+    el.addEventListener('change', processarDados);
+  }
+});
+
+function resetarFormulario() {
+  inputTransacaoId.value = "";
+  form.reset();
+  definirValorMascara(inputValorTransacao, 0);
+  document.getElementById('data').value = new Date().toISOString().split('T')[0];
+  tituloForm.textContent = "Novo Lançamento";
+  document.getElementById('btn-salvar').textContent = "Registrar Lançamento";
+  btnCancelarEdicao.classList.add('hidden');
+}
+
+function resetarFormCategoria() {
+  inputCatId.value = "";
+  formCategoria.reset();
+  definirValorMascara(inputCatTeto, 0);
+  checkCatAcumulativa.checked = false;
+  selectCatRigidez.value = "RIGIDO";
+  tituloFormCat.textContent = "Novo Envelope / Categoria";
+  btnSalvarCat.textContent = "Salvar Envelope";
+  btnCancelarCat.classList.add('hidden');
+}
+
+if (btnCancelarEdicao) btnCancelarEdicao.addEventListener('click', resetarFormulario);
+if (btnCancelarCat) btnCancelarCat.addEventListener('click', resetarFormCategoria);
+
+// HANDLERS GLOBAIS NO WINDOW PARA ACOES DO HTML
 window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
   inputTransacaoId.value = id;
   document.getElementById('data').value = data;
@@ -41,27 +161,191 @@ window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usu
   document.getElementById('categoria').value = categoria;
   document.getElementById('conta').value = conta;
   document.getElementById('usuario').value = usuario;
-  document.getElementById('titulo-form').textContent = "Editar Lançamento";
+  tituloForm.textContent = "Editar Lançamento";
+  document.getElementById('btn-salvar').textContent = "Atualizar Lançamento";
+  btnCancelarEdicao.classList.remove('hidden');
+  secaoFormulario.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
 window.excluirTransacao = async (id, descricao) => {
-  if (confirm(`Excluir "${descricao}"?`)) await removerTransacao(id);
+  if (confirm(`Deseja realmente excluir o lançamento "${descricao}"?`)) {
+    try {
+      await removerTransacao(id);
+    } catch (err) {
+      alert("Erro ao excluir lançamento: " + err.message);
+    }
+  }
 };
 
 window.prepararEdicaoCat = (id, nome, teto, macro, rigidez, isAcumulativa) => {
-  document.getElementById('cat-id').value = id;
-  document.getElementById('cat-nome').value = nome;
-  definirValorMascara(document.getElementById('cat-teto'), teto);
-  document.getElementById('cat-macro').value = macro || "Reservas & Outros";
-  document.getElementById('cat-rigidez').value = rigidez || "RIGIDO";
-  document.getElementById('cat-acumulativa').checked = !!isAcumulativa;
+  inputCatId.value = id;
+  inputCatNome.value = nome;
+  definirValorMascara(inputCatTeto, teto);
+  selectCatMacro.value = macro || "Reservas & Outros";
+  selectCatRigidez.value = rigidez || "RIGIDO";
+  checkCatAcumulativa.checked = !!isAcumulativa;
+  tituloFormCat.textContent = "Editar Envelope / Categoria";
+  btnSalvarCat.textContent = "Atualizar Envelope";
+  btnCancelarCat.classList.remove('hidden');
 };
 
 window.excluirCat = async (id, nome) => {
-  if (confirm(`Excluir categoria "${nome}"?`)) await deleteDoc(doc(db, "categories", id));
+  if (confirm(`Deseja excluir a categoria "${nome}"?`)) {
+    try {
+      await deleteDoc(doc(db, "categories", id));
+    } catch (err) {
+      alert("Erro ao excluir categoria: " + err.message);
+    }
+  }
 };
 
-// Processamento dos Dados
+// CATEGORIAS E ENVELOPES: RESTAURACAO E SUBMISSAO
+async function restaurarCategoriasPadrao() {
+  const padroes = [
+    { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro: "Habitação & Custos Fixos", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro: "Alimentação & Social", rigidez: "FLEXIVEL", is_sinking_fund: false },
+    { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro: "Transporte", rigidez: "FLEXIVEL", is_sinking_fund: false },
+    { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro: "Nossos Meninos (Pets)", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_MANUT_CASITA", nome: "Caixinha Manutenção da Casita", teto: 1000.00, macro: "Habitação & Custos Fixos", rigidez: "FLEXIVEL", is_sinking_fund: true }
+  ];
+
+  for (const cat of padroes) {
+    await setDoc(doc(db, "categories", cat.id), {
+      nome: cat.nome,
+      teto: cat.teto,
+      macro_grupo: cat.macro,
+      rigidez: cat.rigidez,
+      is_sinking_fund: cat.is_sinking_fund,
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+if (btnRestaurarPadroes) {
+  btnRestaurarPadroes.addEventListener('click', async () => {
+    if (confirm("Deseja restaurar os envelopes padrão da Casita organizados por Macro-Grupos?")) {
+      await restaurarCategoriasPadrao();
+    }
+  });
+}
+
+if (formCategoria) {
+  formCategoria.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btnSalvarCat.disabled = true;
+
+    const catId = inputCatId.value;
+    const nome = inputCatNome.value.trim();
+    const teto = obterValorNumericoMascara(inputCatTeto);
+    const macro = selectCatMacro.value;
+    const rigidez = selectCatRigidez.value;
+    const isAcumulativa = checkCatAcumulativa.checked;
+
+    try {
+      if (catId) {
+        await updateDoc(doc(db, "categories", catId), { 
+          nome, teto, macro_grupo: macro, rigidez, is_sinking_fund: isAcumulativa, updated_at: new Date().toISOString() 
+        });
+      } else {
+        const novoId = "CAT_" + nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+        await setDoc(doc(db, "categories", novoId), { 
+          nome, teto, macro_grupo: macro, rigidez, is_sinking_fund: isAcumulativa, created_at: new Date().toISOString() 
+        });
+      }
+      resetarFormCategoria();
+    } catch (err) {
+      alert("Erro ao salvar categoria: " + err.message);
+    } finally {
+      btnSalvarCat.disabled = false;
+    }
+  });
+}
+
+// QUITACAO DE FATURA DO CARTAO
+if (btnQuitarFatura) {
+  btnQuitarFatura.addEventListener('click', async () => {
+    if (valorFaturaPendenteAtual <= 0) return;
+    const mesSel = filtroMesInput.value;
+    if (confirm(`Confirmar o pagamento da fatura no valor de ${formatarMoeda(valorFaturaPendenteAtual)} debitando da Conta Corrente?`)) {
+      btnQuitarFatura.disabled = true;
+      btnQuitarFatura.textContent = "Processando quitação...";
+
+      const [anoSel, mSel] = mesSel.split('-').map(Number);
+      const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
+      const dataQuitacao = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
+
+      const dadosTransacao = {
+        date: dataQuitacao,
+        type: "SAIDA",
+        amount: valorFaturaPendenteAtual,
+        description: `Quitação Fatura Cartão (${mesSel})`,
+        category_id: "CAT_FATURA_CARTAO",
+        account_id: "ACC_BRADESCO_ABNER",
+        status: "VALIDATED",
+        user_owner: document.getElementById('usuario').value || "Abner",
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      try {
+        const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
+        sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
+      } catch (err) {
+        alert("Erro ao quitar fatura: " + err.message);
+      } finally {
+        btnQuitarFatura.disabled = false;
+      }
+    }
+  });
+}
+
+// FECHAMENTO DE MES E MODAL
+function abrirModalFechamento() {
+  txtFechamentoMesRef.textContent = filtroMesInput.value;
+  txtFechamentoSaldoSobra.textContent = formatarMoeda(saldoLivreMemoria);
+  definirValorMascara(inputValorAporteSobra, Math.max(0, saldoLivreMemoria));
+
+  if (boxAlertaFaturaPendente) {
+    if (valorFaturaPendenteAtual > 0) boxAlertaFaturaPendente.classList.remove('hidden');
+    else boxAlertaFaturaPendente.classList.add('hidden');
+  }
+
+  selectCaixinhaDestino.innerHTML = "";
+  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+  if (caixinhas.length === 0) {
+    selectCaixinhaDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
+  } else {
+    caixinhas.forEach(catId => {
+      const opt = document.createElement('option');
+      opt.value = catId;
+      opt.textContent = `🧰 ${envelopesConfig[catId].nome}`;
+      selectCaixinhaDestino.appendChild(opt);
+    });
+  }
+
+  modalFechamentoMes.classList.remove('hidden');
+}
+
+if (btnAbrirFechamentoMes) btnAbrirFechamentoMes.addEventListener('click', abrirModalFechamento);
+if (btnFecharModalFechamento) btnFecharModalFechamento.addEventListener('click', () => modalFechamentoMes.classList.add('hidden'));
+if (btnCancelarFechamento) btnCancelarFechamento.addEventListener('click', () => modalFechamentoMes.classList.add('hidden'));
+
+if (formFechamentoMes) {
+  formFechamentoMes.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const mesSel = filtroMesInput.value;
+    const catDestinoId = selectCaixinhaDestino.value;
+    const valorAporte = obterValorNumericoMascara(inputValorAporteSobra);
+    const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
+
+    await processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value);
+    modalFechamentoMes.classList.add('hidden');
+  });
+}
+
+// PROCESSAMENTO CENTRAL DE DADOS E INTERFACE
 function processarDados() {
   if (!snapshotTransactions) return;
   const mesSel = filtroMesInput.value;
@@ -70,6 +354,11 @@ function processarDados() {
   let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
   const acmCatMes = {}, acmHistMes = {}, acmCatSaidaHist = {}, acmCatEntradaHist = {};
   const itensExibicao = [];
+
+  const termoBusca = buscaExtratoInput.value.toLowerCase().trim();
+  const usrFiltro = filtroUsuarioExtrato.value;
+  const contaFiltro = filtroContaExtrato.value;
+  const tipoFiltro = filtroTipoExtrato.value;
 
   snapshotTransactions.forEach(docSnap => {
     const item = docSnap.data();
@@ -92,6 +381,8 @@ function processarDados() {
     }
 
     if (itemMes === mesSel) {
+      const usuarioItem = item.user_owner || 'Abner';
+
       if (isSaida) {
         if (isCartao) totalFatura += item.amount;
         else if (isPagto) totalPagtoFatura += item.amount;
@@ -100,7 +391,16 @@ function processarDados() {
       } else {
         totalEntradas += item.amount;
       }
-      itensExibicao.push({ id, item });
+
+      const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagto ? '💳 Quitação de Fatura' : item.category_id);
+      const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
+      const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
+      const matchConta = contaFiltro === "TODAS" || item.account_id === contaFiltro;
+      const matchTipo = tipoFiltro === "TODOS" || item.type === tipoFiltro;
+
+      if (matchBusca && matchUsuario && matchConta && matchTipo) {
+        itensExibicao.push({ id, item });
+      }
     }
   });
 
@@ -117,7 +417,7 @@ function processarDados() {
 
   renderizarExtrato(listaTransacoes, itensExibicao, envelopesConfig);
 
-  // Agrupamento por Macro-Grupo Usando `macro_grupo`
+  // AGRUPAMENTO DE MACRO-GRUPOS COM MAPPING CORRETO
   const gastosMacroGrafico = {};
   const tetosMacroGrafico = {};
 
@@ -137,7 +437,15 @@ function processarDados() {
   renderizarGraficoOrcadoVsRealizado(tetosMacroGrafico, gastosMacroGrafico);
   renderizarGraficoHistoricoMensal(acmHistMes);
 
-  // Resumo de Comprometimento da Renda
+  // PACING E RESUMO EXECUTIVO
+  const metricas = calcularMetricasOrcamento(envelopesConfig, acmCatMes);
+  const pacing = calcularVelocimetroPacing(mesSel, metricas.gastoFlexivelMes, metricas.tetoFlexivelTotal);
+
+  if (txtPacingTempo) txtPacingTempo.textContent = `${pacing.pctTempo}% (Dia ${pacing.diasDecorridos}/${pacing.totalDiasNoMes})`;
+  if (barraPacingTempo) barraPacingTempo.style.width = `${pacing.pctTempo}%`;
+  if (txtPacingConsumo) txtPacingConsumo.textContent = `${formatarMoeda(metricas.gastoFlexivelMes)} / ${formatarMoeda(metricas.tetoFlexivelTotal)} (${pacing.pctConsumoFlexivel}%)`;
+  if (barraPacingConsumo) barraPacingConsumo.style.width = `${Math.min(pacing.pctConsumoFlexivel, 100)}%`;
+
   const totalDespesasMes = totalSaidasDiretas + totalPagtoFatura + totalFatura;
   const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
   const resumoEl = document.getElementById('resumo-executivo-texto');
@@ -150,7 +458,7 @@ function processarDados() {
   }
 }
 
-// Eventos e Subscrições
+// SUBMISSAO DE LANÇAMENTO
 if (form) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -167,10 +475,11 @@ if (form) {
       source_satellite: "core_dimdim",
       updated_at: new Date().toISOString()
     });
-    form.reset();
+    resetarFormulario();
   });
 }
 
+// SUBSCRIÇÕES FIRESTORE
 onSnapshot(collection(db, "categories"), (snapshot) => {
   envelopesConfig = {};
   snapshot.forEach(docSnap => envelopesConfig[docSnap.id] = docSnap.data());
