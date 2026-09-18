@@ -3,7 +3,7 @@ import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirV
 import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
 import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarGoogleSheets } from "./core/transactions.js";
 import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
-import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias } from "./core/ui.js";
+import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados } from "./core/ui.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -31,7 +31,7 @@ aplicarMascaraMoeda(inputValorTransacao);
 aplicarMascaraMoeda(document.getElementById('cat-teto'));
 aplicarMascaraMoeda(document.getElementById('input-valor-aporte-sobra'));
 
-// Handlers Globais para Botões HTML
+// Handlers Globais para Ações
 window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
   inputTransacaoId.value = id;
   document.getElementById('data').value = data;
@@ -61,14 +61,14 @@ window.excluirCat = async (id, nome) => {
   if (confirm(`Excluir categoria "${nome}"?`)) await deleteDoc(doc(db, "categories", id));
 };
 
-// Processamento Central
+// Processamento dos Dados
 function processarDados() {
   if (!snapshotTransactions) return;
   const mesSel = filtroMesInput.value;
   const anoSel = mesSel.substring(0, 4);
 
   let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
-  const acmCatMes = {}, acmHistMes = {};
+  const acmCatMes = {}, acmHistMes = {}, acmCatSaidaHist = {}, acmCatEntradaHist = {};
   const itensExibicao = [];
 
   snapshotTransactions.forEach(docSnap => {
@@ -84,6 +84,11 @@ function processarDados() {
     if (item.date.substring(0, 4) === anoSel && isSaida && !isPagto) {
       const mChave = item.date.substring(5, 7);
       acmHistMes[mChave] = (acmHistMes[mChave] || 0) + item.amount;
+    }
+
+    if (itemMes <= mesSel && item.category_id && !isPagto) {
+      if (isSaida) acmCatSaidaHist[item.category_id] = (acmCatSaidaHist[item.category_id] || 0) + item.amount;
+      else acmCatEntradaHist[item.category_id] = (acmCatEntradaHist[item.category_id] || 0) + item.amount;
     }
 
     if (itemMes === mesSel) {
@@ -112,13 +117,13 @@ function processarDados() {
 
   renderizarExtrato(listaTransacoes, itensExibicao, envelopesConfig);
 
-  // Mapeamento dos Nomes dos Macro-Grupos para os Gráficos
+  // Agrupamento por Macro-Grupo Usando `macro_grupo`
   const gastosMacroGrafico = {};
   const tetosMacroGrafico = {};
 
   Object.keys(envelopesConfig).forEach(catId => {
     const cat = envelopesConfig[catId];
-    const macroNome = cat.macro || "Reservas & Outros";
+    const macroNome = cat.macro_grupo || cat.macro || "Reservas & Outros";
 
     if (!gastosMacroGrafico[macroNome]) gastosMacroGrafico[macroNome] = 0;
     if (!tetosMacroGrafico[macroNome]) tetosMacroGrafico[macroNome] = 0;
@@ -127,9 +132,22 @@ function processarDados() {
     tetosMacroGrafico[macroNome] += (cat.teto || 0);
   });
 
+  renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, acmCatMes, acmCatSaidaHist, acmCatEntradaHist);
   renderizarGraficoMacroGrupos(gastosMacroGrafico);
   renderizarGraficoOrcadoVsRealizado(tetosMacroGrafico, gastosMacroGrafico);
   renderizarGraficoHistoricoMensal(acmHistMes);
+
+  // Resumo de Comprometimento da Renda
+  const totalDespesasMes = totalSaidasDiretas + totalPagtoFatura + totalFatura;
+  const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
+  const resumoEl = document.getElementById('resumo-executivo-texto');
+  if (resumoEl) {
+    resumoEl.innerHTML = `
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(totalEntradas)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">${formatarMoeda(totalDespesasMes)}</span></div>
+      <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
+    `;
+  }
 }
 
 // Eventos e Subscrições

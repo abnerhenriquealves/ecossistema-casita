@@ -1,6 +1,5 @@
 import { formatarMoeda } from "./formatters.js";
 
-// Atualização dos Cards do Topo
 export function atualizarCardsSaldo(elEntradas, elSaidas, elFatura, elSaldo, entradas, saidas, fatura, saldo) {
   if (elEntradas) elEntradas.textContent = formatarMoeda(entradas);
   if (elSaidas) elSaidas.textContent = formatarMoeda(saidas);
@@ -8,7 +7,6 @@ export function atualizarCardsSaldo(elEntradas, elSaidas, elFatura, elSaldo, ent
   if (elSaldo) elSaldo.textContent = formatarMoeda(saldo);
 }
 
-// Renderização do Extrato do Mês
 export function renderizarExtrato(listaEl, itens, envelopesConfig) {
   if (!listaEl) return;
   listaEl.innerHTML = "";
@@ -48,7 +46,6 @@ export function renderizarExtrato(listaEl, itens, envelopesConfig) {
   });
 }
 
-// Renderização das Categorias nos Selects
 export function atualizarSelectsCategorias(selectCategoria, listaGerenciadorCat, envelopesConfig) {
   if (!selectCategoria) return;
   selectCategoria.innerHTML = "";
@@ -58,7 +55,7 @@ export function atualizarSelectsCategorias(selectCategoria, listaGerenciadorCat,
 
   Object.keys(envelopesConfig).forEach(id => {
     const data = envelopesConfig[id];
-    const macro = data.macro || "Reservas & Outros";
+    const macro = data.macro_grupo || data.macro || "Reservas & Outros";
     if (!gruposSelect[macro]) gruposSelect[macro] = [];
     gruposSelect[macro].push({ id, ...data });
 
@@ -92,4 +89,75 @@ export function atualizarSelectsCategorias(selectCategoria, listaGerenciadorCat,
   optFatura.value = "CAT_FATURA_CARTAO";
   optFatura.textContent = "💳 Pagamento de Fatura do Cartão";
   selectCategoria.appendChild(optFatura);
+}
+
+export function renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, acmCatMes, acmCatSaidaHist, acmCatEntradaHist) {
+  if (!listaEnvelopes) return;
+  listaEnvelopes.innerHTML = "";
+
+  const grupos = {};
+  Object.keys(envelopesConfig).forEach(catId => {
+    const cat = envelopesConfig[catId];
+    const macro = cat.macro_grupo || cat.macro || "Reservas & Outros";
+    if (!grupos[macro]) grupos[macro] = [];
+    grupos[macro].push({ id: catId, ...cat });
+  });
+
+  Object.keys(grupos).forEach(macroNome => {
+    const grupoBloco = document.createElement('div');
+    grupoBloco.className = "bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 space-y-3";
+
+    let totalGastoVisual = 0, totalTetoGrupo = 0;
+    grupos[macroNome].forEach(item => {
+      const isCaixinha = !!item.is_sinking_fund;
+      const gastoVisual = isCaixinha 
+        ? ((acmCatSaidaHist[item.id] || 0) - (acmCatEntradaHist[item.id] || 0))
+        : (acmCatMes[item.id] || 0);
+      totalGastoVisual += gastoVisual;
+      totalTetoGrupo += (item.teto || 0);
+    });
+
+    grupoBloco.innerHTML = `
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">📁 ${macroNome}</span>
+        <span class="text-xs font-mono text-slate-400">${formatarMoeda(totalGastoVisual)} / ${formatarMoeda(totalTetoGrupo)}</span>
+      </div>
+    `;
+
+    const gridEnvelopes = document.createElement('div');
+    gridEnvelopes.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
+
+    grupos[macroNome].forEach(env => {
+      const gastoMes = acmCatMes[env.id] || 0;
+      const gastoHist = acmCatSaidaHist[env.id] || 0;
+      const entradaHist = acmCatEntradaHist[env.id] || 0;
+      const isCaixinha = !!env.is_sinking_fund;
+
+      let pct = 0, textoValores = "";
+      if (isCaixinha) {
+        const saldoCaixinha = gastoHist - entradaHist;
+        pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
+        textoValores = `Saldo: ${formatarMoeda(saldoCaixinha)} / Meta: ${formatarMoeda(env.teto)}`;
+      } else {
+        pct = env.teto > 0 ? Math.min(Math.round((gastoMes / env.teto) * 100), 100) : 0;
+        textoValores = `${formatarMoeda(gastoMes)} / ${formatarMoeda(env.teto)} (${pct}%)`;
+      }
+
+      const envCard = document.createElement('div');
+      envCard.className = "bg-slate-900/60 border border-slate-800 p-3 rounded-lg space-y-2";
+      envCard.innerHTML = `
+        <div class="flex justify-between items-center text-xs">
+          <span class="font-medium text-slate-200">${env.nome} ${isCaixinha ? '🧰' : ''}</span>
+          <span class="font-mono text-emerald-400">${textoValores}</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+          <div class="bg-emerald-500 h-2 rounded-full" style="width: ${Math.max(0, pct)}%"></div>
+        </div>
+      `;
+      gridEnvelopes.appendChild(envCard);
+    });
+
+    grupoBloco.appendChild(gridEnvelopes);
+    listaEnvelopes.appendChild(grupoBloco);
+  });
 }
