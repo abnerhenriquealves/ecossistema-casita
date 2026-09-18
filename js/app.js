@@ -14,7 +14,7 @@ let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
-// Seletores de DOM
+// Seletores do DOM
 const filtroMesInput = document.getElementById('filtro-mes');
 const form = document.getElementById('form-transacao');
 const inputTransacaoId = document.getElementById('transacao-id');
@@ -61,14 +61,14 @@ window.excluirCat = async (id, nome) => {
   if (confirm(`Excluir categoria "${nome}"?`)) await deleteDoc(doc(db, "categories", id));
 };
 
-// Processamento do Fluxo
+// Processamento Central
 function processarDados() {
   if (!snapshotTransactions) return;
   const mesSel = filtroMesInput.value;
   const anoSel = mesSel.substring(0, 4);
 
   let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
-  const acmCatMes = {}, acmCatSaidaHist = {}, acmCatEntradaHist = {}, acmHistMes = {};
+  const acmCatMes = {}, acmHistMes = {};
   const itensExibicao = [];
 
   snapshotTransactions.forEach(docSnap => {
@@ -111,10 +111,24 @@ function processarDados() {
   );
 
   renderizarExtrato(listaTransacoes, itensExibicao, envelopesConfig);
-  
-  const metricas = calcularMetricasOrcamento(envelopesConfig, acmCatMes);
-  renderizarGraficoMacroGrupos(acmCatMes);
-  renderizarGraficoOrcadoVsRealizado(envelopesConfig, acmCatMes);
+
+  // Mapeamento dos Nomes dos Macro-Grupos para os Gráficos
+  const gastosMacroGrafico = {};
+  const tetosMacroGrafico = {};
+
+  Object.keys(envelopesConfig).forEach(catId => {
+    const cat = envelopesConfig[catId];
+    const macroNome = cat.macro || "Reservas & Outros";
+
+    if (!gastosMacroGrafico[macroNome]) gastosMacroGrafico[macroNome] = 0;
+    if (!tetosMacroGrafico[macroNome]) tetosMacroGrafico[macroNome] = 0;
+
+    gastosMacroGrafico[macroNome] += (acmCatMes[catId] || 0);
+    tetosMacroGrafico[macroNome] += (cat.teto || 0);
+  });
+
+  renderizarGraficoMacroGrupos(gastosMacroGrafico);
+  renderizarGraficoOrcadoVsRealizado(tetosMacroGrafico, gastosMacroGrafico);
   renderizarGraficoHistoricoMensal(acmHistMes);
 }
 
