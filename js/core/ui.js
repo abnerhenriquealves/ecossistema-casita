@@ -177,7 +177,7 @@ export function renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, ac
     let totalGastoVisual = 0, totalTetoGrupo = 0;
     grupos[macroNome].forEach(item => {
       const isCaixinha = !!item.is_sinking_fund;
-      const gastoVisual = isCaixinha 
+      const gastoVisual = isCaixinha
         ? ((acmCatSaidaHist[item.id] || 0) - (acmCatEntradaHist[item.id] || 0))
         : (acmCatMes[item.id] || 0);
       totalGastoVisual += gastoVisual;
@@ -251,5 +251,25 @@ export function atualizarSelectsContas(selectConta, filtroContaExtrato, contasCo
       optFiltro.textContent = `${selo} ${acc.nome}`;
       filtroContaExtrato.appendChild(optFiltro);
     }
+  });
+}
+export function renderizarListaGerenciadorContas(listaEl, contasConfig) {
+  if (!listaEl) return;
+  listaEl.innerHTML = "";
+
+  Object.keys(contasConfig).forEach(id => {
+    const acc = contasConfig[id];
+    const selo = acc.tipo === "CARTAO" ? "💳" : "🏦";
+
+    const itemAcc = document.createElement('div');
+    itemAcc.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+    itemAcc.innerHTML = `
+      <span class="text-slate-200 font-medium">${selo} ${acc.nome} <span class="text-slate-500">(${acc.tipo})</span></span>
+      <div class="flex items-center gap-2">
+        <button onclick="prepararEdicaoConta('${id}', '${acc.nome.replace(/'/g, "\\'")}', '${acc.tipo}')" class="text-slate-400 hover:text-sky-400">✏️</button>
+        <button onclick="excluirConta('${id}', '${acc.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+      </div>
+    `;
+    listaEl.appendChild(itemAcc);
   });
 }

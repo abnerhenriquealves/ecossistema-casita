@@ -6,6 +6,8 @@ import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPo
 import { restaurarContasPadrao } from "./core/accounts.js";
 import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
 import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados, atualizarMargemEManobraUI, atualizarVelocimetroPacingUI, atualizarSelectsContas } from "./core/ui.js";
+import { salvarConta, removerConta } from "./core/accounts.js";
+import { renderizarListaGerenciadorContas } from "./core/ui.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -85,7 +87,7 @@ function abrirModalFechamento() {
   const selectDestino = document.getElementById('select-caixinha-destino');
   selectDestino.innerHTML = "";
   const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
-  
+
   if (caixinhas.length === 0) {
     selectDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
   } else {
@@ -164,6 +166,18 @@ window.excluirCat = async (id, nome) => {
   if (confirm(`Deseja excluir a categoria "${nome}"?`)) await removerCategoria(id);
 };
 
+window.prepararEdicaoConta = (id, nome, tipo) => {
+  document.getElementById('conta-id').value = id;
+  document.getElementById('conta-nome').value = nome;
+  document.getElementById('conta-tipo').value = tipo;
+  document.getElementById('titulo-form-conta').textContent = "Editar Conta / Cartão";
+  document.getElementById('btn-cancelar-conta').classList.remove('hidden');
+};
+
+window.excluirConta = async (id, nome) => {
+  if (confirm(`Deseja excluir a conta "${nome}"?`)) await removerConta(id);
+};
+
 // Submissões
 async function submeterTransacao(e) {
   e.preventDefault();
@@ -234,6 +248,30 @@ async function executarQuitacaoFatura() {
     });
   }
 }
+
+// No inicializarEscutadoresDeEventos():
+document.getElementById('btn-toggle-gerenciar-contas')?.addEventListener('click', () => {
+  document.getElementById('painel-gerenciar-contas')?.classList.toggle('aberto');
+});
+
+document.getElementById('btn-cancelar-conta')?.addEventListener('click', () => {
+  document.getElementById('conta-id').value = "";
+  document.getElementById('form-conta').reset();
+  document.getElementById('titulo-form-conta').textContent = "Nova Conta / Cartão";
+  document.getElementById('btn-cancelar-conta').classList.add('hidden');
+});
+
+document.getElementById('form-conta')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('conta-id').value;
+  await salvarConta(id, {
+    nome: document.getElementById('conta-nome').value.trim(),
+    tipo: document.getElementById('conta-tipo').value
+  });
+  document.getElementById('conta-id').value = "";
+  document.getElementById('form-conta').reset();
+  document.getElementById('btn-cancelar-conta').classList.add('hidden');
+});
 
 // Processamento Central
 function processarDados() {
@@ -378,6 +416,10 @@ onSnapshot(collection(db, "accounts"), (snapshot) => {
   atualizarSelectsContas(
     document.getElementById('conta'),
     document.getElementById('filtro-conta-extrato'),
+    contasConfig
+  );
+  renderizarListaGerenciadorContas(
+    document.getElementById('lista-gerenciador-contas'),
     contasConfig
   );
   processarDados();
