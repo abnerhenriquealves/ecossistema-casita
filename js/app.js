@@ -7,6 +7,43 @@ const hoje = new Date();
 const anoAtual = hoje.getFullYear();
 const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
 
+// Variable Global em Memória para Evitar Erros de Leitura de String no Fechamento
+let saldoLivreMemoria = 0;
+
+// --- UTILITÁRIOS DE FORMATAÇÃO E MÁSCARA BANCÁRIA (PT-BR) ---
+
+function formatarMoeda(valor) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+}
+
+function aplicarMascaraMoeda(inputEl) {
+  if (!inputEl) return;
+  inputEl.addEventListener('input', (e) => {
+    let digits = e.target.value.replace(/\D/g, '');
+    if (!digits) {
+      e.target.value = '';
+      return;
+    }
+    let numero = parseFloat(digits) / 100;
+    e.target.value = formatarMoeda(numero);
+  });
+}
+
+function obterValorNumericoMascara(inputEl) {
+  if (!inputEl || !inputEl.value) return 0;
+  let digits = inputEl.value.replace(/\D/g, '');
+  return (parseFloat(digits) / 100) || 0;
+}
+
+function definirValorMascara(inputEl, valorNumerico) {
+  if (!inputEl) return;
+  if (valorNumerico === null || valorNumerico === undefined || isNaN(valorNumerico) || valorNumerico === 0) {
+    inputEl.value = '';
+    return;
+  }
+  inputEl.value = formatarMoeda(valorNumerico);
+}
+
 // Elementos de Interface
 const filtroMesInput = document.getElementById('filtro-mes');
 const btnAnterior = document.getElementById('btn-mes-anterior');
@@ -19,6 +56,7 @@ document.getElementById('data').value = hoje.toISOString().split('T')[0];
 const form = document.getElementById('form-transacao');
 const secaoFormulario = document.getElementById('secao-formulario');
 const inputTransacaoId = document.getElementById('transacao-id');
+const inputValorTransacao = document.getElementById('valor');
 const tituloForm = document.getElementById('titulo-form');
 const btnCancelarEdicao = document.getElementById('btn-cancelar-edicao');
 
@@ -83,6 +121,11 @@ const selectCaixinhaDestino = document.getElementById('select-caixinha-destino')
 const inputValorAporteSobra = document.getElementById('input-valor-aporte-sobra');
 const formFechamentoMes = document.getElementById('form-fechamento-mes');
 
+// Aplicação da Máscara Bancária nos Inputs Numéricos
+aplicarMascaraMoeda(inputValorTransacao);
+aplicarMascaraMoeda(inputCatTeto);
+aplicarMascaraMoeda(inputValorAporteSobra);
+
 let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
@@ -91,7 +134,7 @@ let graficoMacroInstance = null;
 let graficoOrcadoVsRealizadoInstance = null;
 let graficoHistoricoInstance = null;
 
-// Função de Envio de Dados em Segundo Plano para o Google Sheets (Com ajuste CORS)
+// Envio de Dados para o Google Sheets (Com ajuste CORS)
 async function sincronizarGoogleSheets(payload) {
   if (!GOOGLE_SHEETS_WEBHOOK_URL) return;
   try {
@@ -107,7 +150,7 @@ async function sincronizarGoogleSheets(payload) {
   }
 }
 
-// Registro do Service Worker com Auto-Update e Recarga Inteligente
+// Registro do Service Worker com Auto-Update
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then((registration) => {
@@ -174,6 +217,7 @@ if (btnProximo) btnProximo.addEventListener('click', () => alterarMes(1));
 function resetarFormulario() {
   inputTransacaoId.value = "";
   form.reset();
+  definirValorMascara(inputValorTransacao, 0);
   document.getElementById('data').value = new Date().toISOString().split('T')[0];
   tituloForm.textContent = "Novo Lançamento";
   document.getElementById('btn-salvar').textContent = "Registrar Lançamento";
@@ -183,6 +227,7 @@ function resetarFormulario() {
 function resetarFormCategoria() {
   inputCatId.value = "";
   formCategoria.reset();
+  definirValorMascara(inputCatTeto, 0);
   checkCatAcumulativa.checked = false;
   selectCatRigidez.value = "RIGIDO";
   tituloFormCat.textContent = "Novo Envelope / Categoria";
@@ -193,7 +238,7 @@ function resetarFormCategoria() {
 if (btnCancelarEdicao) btnCancelarEdicao.addEventListener('click', resetarFormulario);
 if (btnCancelarCat) btnCancelarCat.addEventListener('click', resetarFormCategoria);
 
-// Seed dos Envelopes Padrão com Natureza (Rígido vs. Flexível)
+// Seed dos Envelopes Padrão
 async function restaurarCategoriasPadrao() {
   const padroes = [
     { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé", rigidez: "RIGIDO", is_sinking_fund: false },
@@ -232,7 +277,7 @@ if (formCategoria) {
 
     const catId = inputCatId.value;
     const nome = inputCatNome.value.trim();
-    const teto = parseFloat(inputCatTeto.value);
+    const teto = obterValorNumericoMascara(inputCatTeto);
     const macro = selectCatMacro.value;
     const rigidez = selectCatRigidez.value;
     const isAcumulativa = checkCatAcumulativa.checked;
@@ -270,7 +315,7 @@ if (formCategoria) {
 window.prepararEdicaoCat = function(id, nome, teto, macro, rigidez, isAcumulativa) {
   inputCatId.value = id;
   inputCatNome.value = nome;
-  inputCatTeto.value = teto;
+  definirValorMascara(inputCatTeto, teto);
   if (macro) selectCatMacro.value = macro;
   if (rigidez) selectCatRigidez.value = rigidez;
   checkCatAcumulativa.checked = !!isAcumulativa;
@@ -296,7 +341,7 @@ if (btnQuitarFatura) {
     if (valorFaturaPendenteAtual <= 0) return;
 
     const mesSel = filtroMesInput.value;
-    if (confirm(`Confirmar o pagamento da fatura no valor de R$ ${valorFaturaPendenteAtual.toFixed(2)} debitando da Conta Corrente?`)) {
+    if (confirm(`Confirmar o pagamento da fatura no valor de ${formatarMoeda(valorFaturaPendenteAtual)} debitando da Conta Corrente?`)) {
       btnQuitarFatura.disabled = true;
       btnQuitarFatura.textContent = "Processando quitação...";
 
@@ -333,7 +378,7 @@ window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, co
   inputTransacaoId.value = id;
   document.getElementById('data').value = data;
   document.getElementById('tipo').value = tipo;
-  document.getElementById('valor').value = valor;
+  definirValorMascara(inputValorTransacao, valor);
   document.getElementById('descricao').value = descricao;
   document.getElementById('categoria').value = categoria;
   document.getElementById('conta').value = conta;
@@ -344,7 +389,7 @@ window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, co
   btnCancelarEdicao.classList.remove('hidden');
 
   secaoFormulario.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  document.getElementById('valor').focus();
+  inputValorTransacao.focus();
 };
 
 window.excluirTransacao = async function(id, descricao) {
@@ -416,7 +461,7 @@ function renderizarGraficoMacroGrupos(dadosMacro) {
   });
 }
 
-// Renderização do Gráfico Orçado vs. Realizado (Barras Duplas por Macro-Grupo)
+// Renderização do Gráfico Orçado vs. Realizado (Barras Duplas)
 function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
   const canvasEl = document.getElementById('grafico-orcado-vs-realizado');
   if (!canvasEl) return;
@@ -492,7 +537,7 @@ function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
               let label = context.dataset.label || '';
               if (label) label += ': ';
               if (context.parsed.y !== null) {
-                label += 'R$ ' + context.parsed.y.toFixed(2);
+                label += formatarMoeda(context.parsed.y);
               }
               return label;
             }
@@ -503,7 +548,7 @@ function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
   });
 }
 
-// Renderização do Gráfico de Linhas (Evolução Temporal no Ano)
+// Renderização do Gráfico de Linhas (Evolução Temporal)
 function renderizarGraficoHistoricoMensal(dadosPorMes) {
   const canvasEl = document.getElementById('grafico-historico-mensal');
   if (!canvasEl) return;
@@ -657,7 +702,7 @@ function processarDados() {
           </div>
 
           <div class="flex items-center gap-3 shrink-0">
-            <p class="font-bold font-mono ${corValor}">${sinal} R$ ${item.amount.toFixed(2)}</p>
+            <p class="font-bold font-mono ${corValor}">${sinal} ${formatarMoeda(item.amount)}</p>
             
             <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
               <button onclick="prepararEdicao('${docId}', '${item.date}', '${item.type}', ${item.amount}, '${item.description.replace(/'/g, "\\'")}', '${item.category_id}', '${item.account_id}', '${usuarioItem}')" class="p-1 text-slate-400 hover:text-sky-400 transition-colors" title="Editar">
@@ -695,7 +740,7 @@ function processarDados() {
     badgeFaturaStatus.classList.add('hidden');
     btnQuitarFatura.classList.remove('hidden');
     btnQuitarFatura.classList.add('flex');
-    btnQuitarFatura.textContent = `💳 Quitar R$ ${valorFaturaPendenteAtual.toFixed(2)}`;
+    btnQuitarFatura.textContent = `💳 Quitar ${formatarMoeda(valorFaturaPendenteAtual)}`;
   } else {
     badgeFaturaStatus.classList.add('hidden');
     btnQuitarFatura.classList.add('hidden');
@@ -703,14 +748,16 @@ function processarDados() {
   }
 
   const totalSaidasTotaisConta = totalSaidasDiretasSemFatura + totalPagamentosFatura;
-  const saldoLivre = totalEntradas - totalSaidasTotaisConta - valorFaturaPendenteAtual;
+  
+  // GRAVAÇÃO DA VARIÁVEL MEMÓRIA NUMÉRICA EXATA
+  saldoLivreMemoria = totalEntradas - totalSaidasTotaisConta - valorFaturaPendenteAtual;
 
-  elEntradas.textContent = `R$ ${totalEntradas.toFixed(2)}`;
-  elSaidas.textContent = `R$ ${totalSaidasTotaisConta.toFixed(2)}`;
-  elFaturaCartao.textContent = `R$ ${totalFaturaCartao.toFixed(2)}`;
-  elSaldo.textContent = `R$ ${saldoLivre.toFixed(2)}`;
+  elEntradas.textContent = formatarMoeda(totalEntradas);
+  elSaidas.textContent = formatarMoeda(totalSaidasTotaisConta);
+  elFaturaCartao.textContent = formatarMoeda(totalFaturaCartao);
+  elSaldo.textContent = formatarMoeda(saldoLivreMemoria);
 
-  // Renderização dos Envelopes e Acúmulo por Macro-Grupo
+  // Renderização dos Envelopes
   listaEnvelopes.innerHTML = "";
   
   const grupos = {};
@@ -765,7 +812,7 @@ function processarDados() {
           📁 ${macroNome}
         </span>
         <span class="text-xs font-mono text-slate-400">
-          R$ ${totalGastoGrupoVisual.toFixed(2)} / R$ ${totalTetoGrupo.toFixed(2)}
+          ${formatarMoeda(totalGastoGrupoVisual)} / ${formatarMoeda(totalTetoGrupo)}
         </span>
       `;
       grupoBloco.appendChild(headerGrupo);
@@ -793,14 +840,14 @@ function processarDados() {
             const saldoCaixinha = entradaHist - gastoHist;
             pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
             if (pct < 0) pct = 0;
-            textoValores = `Saldo: R$ ${saldoCaixinha.toFixed(2)} / Meta: R$ ${env.teto.toFixed(2)}`;
+            textoValores = `Saldo: ${formatarMoeda(saldoCaixinha)} / Meta: ${formatarMoeda(env.teto)}`;
           } else {
             pct = env.teto > 0 ? Math.min(Math.round((gastoHist / env.teto) * 100), 100) : 0;
-            textoValores = `Acumulado: R$ ${gastoHist.toFixed(2)} / R$ ${env.teto.toFixed(2)} (Mês: R$ ${gastoMes.toFixed(2)})`;
+            textoValores = `Acumulado: ${formatarMoeda(gastoHist)} / ${formatarMoeda(env.teto)} (Mês: ${formatarMoeda(gastoMes)})`;
           }
         } else {
           pct = env.teto > 0 ? Math.min(Math.round((gastoMes / env.teto) * 100), 100) : 0;
-          textoValores = `R$ ${gastoMes.toFixed(2)} / R$ ${env.teto.toFixed(2)} (${pct}%)`;
+          textoValores = `${formatarMoeda(gastoMes)} / ${formatarMoeda(env.teto)} (${pct}%)`;
         }
 
         if (pct >= 100) {
@@ -834,9 +881,7 @@ function processarDados() {
     });
   }
 
-  // --- CÁLCULO DAS MÉTRICAS EXECUTIVAS SEM GRÁFICO ---
-
-  // 1. Margem de Manobra (Rígido vs. Flexível)
+  // Margem de Manobra (Rígido vs. Flexível)
   const tetoGeralMetrica = tetoRigidoTotal + tetoFlexivelTotal;
   const pctRigido = tetoGeralMetrica > 0 ? Math.round((tetoRigidoTotal / tetoGeralMetrica) * 100) : 0;
   const pctFlexivel = tetoGeralMetrica > 0 ? (100 - pctRigido) : 0;
@@ -846,18 +891,18 @@ function processarDados() {
     barraFlexivel.style.width = `${pctFlexivel}%`;
   }
 
-  if (txtValorRigido) txtValorRigido.textContent = `📌 Rígidos: R$ ${tetoRigidoTotal.toFixed(2)} (${pctRigido}%)`;
-  if (txtValorFlexivel) txtValorFlexivel.textContent = `🎈 Flexíveis: R$ ${tetoFlexivelTotal.toFixed(2)} (${pctFlexivel}%)`;
+  if (txtValorRigido) txtValorRigido.textContent = `📌 Rígidos: ${formatarMoeda(tetoRigidoTotal)} (${pctRigido}%)`;
+  if (txtValorFlexivel) txtValorFlexivel.textContent = `🎈 Flexíveis: ${formatarMoeda(tetoFlexivelTotal)} (${pctFlexivel}%)`;
 
   if (badgeDiagnosticoMargem && txtRaioxMargem) {
     if (pctRigido <= 65) {
       badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
       badgeDiagnosticoMargem.textContent = "🟢 Excelente";
-      txtRaioxMargem.textContent = `💡 Estrutura saudável: Você tem R$ ${tetoFlexivelTotal.toFixed(2)} (${pctFlexivel}%) de margem flexível para manobras ou cortes de emergência.`;
+      txtRaioxMargem.textContent = `💡 Estrutura saudável: Você tem ${formatarMoeda(tetoFlexivelTotal)} (${pctFlexivel}%) de margem flexível para manobras ou cortes de emergência.`;
     } else if (pctRigido <= 80) {
       badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
       badgeDiagnosticoMargem.textContent = "🟡 Equilibrada";
-      txtRaioxMargem.textContent = `💡 Atenção moderada: ${pctRigido}% do seu orçamento orçado é de compromissos rígidos. Mantenha os envelopes flexíveis sob vigilância.`;
+      txtRaioxMargem.textContent = `💡 Atenção moderada: ${pctRigido}% do seu orçamento é de compromissos rígidos. Mantenha os envelopes flexíveis sob vigilância.`;
     } else {
       badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30";
       badgeDiagnosticoMargem.textContent = "🔴 Engessada";
@@ -865,7 +910,7 @@ function processarDados() {
     }
   }
 
-  // 2. Velocímetro Orçamentário (Gastos Flexíveis / Pacing)
+  // Velocímetro Orçamentário (Gastos Flexíveis / Pacing)
   const [selAno, selMes] = mesSelecionado.split('-').map(Number);
   const totalDiasNoMes = new Date(selAno, selMes, 0).getDate();
 
@@ -885,7 +930,7 @@ function processarDados() {
   if (txtPacingTempo) txtPacingTempo.textContent = `${pctTempo}% (Dia ${diasDecorridos}/${totalDiasNoMes})`;
   if (barraPacingTempo) barraPacingTempo.style.width = `${pctTempo}%`;
 
-  if (txtPacingConsumo) txtPacingConsumo.textContent = `R$ ${gastoFlexivelMes.toFixed(2)} / R$ ${tetoFlexivelTotal.toFixed(2)} (${pctConsumoFlexivel}%)`;
+  if (txtPacingConsumo) txtPacingConsumo.textContent = `${formatarMoeda(gastoFlexivelMes)} / ${formatarMoeda(tetoFlexivelTotal)} (${pctConsumoFlexivel}%)`;
   if (barraPacingConsumo) barraPacingConsumo.style.width = `${Math.min(pctConsumoFlexivel, 100)}%`;
 
   if (badgeStatusPacing && txtStatusPacingMensagem) {
@@ -927,8 +972,8 @@ function processarDados() {
   
   if (resumoExecutivoTexto) {
     resumoExecutivoTexto.innerHTML = `
-      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">R$ ${totalEntradas.toFixed(2)}</span></div>
-      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">R$ ${totalDespesasMes.toFixed(2)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(totalEntradas)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">${formatarMoeda(totalDespesasMes)}</span></div>
       <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
     `;
   }
@@ -945,11 +990,12 @@ if (form) {
 
     const idEditando = inputTransacaoId.value;
     const dataLancamento = document.getElementById('data').value;
+    const valorNumerico = obterValorNumericoMascara(inputValorTransacao);
 
     const dadosTransacao = {
       date: dataLancamento,
       type: document.getElementById('tipo').value,
-      amount: parseFloat(document.getElementById('valor').value),
+      amount: valorNumerico,
       description: document.getElementById('descricao').value,
       category_id: document.getElementById('categoria').value,
       account_id: document.getElementById('conta').value,
@@ -984,17 +1030,15 @@ if (form) {
   });
 }
 
-// --- LÓGICA DO ASSISTENTE DE FECHAMENTO DE MÊS ---
+// --- LÓGICA DO ASSISTENTE DE FECHAMENTO DE MÊS (USANDO VARIÁVEL EM MEMÓRIA) ---
 
 function abrirModalFechamento() {
   const mesSel = filtroMesInput.value;
   txtFechamentoMesRef.textContent = mesSel;
 
-  const txtSaldoAtual = elSaldo.textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim();
-  const saldoLivreAtual = parseFloat(txtSaldoAtual) || 0;
-
-  txtFechamentoSaldoSobra.textContent = `R$ ${saldoLivreAtual.toFixed(2)}`;
-  inputValorAporteSobra.value = Math.max(0, saldoLivreAtual).toFixed(2);
+  // LEITURA DIRETA E SEGURA DA VARIÁVEL EM MEMÓRIA (SEM ERROS DE STRING HTML)
+  txtFechamentoSaldoSobra.textContent = formatarMoeda(saldoLivreMemoria);
+  definirValorMascara(inputValorAporteSobra, Math.max(0, saldoLivreMemoria));
 
   if (valorFaturaPendenteAtual > 0) {
     boxAlertaFaturaPendente.classList.remove('hidden');
@@ -1012,7 +1056,7 @@ function abrirModalFechamento() {
       const cat = envelopesConfig[catId];
       const opt = document.createElement('option');
       opt.value = catId;
-      opt.textContent = `🧰 ${cat.nome} (Meta: R$ ${cat.teto.toFixed(2)})`;
+      opt.textContent = `🧰 ${cat.nome} (Meta: ${formatarMoeda(cat.teto)})`;
       selectCaixinhaDestino.appendChild(opt);
     });
   }
@@ -1023,6 +1067,7 @@ function abrirModalFechamento() {
 function fecharModalFechamento() {
   modalFechamentoMes.classList.add('hidden');
   if (formFechamentoMes) formFechamentoMes.reset();
+  definirValorMascara(inputValorAporteSobra, 0);
 }
 
 if (btnAbrirFechamentoMes) btnAbrirFechamentoMes.addEventListener('click', abrirModalFechamento);
@@ -1038,7 +1083,7 @@ if (formFechamentoMes) {
 
     const mesSel = filtroMesInput.value;
     const catDestinoId = selectCaixinhaDestino.value;
-    const valorAporte = parseFloat(inputValorAporteSobra.value);
+    const valorAporte = obterValorNumericoMascara(inputValorAporteSobra);
 
     if (!catDestinoId) {
       alert("Selecione uma Caixinha / Reserva de destino para aportar a sobra.");
@@ -1076,7 +1121,7 @@ if (formFechamentoMes) {
       sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosAporte });
       
       fecharModalFechamento();
-      alert(`🎉 Fechamento concluído com sucesso! R$ ${valorAporte.toFixed(2)} aportados na caixinha "${nomeCaixinha}".`);
+      alert(`🎉 Fechamento concluído com sucesso! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
     } catch (err) {
       alert("Erro ao realizar fechamento: " + err.message);
     } finally {
@@ -1121,7 +1166,7 @@ onSnapshot(collection(db, "categories"), (snapshot) => {
     const itemCat = document.createElement('div');
     itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
     itemCat.innerHTML = `
-      <span class="text-slate-200 font-medium"><span>${seloRigidezGerenciador}</span> <span class="text-emerald-400 font-semibold">[${macro}]</span> ${data.nome}${tagCaixinhaGerenciador} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
+      <span class="text-slate-200 font-medium"><span>${seloRigidezGerenciador}</span> <span class="text-emerald-400 font-semibold">[${macro}]</span> ${data.nome}${tagCaixinhaGerenciador} - <span class="text-emerald-400 font-mono">${formatarMoeda(data.teto)}</span></span>
       <div class="flex items-center gap-2">
         <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', '${rigidez}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
         <button onclick="excluirCat('${id}', '${data.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
