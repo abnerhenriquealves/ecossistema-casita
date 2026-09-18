@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dimdim-v2.3.0';
+const CACHE_NAME = 'dimdim-v2.4.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const ASSETS_TO_CACHE = [
   './js/core/formatters.js',
   './js/core/engine.js',
   './js/core/transactions.js',
+  './js/core/envelopes.js',
   './js/core/charts.js',
   './js/core/ui.js',
   './manifest.json'
