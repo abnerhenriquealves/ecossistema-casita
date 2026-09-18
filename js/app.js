@@ -15,20 +15,128 @@ let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
-// Seletores do DOM
+// Elementos de Interface Dom
 const filtroMesInput = document.getElementById('filtro-mes');
 const formTransacao = document.getElementById('form-transacao');
 const formCategoria = document.getElementById('form-categoria');
 const formFechamentoMes = document.getElementById('form-fechamento-mes');
+const modalFechamentoMes = document.getElementById('modal-fechamento-mes');
 
-filtroMesInput.value = `${anoAtual}-${mesAtual}`;
-document.getElementById('data').value = hoje.toISOString().split('T')[0];
-
+// Inicialização de Máscaras
 aplicarMascaraMoeda(document.getElementById('valor'));
 aplicarMascaraMoeda(document.getElementById('cat-teto'));
 aplicarMascaraMoeda(document.getElementById('input-valor-aporte-sobra'));
 
-// Handlers Globais para Ações do HTML
+filtroMesInput.value = `${anoAtual}-${mesAtual}`;
+document.getElementById('data').value = hoje.toISOString().split('T')[0];
+
+// CENTRALIZADOR UNIFICADO DE ESCUTADORES DE EVENTOS
+function inicializarEscutadoresDeEventos() {
+  // Navegação de Mês
+  document.getElementById('btn-mes-anterior')?.addEventListener('click', () => alterarMes(-1));
+  document.getElementById('btn-mes-proximo')?.addEventListener('click', () => alterarMes(1));
+  document.getElementById('btn-abrir-picker')?.addEventListener('click', () => {
+    if ('showPicker' in filtroMesInput) filtroMesInput.showPicker();
+    else filtroMesInput.focus();
+  });
+  filtroMesInput?.addEventListener('change', processarDados);
+
+  // Painel de Envelopes & Categorias
+  document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
+    document.getElementById('painel-gerenciar-categorias')?.classList.toggle('aberto');
+  });
+  document.getElementById('btn-restaurar-padroes')?.addEventListener('click', async () => {
+    if (confirm("Restaurar os envelopes padrão da Casita?")) await restaurarCategoriasPadrao();
+  });
+  document.getElementById('btn-cancelar-cat')?.addEventListener('click', resetarFormCategoria);
+
+  // Modal Fechamento de Mês
+  document.getElementById('btn-abrir-fechamento-mes')?.addEventListener('click', abrirModalFechamento);
+  document.getElementById('btn-fechar-modal-fechamento')?.addEventListener('click', fecharModalFechamento);
+  document.getElementById('btn-cancelar-fechamento')?.addEventListener('click', fecharModalFechamento);
+
+  // Quitação de Fatura
+  document.getElementById('btn-quitar-fatura')?.addEventListener('click', executarQuitacaoFatura);
+
+  // Cancelar Edição de Lançamento
+  document.getElementById('btn-cancelar-edicao')?.addEventListener('click', resetarFormTransacao);
+
+  // Filtros do Extrato
+  ['busca-extrato', 'filtro-usuario-extrato', 'filtro-conta-extrato', 'filtro-tipo-extrato'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', processarDados);
+      el.addEventListener('change', processarDados);
+    }
+  });
+
+  // Formulários
+  if (formTransacao) formTransacao.addEventListener('submit', submeterTransacao);
+  if (formCategoria) formCategoria.addEventListener('submit', submeterCategoria);
+  if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
+}
+
+// HANDLERS DOS MODAIS E ACOES DE INTERFACE
+function abrirModalFechamento() {
+  document.getElementById('txt-fechamento-mes-ref').textContent = filtroMesInput.value;
+  document.getElementById('txt-fechamento-saldo-sobra').textContent = formatarMoeda(saldoLivreMemoria);
+  definirValorMascara(document.getElementById('input-valor-aporte-sobra'), Math.max(0, saldoLivreMemoria));
+
+  const boxAlerta = document.getElementById('box-alerta-fatura-pendente');
+  if (boxAlerta) {
+    if (valorFaturaPendenteAtual > 0) boxAlerta.classList.remove('hidden');
+    else boxAlerta.classList.add('hidden');
+  }
+
+  const selectDestino = document.getElementById('select-caixinha-destino');
+  selectDestino.innerHTML = "";
+  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+  
+  if (caixinhas.length === 0) {
+    selectDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
+  } else {
+    caixinhas.forEach(catId => {
+      const opt = document.createElement('option');
+      opt.value = catId;
+      opt.textContent = `🧰 ${envelopesConfig[catId].nome}`;
+      selectDestino.appendChild(opt);
+    });
+  }
+
+  modalFechamentoMes.classList.remove('hidden');
+}
+
+function fecharModalFechamento() {
+  modalFechamentoMes.classList.add('hidden');
+}
+
+function alterarMes(delta) {
+  const [ano, mes] = filtroMesInput.value.split('-').map(Number);
+  const novaData = new Date(ano, mes - 1 + delta, 1);
+  filtroMesInput.value = `${novaData.getFullYear()}-${String(novaData.getMonth() + 1).padStart(2, '0')}`;
+  processarDados();
+}
+
+function resetarFormTransacao() {
+  document.getElementById('transacao-id').value = "";
+  formTransacao.reset();
+  definirValorMascara(document.getElementById('valor'), 0);
+  document.getElementById('data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('titulo-form').textContent = "Novo Lançamento";
+  document.getElementById('btn-cancelar-edicao').classList.add('hidden');
+}
+
+function resetarFormCategoria() {
+  document.getElementById('cat-id').value = "";
+  formCategoria.reset();
+  definirValorMascara(document.getElementById('cat-teto'), 0);
+  document.getElementById('cat-acumulativa').checked = false;
+  document.getElementById('cat-rigidez').value = "RIGIDO";
+  document.getElementById('titulo-form-cat').textContent = "Novo Envelope / Categoria";
+  document.getElementById('btn-cancelar-cat').classList.add('hidden');
+}
+
+// ACOES DISPARADAS PELO HTML (WINDOW)
 window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
   document.getElementById('transacao-id').value = id;
   document.getElementById('data').value = data;
@@ -40,10 +148,11 @@ window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usu
   document.getElementById('usuario').value = usuario;
   document.getElementById('titulo-form').textContent = "Editar Lançamento";
   document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
+  document.getElementById('secao-formulario').scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
 window.excluirTransacao = async (id, descricao) => {
-  if (confirm(`Excluir "${descricao}"?`)) await removerTransacao(id);
+  if (confirm(`Deseja realmente excluir "${descricao}"?`)) await removerTransacao(id);
 };
 
 window.prepararEdicaoCat = (id, nome, teto, macro, rigidez, isAcumulativa) => {
@@ -58,68 +167,81 @@ window.prepararEdicaoCat = (id, nome, teto, macro, rigidez, isAcumulativa) => {
 };
 
 window.excluirCat = async (id, nome) => {
-  if (confirm(`Excluir categoria "${nome}"?`)) await removerCategoria(id);
+  if (confirm(`Deseja excluir a categoria "${nome}"?`)) await removerCategoria(id);
 };
 
-// Eventos de Interface
-document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
-  document.getElementById('painel-gerenciar-categorias').classList.toggle('aberto');
-});
-
-document.getElementById('btn-restaurar-padroes')?.addEventListener('click', async () => {
-  if (confirm("Restaurar os envelopes padrão da Casita?")) await restaurarCategoriasPadrao();
-});
-
-document.getElementById('btn-mes-anterior')?.addEventListener('click', () => alterarMes(-1));
-document.getElementById('btn-mes-proximo')?.addEventListener('click', () => alterarMes(1));
-filtroMesInput?.addEventListener('change', processarDados);
-
-function alterarMes(delta) {
-  const [ano, mes] = filtroMesInput.value.split('-').map(Number);
-  const novaData = new Date(ano, mes - 1 + delta, 1);
-  filtroMesInput.value = `${novaData.getFullYear()}-${String(novaData.getMonth() + 1).padStart(2, '0')}`;
-  processarDados();
+// SUBMISSOES DE FORMULARIO
+async function submeterTransacao(e) {
+  e.preventDefault();
+  const idEditando = document.getElementById('transacao-id').value;
+  await salvarTransacao(idEditando, {
+    date: document.getElementById('data').value,
+    type: document.getElementById('tipo').value,
+    amount: obterValorNumericoMascara(document.getElementById('valor')),
+    description: document.getElementById('descricao').value,
+    category_id: document.getElementById('categoria').value,
+    account_id: document.getElementById('conta').value,
+    status: "VALIDATED",
+    user_owner: document.getElementById('usuario').value,
+    source_satellite: "core_dimdim",
+    updated_at: new Date().toISOString()
+  });
+  resetarFormTransacao();
 }
 
-// Submissão de Formulários
-if (formTransacao) {
-  formTransacao.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const idEditando = document.getElementById('transacao-id').value;
-    await salvarTransacao(idEditando, {
-      date: document.getElementById('data').value,
-      type: document.getElementById('tipo').value,
-      amount: obterValorNumericoMascara(document.getElementById('valor')),
-      description: document.getElementById('descricao').value,
-      category_id: document.getElementById('categoria').value,
-      account_id: document.getElementById('conta').value,
+async function submeterCategoria(e) {
+  e.preventDefault();
+  const catId = document.getElementById('cat-id').value;
+  await salvarCategoria(catId, {
+    nome: document.getElementById('cat-nome').value.trim(),
+    teto: obterValorNumericoMascara(document.getElementById('cat-teto')),
+    macro_grupo: document.getElementById('cat-macro').value,
+    rigidez: document.getElementById('cat-rigidez').value,
+    is_sinking_fund: document.getElementById('cat-acumulativa').checked
+  });
+  resetarFormCategoria();
+}
+
+async function submeterFechamentoMes(e) {
+  e.preventDefault();
+  const mesSel = filtroMesInput.value;
+  const catDestinoId = document.getElementById('select-caixinha-destino').value;
+  const valorAporte = obterValorNumericoMascara(document.getElementById('input-valor-aporte-sobra'));
+  const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
+
+  if (!catDestinoId || valorAporte <= 0) {
+    alert("Selecione uma caixinha e informe um valor maior que zero.");
+    return;
+  }
+
+  await processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value);
+  fecharModalFechamento();
+  alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
+}
+
+async function executarQuitacaoFatura() {
+  if (valorFaturaPendenteAtual <= 0) return;
+  const mesSel = filtroMesInput.value;
+  if (confirm(`Confirmar quitação da fatura de ${formatarMoeda(valorFaturaPendenteAtual)}?`)) {
+    const [anoSel, mSel] = mesSel.split('-').map(Number);
+    const ultimoDia = new Date(anoSel, mSel, 0).getDate();
+    await salvarTransacao("", {
+      date: `${mesSel}-${String(ultimoDia).padStart(2, '0')}`,
+      type: "SAIDA",
+      amount: valorFaturaPendenteAtual,
+      description: `Quitação Fatura Cartão (${mesSel})`,
+      category_id: "CAT_FATURA_CARTAO",
+      account_id: "ACC_BRADESCO_ABNER",
       status: "VALIDATED",
-      user_owner: document.getElementById('usuario').value,
+      user_owner: document.getElementById('usuario').value || "Abner",
       source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
-    formTransacao.reset();
-    definirValorMascara(document.getElementById('valor'), 0);
-  });
+  }
 }
 
-if (formCategoria) {
-  formCategoria.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const catId = document.getElementById('cat-id').value;
-    await salvarCategoria(catId, {
-      nome: document.getElementById('cat-nome').value.trim(),
-      teto: obterValorNumericoMascara(document.getElementById('cat-teto')),
-      macro_grupo: document.getElementById('cat-macro').value,
-      rigidez: document.getElementById('cat-rigidez').value,
-      is_sinking_fund: document.getElementById('cat-acumulativa').checked
-    });
-    formCategoria.reset();
-    definirValorMascara(document.getElementById('cat-teto'), 0);
-  });
-}
-
-// Processamento Central
+// PROCESSAMENTO CENTRAL
 function processarDados() {
   if (!snapshotTransactions) return;
   const mesSel = filtroMesInput.value;
@@ -128,6 +250,11 @@ function processarDados() {
   let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
   const acmCatMes = {}, acmHistMes = {}, acmCatSaidaHist = {}, acmCatEntradaHist = {};
   const itensExibicao = [];
+
+  const termoBusca = document.getElementById('busca-extrato')?.value.toLowerCase().trim() || "";
+  const usrFiltro = document.getElementById('filtro-usuario-extrato')?.value || "TODOS";
+  const contaFiltro = document.getElementById('filtro-conta-extrato')?.value || "TODAS";
+  const tipoFiltro = document.getElementById('filtro-tipo-extrato')?.value || "TODOS";
 
   snapshotTransactions.forEach(docSnap => {
     const item = docSnap.data();
@@ -150,6 +277,8 @@ function processarDados() {
     }
 
     if (itemMes === mesSel) {
+      const usuarioItem = item.user_owner || 'Abner';
+
       if (isSaida) {
         if (isCartao) totalFatura += item.amount;
         else if (isPagto) totalPagtoFatura += item.amount;
@@ -158,12 +287,38 @@ function processarDados() {
       } else {
         totalEntradas += item.amount;
       }
-      itensExibicao.push({ id, item });
+
+      const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagto ? '💳 Quitação de Fatura' : item.category_id);
+      const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
+      const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
+      const matchConta = contaFiltro === "TODAS" || item.account_id === contaFiltro;
+      const matchTipo = tipoFiltro === "TODOS" || item.type === tipoFiltro;
+
+      if (matchBusca && matchUsuario && matchConta && matchTipo) {
+        itensExibicao.push({ id, item });
+      }
     }
   });
 
   valorFaturaPendenteAtual = Math.max(0, totalFatura - totalPagtoFatura);
   saldoLivreMemoria = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendenteAtual);
+
+  // Status Botão Quitar Fatura
+  const btnQuitar = document.getElementById('btn-quitar-fatura');
+  const badgeFatura = document.getElementById('badge-fatura-status');
+  if (btnQuitar && badgeFatura) {
+    if (totalFatura > 0 && valorFaturaPendenteAtual === 0) {
+      badgeFatura.classList.remove('hidden');
+      btnQuitar.classList.add('hidden');
+    } else if (valorFaturaPendenteAtual > 0) {
+      badgeFatura.classList.add('hidden');
+      btnQuitar.classList.remove('hidden');
+      btnQuitar.textContent = `💳 Quitar ${formatarMoeda(valorFaturaPendenteAtual)}`;
+    } else {
+      badgeFatura.classList.add('hidden');
+      btnQuitar.classList.add('hidden');
+    }
+  }
 
   atualizarCardsSaldo(
     document.getElementById('total-entradas'),
@@ -180,9 +335,36 @@ function processarDados() {
   renderizarGraficoMacroGrupos(gastosMacro);
   renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro);
   renderizarGraficoHistoricoMensal(acmHistMes);
+
+  // Pacing
+  const metricas = calcularMetricasOrcamento(envelopesConfig, acmCatMes);
+  const pacing = calcularVelocimetroPacing(mesSel, metricas.gastoFlexivelMes, metricas.tetoFlexivelTotal);
+  
+  const txtPacingTempo = document.getElementById('txt-pacing-tempo');
+  const barraPacingTempo = document.getElementById('barra-pacing-tempo');
+  const txtPacingConsumo = document.getElementById('txt-pacing-consumo');
+  const barraPacingConsumo = document.getElementById('barra-pacing-consumo');
+
+  if (txtPacingTempo) txtPacingTempo.textContent = `${pacing.pctTempo}% (Dia ${pacing.diasDecorridos}/${pacing.totalDiasNoMes})`;
+  if (barraPacingTempo) barraPacingTempo.style.width = `${pacing.pctTempo}%`;
+  if (txtPacingConsumo) txtPacingConsumo.textContent = `${formatarMoeda(metricas.gastoFlexivelMes)} / ${formatarMoeda(metricas.tetoFlexivelTotal)} (${pacing.pctConsumoFlexivel}%)`;
+  if (barraPacingConsumo) barraPacingConsumo.style.width = `${Math.min(pacing.pctConsumoFlexivel, 100)}%`;
+
+  const totalDespesasMes = totalSaidasDiretas + totalPagtoFatura + totalFatura;
+  const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
+  const resumoEl = document.getElementById('resumo-executivo-texto');
+  if (resumoEl) {
+    resumoEl.innerHTML = `
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(totalEntradas)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">${formatarMoeda(totalDespesasMes)}</span></div>
+      <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
+    `;
+  }
 }
 
-// Subscrições do Firestore
+// SUBSCRIÇÕES FIRESTORE E START
+inicializarEscutadoresDeEventos();
+
 onSnapshot(collection(db, "categories"), (snapshot) => {
   envelopesConfig = {};
   if (snapshot.empty) restaurarCategoriasPadrao();
