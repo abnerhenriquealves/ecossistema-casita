@@ -2,6 +2,7 @@ import { db, collection, onSnapshot, query, orderBy, setDoc, doc, updateDoc, del
 import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirValorMascara } from "./core/formatters.js";
 import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
 import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarGoogleSheets } from "./core/transactions.js";
+import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -12,11 +13,7 @@ let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
-let graficoMacroInstance = null;
-let graficoOrcadoVsRealizadoInstance = null;
-let graficoHistoricoInstance = null;
-
-// Elementos DOM
+// Seletores do DOM
 const filtroMesInput = document.getElementById('filtro-mes');
 const btnAnterior = document.getElementById('btn-mes-anterior');
 const btnProximo = document.getElementById('btn-mes-proximo');
@@ -58,7 +55,7 @@ const txtPacingConsumo = document.getElementById('txt-pacing-consumo');
 const barraPacingConsumo = document.getElementById('barra-pacing-consumo');
 const txtStatusPacingMensagem = document.getElementById('txt-status-pacing-mensagem');
 
-// Busca e Filtros
+// Filtros DOM
 const buscaExtratoInput = document.getElementById('busca-extrato');
 const filtroUsuarioExtrato = document.getElementById('filtro-usuario-extrato');
 const filtroContaExtrato = document.getElementById('filtro-conta-extrato');
@@ -81,7 +78,7 @@ const btnCancelarCat = document.getElementById('btn-cancelar-cat');
 const btnSalvarCat = document.getElementById('btn-salvar-cat');
 const listaGerenciadorCat = document.getElementById('lista-gerenciador-categorias');
 
-// Modal Fechamento
+// Modal Fechamento DOM
 const btnAbrirFechamentoMes = document.getElementById('btn-abrir-fechamento-mes');
 const modalFechamentoMes = document.getElementById('modal-fechamento-mes');
 const btnFecharModalFechamento = document.getElementById('btn-fechar-modal-fechamento');
@@ -93,12 +90,12 @@ const selectCaixinhaDestino = document.getElementById('select-caixinha-destino')
 const inputValorAporteSobra = document.getElementById('input-valor-aporte-sobra');
 const formFechamentoMes = document.getElementById('form-fechamento-mes');
 
-// Aplicação de Máscaras
+// Aplicação de Máscaras Bancárias
 aplicarMascaraMoeda(inputValorTransacao);
 aplicarMascaraMoeda(inputCatTeto);
 aplicarMascaraMoeda(inputValorAporteSobra);
 
-// Funções Globais para Ações do HTML
+// Handlers Globais para Ações do HTML (Edição e Exclusão)
 window.prepararEdicao = function(id, data, tipo, valor, descricao, categoria, conta, usuario) {
   inputTransacaoId.value = id;
   document.getElementById('data').value = data;
@@ -150,7 +147,7 @@ window.excluirCat = async function(id, nome) {
   }
 };
 
-// Eventos de Filtro e Navegação
+// Eventos de Navegação e Filtros
 [buscaExtratoInput, filtroUsuarioExtrato, filtroContaExtrato, filtroTipoExtrato].forEach(el => {
   if (el) {
     el.addEventListener('input', processarDados);
@@ -203,7 +200,7 @@ function resetarFormCategoria() {
 if (btnCancelarEdicao) btnCancelarEdicao.addEventListener('click', resetarFormulario);
 if (btnCancelarCat) btnCancelarCat.addEventListener('click', resetarFormCategoria);
 
-// Restauração de Envelopes Padrão
+// Semente dos Envelopes Padrão
 async function restaurarCategoriasPadrao() {
   const padroes = [
     { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé", rigidez: "RIGIDO", is_sinking_fund: false },
@@ -234,7 +231,7 @@ if (btnRestaurarPadroes) {
   });
 }
 
-// Submissão do Form de Categoria
+// Submissão do Formulário de Categoria
 if (formCategoria) {
   formCategoria.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -267,7 +264,7 @@ if (formCategoria) {
   });
 }
 
-// Quitação de Fatura
+// Quitação da Fatura
 if (btnQuitarFatura) {
   btnQuitarFatura.addEventListener('click', async () => {
     if (valorFaturaPendenteAtual <= 0) return;
@@ -306,127 +303,7 @@ if (btnQuitarFatura) {
   });
 }
 
-// RENDERIZAÇÃO DE GRÁFICOS (CHART.JS)
-function renderizarGraficoMacroGrupos(dadosMacro) {
-  const canvasEl = document.getElementById('grafico-macro-grupos');
-  if (!canvasEl) return;
-  const ctx = canvasEl.getContext('2d');
-  const labels = Object.keys(dadosMacro);
-  const valores = Object.values(dadosMacro);
-
-  if (graficoMacroInstance) graficoMacroInstance.destroy();
-
-  if (labels.length === 0 || valores.every(v => v === 0)) {
-    graficoMacroInstance = new Chart(ctx, {
-      type: 'doughnut',
-      data: { labels: ['Sem gastos registrados'], datasets: [{ data: [1], backgroundColor: ['#334155'] }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-    return;
-  }
-
-  const cores = ['#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#8b5cf6', '#6366f1', '#14b8a6', '#f43f5e', '#84cc16'];
-  graficoMacroInstance = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-      labels: labels,
-      datasets: [{ data: valores, backgroundColor: cores.slice(0, labels.length), borderWidth: 1, borderColor: '#1e293b' }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'left', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } } }
-    }
-  });
-}
-
-function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
-  const canvasEl = document.getElementById('grafico-orcado-vs-realizado');
-  if (!canvasEl) return;
-  const ctx = canvasEl.getContext('2d');
-
-  const labels = Object.keys(tetosMacro).filter(macro => (tetosMacro[macro] || 0) > 0 || (gastosMacro[macro] || 0) > 0);
-  const dataOrcado = labels.map(m => tetosMacro[m] || 0);
-  const dataRealizado = labels.map(m => gastosMacro[m] || 0);
-
-  if (graficoOrcadoVsRealizadoInstance) graficoOrcadoVsRealizadoInstance.destroy();
-
-  if (labels.length === 0) {
-    graficoOrcadoVsRealizadoInstance = new Chart(ctx, {
-      type: 'bar',
-      data: { labels: ['Sem envelopes configurados'], datasets: [{ label: 'Sem dados', data: [0], backgroundColor: '#334155' }] },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-    });
-    return;
-  }
-
-  const coresRealizado = labels.map(m => (gastosMacro[m] || 0) > (tetosMacro[m] || 0) ? '#f43f5e' : '#10b981');
-
-  graficoOrcadoVsRealizadoInstance = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [
-        { label: 'Teto Orçado (R$)', data: dataOrcado, backgroundColor: '#38bdf8', borderRadius: 4 },
-        { label: 'Gasto Realizado (R$)', data: dataRealizado, backgroundColor: coresRealizado, borderRadius: 4 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      scales: {
-        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
-      },
-      plugins: {
-        legend: { display: true, position: 'top', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `${ctx.dataset.label || ''}: ${formatarMoeda(ctx.parsed.y)}`
-          }
-        }
-      }
-    }
-  });
-}
-
-function renderizarGraficoHistoricoMensal(dadosPorMes) {
-  const canvasEl = document.getElementById('grafico-historico-mensal');
-  if (!canvasEl) return;
-  const ctx = canvasEl.getContext('2d');
-
-  const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  const valores = mesesNomes.map((_, idx) => dadosPorMes[String(idx + 1).padStart(2, '0')] || 0);
-
-  if (graficoHistoricoInstance) graficoHistoricoInstance.destroy();
-
-  graficoHistoricoInstance = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: mesesNomes,
-      datasets: [{
-        label: 'Total de Gastos (R$)',
-        data: valores,
-        borderColor: '#38bdf8',
-        backgroundColor: 'rgba(56, 189, 248, 0.1)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.3,
-        pointBackgroundColor: '#38bdf8',
-        pointRadius: 4
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      scales: {
-        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
-      },
-      plugins: { legend: { display: false } }
-    }
-  });
-}
-
-// PROCESSAMENTO PRINCIPAL
+// Processador Central de Dados e Interface
 function processarDados() {
   if (!snapshotTransactions) return;
 
@@ -555,7 +432,7 @@ function processarDados() {
   elFaturaCartao.textContent = formatarMoeda(totalFaturaCartao);
   elSaldo.textContent = formatarMoeda(saldoLivreMemoria);
 
-  // Renderização dos Envelopes
+  // Renderização dos Envelopes Orçamentários
   listaEnvelopes.innerHTML = "";
   const grupos = {};
   const gastosMacroGrafico = {};
@@ -649,7 +526,7 @@ function processarDados() {
     listaEnvelopes.appendChild(grupoBloco);
   });
 
-  // Atualização do Pacing e Margem de Manobra
+  // Cálculo da Margem de Manobra e Velocímetro (Pacing)
   const tetoGeralMetrica = metricas.tetoRigidoTotal + metricas.tetoFlexivelTotal;
   const pctRigido = tetoGeralMetrica > 0 ? Math.round((metricas.tetoRigidoTotal / tetoGeralMetrica) * 100) : 0;
   const pctFlexivel = tetoGeralMetrica > 0 ? (100 - pctRigido) : 0;
@@ -670,7 +547,7 @@ function processarDados() {
   if (txtPacingConsumo) txtPacingConsumo.textContent = `${formatarMoeda(metricas.gastoFlexivelMes)} / ${formatarMoeda(metricas.tetoFlexivelTotal)} (${pacing.pctConsumoFlexivel}%)`;
   if (barraPacingConsumo) barraPacingConsumo.style.width = `${Math.min(pacing.pctConsumoFlexivel, 100)}%`;
 
-  // Renderiza Gráficos
+  // Renderização dos Gráficos Exclusivos via charts.js
   renderizarGraficoMacroGrupos(gastosMacroGrafico);
   renderizarGraficoOrcadoVsRealizado(tetosMacroGrafico, gastosMacroGrafico);
   renderizarGraficoHistoricoMensal(acumuladoHistoricoPorMes);
@@ -686,7 +563,7 @@ function processarDados() {
   }
 }
 
-// Eventos de Formulário Principal
+// Submissão de Lançamentos
 if (form) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -709,7 +586,7 @@ if (form) {
   });
 }
 
-// Fechamento de Mês
+// Modal e Submissão de Fechamento de Mês
 function abrirModalFechamento() {
   txtFechamentoMesRef.textContent = filtroMesInput.value;
   txtFechamentoSaldoSobra.textContent = formatarMoeda(saldoLivreMemoria);
@@ -753,7 +630,7 @@ if (formFechamentoMes) {
   });
 }
 
-// Subscrições Firestore
+// Subscrições do Firestore
 onSnapshot(collection(db, "categories"), (snapshot) => {
   if (snapshot.empty) {
     restaurarCategoriasPadrao();
