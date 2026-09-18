@@ -4,7 +4,7 @@ import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivr
 import { salvarTransacao, removerTransacao, processarFechamentoMes } from "./core/transactions.js";
 import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPorMacroGrupo } from "./core/envelopes.js";
 import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
-import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados } from "./core/ui.js";
+import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados, atualizarMargemEManobraUI, atualizarVelocimetroPacingUI } from "./core/ui.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -15,7 +15,7 @@ let envelopesConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
-// Elementos de Interface Dom
+// Elementos DOM
 const filtroMesInput = document.getElementById('filtro-mes');
 const formTransacao = document.getElementById('form-transacao');
 const formCategoria = document.getElementById('form-categoria');
@@ -32,7 +32,6 @@ document.getElementById('data').value = hoje.toISOString().split('T')[0];
 
 // CENTRALIZADOR UNIFICADO DE ESCUTADORES DE EVENTOS
 function inicializarEscutadoresDeEventos() {
-  // Navegação de Mês
   document.getElementById('btn-mes-anterior')?.addEventListener('click', () => alterarMes(-1));
   document.getElementById('btn-mes-proximo')?.addEventListener('click', () => alterarMes(1));
   document.getElementById('btn-abrir-picker')?.addEventListener('click', () => {
@@ -41,7 +40,6 @@ function inicializarEscutadoresDeEventos() {
   });
   filtroMesInput?.addEventListener('change', processarDados);
 
-  // Painel de Envelopes & Categorias
   document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
     document.getElementById('painel-gerenciar-categorias')?.classList.toggle('aberto');
   });
@@ -50,18 +48,13 @@ function inicializarEscutadoresDeEventos() {
   });
   document.getElementById('btn-cancelar-cat')?.addEventListener('click', resetarFormCategoria);
 
-  // Modal Fechamento de Mês
   document.getElementById('btn-abrir-fechamento-mes')?.addEventListener('click', abrirModalFechamento);
   document.getElementById('btn-fechar-modal-fechamento')?.addEventListener('click', fecharModalFechamento);
   document.getElementById('btn-cancelar-fechamento')?.addEventListener('click', fecharModalFechamento);
 
-  // Quitação de Fatura
   document.getElementById('btn-quitar-fatura')?.addEventListener('click', executarQuitacaoFatura);
-
-  // Cancelar Edição de Lançamento
   document.getElementById('btn-cancelar-edicao')?.addEventListener('click', resetarFormTransacao);
 
-  // Filtros do Extrato
   ['busca-extrato', 'filtro-usuario-extrato', 'filtro-conta-extrato', 'filtro-tipo-extrato'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -70,7 +63,6 @@ function inicializarEscutadoresDeEventos() {
     }
   });
 
-  // Formulários
   if (formTransacao) formTransacao.addEventListener('submit', submeterTransacao);
   if (formCategoria) formCategoria.addEventListener('submit', submeterCategoria);
   if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
@@ -336,19 +328,32 @@ function processarDados() {
   renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro);
   renderizarGraficoHistoricoMensal(acmHistMes);
 
-  // Pacing
+  // PACING E MARGEM DE MANOBRA
   const metricas = calcularMetricasOrcamento(envelopesConfig, acmCatMes);
   const pacing = calcularVelocimetroPacing(mesSel, metricas.gastoFlexivelMes, metricas.tetoFlexivelTotal);
-  
-  const txtPacingTempo = document.getElementById('txt-pacing-tempo');
-  const barraPacingTempo = document.getElementById('barra-pacing-tempo');
-  const txtPacingConsumo = document.getElementById('txt-pacing-consumo');
-  const barraPacingConsumo = document.getElementById('barra-pacing-consumo');
 
-  if (txtPacingTempo) txtPacingTempo.textContent = `${pacing.pctTempo}% (Dia ${pacing.diasDecorridos}/${pacing.totalDiasNoMes})`;
-  if (barraPacingTempo) barraPacingTempo.style.width = `${pacing.pctTempo}%`;
-  if (txtPacingConsumo) txtPacingConsumo.textContent = `${formatarMoeda(metricas.gastoFlexivelMes)} / ${formatarMoeda(metricas.tetoFlexivelTotal)} (${pacing.pctConsumoFlexivel}%)`;
-  if (barraPacingConsumo) barraPacingConsumo.style.width = `${Math.min(pacing.pctConsumoFlexivel, 100)}%`;
+  atualizarMargemEManobraUI(
+    document.getElementById('badge-diagnostico-margem'),
+    document.getElementById('txt-raiox-margem'),
+    document.getElementById('barra-rigido'),
+    document.getElementById('barra-flexivel'),
+    document.getElementById('txt-valor-rigido'),
+    document.getElementById('txt-valor-flexivel'),
+    metricas.tetoRigidoTotal,
+    metricas.tetoFlexivelTotal
+  );
+
+  atualizarVelocimetroPacingUI(
+    document.getElementById('badge-status-pacing'),
+    document.getElementById('txt-status-pacing-mensagem'),
+    document.getElementById('txt-pacing-tempo'),
+    document.getElementById('barra-pacing-tempo'),
+    document.getElementById('txt-pacing-consumo'),
+    document.getElementById('barra-pacing-consumo'),
+    pacing,
+    metricas.gastoFlexivelMes,
+    metricas.tetoFlexivelTotal
+  );
 
   const totalDespesasMes = totalSaidasDiretas + totalPagtoFatura + totalFatura;
   const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;

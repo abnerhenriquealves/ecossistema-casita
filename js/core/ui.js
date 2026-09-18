@@ -7,6 +7,73 @@ export function atualizarCardsSaldo(elEntradas, elSaidas, elFatura, elSaldo, ent
   if (elSaldo) elSaldo.textContent = formatarMoeda(saldo);
 }
 
+export function atualizarMargemEManobraUI(badgeEl, txtRaioxEl, barraRigidoEl, barraFlexivelEl, txtRigidoEl, txtFlexivelEl, tetoRigido, tetoFlexivel) {
+  const totalTeto = tetoRigido + tetoFlexivel;
+  const pctRigido = totalTeto > 0 ? Math.round((tetoRigido / totalTeto) * 100) : 0;
+  const pctFlexivel = totalTeto > 0 ? (100 - pctRigido) : 0;
+
+  if (barraRigidoEl && barraFlexivelEl) {
+    barraRigidoEl.style.width = `${pctRigido}%`;
+    barraFlexivelEl.style.width = `${pctFlexivel}%`;
+  }
+
+  if (txtRigidoEl) txtRigidoEl.textContent = `📌 Rígidos: ${formatarMoeda(tetoRigido)} (${pctRigido}%)`;
+  if (txtFlexivelEl) txtFlexivelEl.textContent = `🎈 Flexíveis: ${formatarMoeda(tetoFlexivel)} (${pctFlexivel}%)`;
+
+  if (!badgeEl || !txtRaioxEl) return;
+
+  if (totalTeto === 0) {
+    badgeEl.textContent = "Sem Tetos";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 border border-slate-500/30";
+    txtRaioxEl.textContent = "Cadastre tetos nos envelopes para calcular a margem de manobra.";
+    return;
+  }
+
+  if (pctRigido <= 50) {
+    badgeEl.textContent = "Excelente 🟢";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+  } else if (pctRigido <= 70) {
+    badgeEl.textContent = "Equilibrada 🟡";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30";
+  } else {
+    badgeEl.textContent = "Engessada 🔴";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30";
+  }
+
+  txtRaioxEl.textContent = `Sua estrutura orçamentária é composta por ${pctRigido}% de compromissos rígidos/essenciais e ${pctFlexivel}% de estilo de vida flexível.`;
+}
+
+export function atualizarVelocimetroPacingUI(badgeEl, txtMsgEl, txtTempoEl, barraTempoEl, txtConsumoEl, barraConsumoEl, pacing, gastoFlexivel, tetoFlexivel) {
+  if (txtTempoEl) txtTempoEl.textContent = `${pacing.pctTempo}% (Dia ${pacing.diasDecorridos}/${pacing.totalDiasNoMes})`;
+  if (barraTempoEl) barraTempoEl.style.width = `${pacing.pctTempo}%`;
+
+  if (txtConsumoEl) txtConsumoEl.textContent = `${formatarMoeda(gastoFlexivel)} / ${formatarMoeda(tetoFlexivel)} (${pacing.pctConsumoFlexivel}%)`;
+  if (barraConsumoEl) barraConsumoEl.style.width = `${Math.min(pacing.pctConsumoFlexivel, 100)}%`;
+
+  if (!badgeEl || !txtMsgEl) return;
+
+  if (tetoFlexivel === 0) {
+    badgeEl.textContent = "Sem Teto Flexível";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 border border-slate-500/30";
+    txtMsgEl.textContent = "Cadastre ao menos um envelope flexível para monitorar o ritmo de consumo.";
+    return;
+  }
+
+  if (pacing.deltaPacing <= 0) {
+    badgeEl.textContent = "No Ritmo 🟢";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+    txtMsgEl.textContent = `Ritmo sob controle: você consumiu ${pacing.pctConsumoFlexivel}% dos envelopes flexíveis para ${pacing.pctTempo}% do mês decorrido.`;
+  } else if (pacing.deltaPacing <= 15) {
+    badgeEl.textContent = "Atenção 🟡";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30";
+    txtMsgEl.textContent = `Atenção ao ritmo: o consumo flexível (${pacing.pctConsumoFlexivel}%) está ligeiramente à frente do tempo decorrido (${pacing.pctTempo}%).`;
+  } else {
+    badgeEl.textContent = "Acelerado 🔴";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30";
+    txtMsgEl.textContent = `Alerta de ritmo: o consumo de envelopes flexíveis (${pacing.pctConsumoFlexivel}%) superou o tempo decorrido (${pacing.pctTempo}%).`;
+  }
+}
+
 export function renderizarExtrato(listaEl, itens, envelopesConfig) {
   if (!listaEl) return;
   listaEl.innerHTML = "";
