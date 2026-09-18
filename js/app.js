@@ -30,6 +30,21 @@ const btnQuitarFatura = document.getElementById('btn-quitar-fatura');
 const badgeFaturaStatus = document.getElementById('badge-fatura-status');
 const resumoExecutivoTexto = document.getElementById('resumo-executivo-texto');
 
+// Elementos das Métricas Executivas Sem Gráfico
+const badgeDiagnosticoMargem = document.getElementById('badge-diagnostico-margem');
+const barraRigido = document.getElementById('barra-rigido');
+const barraFlexivel = document.getElementById('barra-flexivel');
+const txtValorRigido = document.getElementById('txt-valor-rigido');
+const txtValorFlexivel = document.getElementById('txt-valor-flexivel');
+const txtRaioxMargem = document.getElementById('txt-raiox-margem');
+
+const badgeStatusPacing = document.getElementById('badge-status-pacing');
+const txtPacingTempo = document.getElementById('txt-pacing-tempo');
+const barraPacingTempo = document.getElementById('barra-pacing-tempo');
+const txtPacingConsumo = document.getElementById('txt-pacing-consumo');
+const barraPacingConsumo = document.getElementById('barra-pacing-consumo');
+const txtStatusPacingMensagem = document.getElementById('txt-status-pacing-mensagem');
+
 // Elementos da Busca e Filtros
 const buscaExtratoInput = document.getElementById('busca-extrato');
 const filtroUsuarioExtrato = document.getElementById('filtro-usuario-extrato');
@@ -46,6 +61,7 @@ const inputCatId = document.getElementById('cat-id');
 const inputCatNome = document.getElementById('cat-nome');
 const inputCatTeto = document.getElementById('cat-teto');
 const selectCatMacro = document.getElementById('cat-macro');
+const selectCatRigidez = document.getElementById('cat-rigidez');
 const checkCatAcumulativa = document.getElementById('cat-acumulativa');
 const tituloFormCat = document.getElementById('titulo-form-cat');
 const btnCancelarCat = document.getElementById('btn-cancelar-cat');
@@ -108,6 +124,7 @@ function resetarFormCategoria() {
   inputCatId.value = "";
   formCategoria.reset();
   checkCatAcumulativa.checked = false;
+  selectCatRigidez.value = "RIGIDO";
   tituloFormCat.textContent = "Novo Envelope / Categoria";
   btnSalvarCat.textContent = "Salvar Envelope";
   btnCancelarCat.classList.add('hidden');
@@ -116,15 +133,15 @@ function resetarFormCategoria() {
 btnCancelarEdicao.addEventListener('click', resetarFormulario);
 btnCancelarCat.addEventListener('click', resetarFormCategoria);
 
-// Seed dos Envelopes Padrão
+// Seed dos Envelopes Padrão com Natureza (Rígido vs. Flexível)
 async function restaurarCategoriasPadrao() {
   const padroes = [
-    { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé", is_sinking_fund: false },
-    { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro: "Habitação & Custos Fixos", is_sinking_fund: false },
-    { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro: "Alimentação & Social", is_sinking_fund: false },
-    { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro: "Transporte", is_sinking_fund: false },
-    { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro: "Nossos Meninos (Pets)", is_sinking_fund: false },
-    { id: "CAT_MANUT_CASITA", nome: "Caixinha Manutenção da Casita", teto: 1000.00, macro: "Habitação & Custos Fixos", is_sinking_fund: true }
+    { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro: "Fé", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro: "Habitação & Custos Fixos", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro: "Alimentação & Social", rigidez: "FLEXIVEL", is_sinking_fund: false },
+    { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro: "Transporte", rigidez: "FLEXIVEL", is_sinking_fund: false },
+    { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro: "Nossos Meninos (Pets)", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_MANUT_CASITA", nome: "Caixinha Manutenção da Casita", teto: 1000.00, macro: "Habitação & Custos Fixos", rigidez: "FLEXIVEL", is_sinking_fund: true }
   ];
 
   for (const cat of padroes) {
@@ -132,6 +149,7 @@ async function restaurarCategoriasPadrao() {
       nome: cat.nome,
       teto: cat.teto,
       macro_grupo: cat.macro,
+      rigidez: cat.rigidez,
       is_sinking_fund: cat.is_sinking_fund,
       created_at: new Date().toISOString()
     });
@@ -153,6 +171,7 @@ formCategoria.addEventListener('submit', async (e) => {
   const nome = inputCatNome.value.trim();
   const teto = parseFloat(inputCatTeto.value);
   const macro = selectCatMacro.value;
+  const rigidez = selectCatRigidez.value;
   const isAcumulativa = checkCatAcumulativa.checked;
 
   try {
@@ -161,6 +180,7 @@ formCategoria.addEventListener('submit', async (e) => {
         nome, 
         teto, 
         macro_grupo: macro, 
+        rigidez: rigidez,
         is_sinking_fund: isAcumulativa, 
         updated_at: new Date().toISOString() 
       });
@@ -170,6 +190,7 @@ formCategoria.addEventListener('submit', async (e) => {
         nome, 
         teto, 
         macro_grupo: macro, 
+        rigidez: rigidez,
         is_sinking_fund: isAcumulativa, 
         created_at: new Date().toISOString() 
       });
@@ -182,11 +203,12 @@ formCategoria.addEventListener('submit', async (e) => {
   }
 });
 
-window.prepararEdicaoCat = function(id, nome, teto, macro, isAcumulativa) {
+window.prepararEdicaoCat = function(id, nome, teto, macro, rigidez, isAcumulativa) {
   inputCatId.value = id;
   inputCatNome.value = nome;
   inputCatTeto.value = teto;
   if (macro) selectCatMacro.value = macro;
+  if (rigidez) selectCatRigidez.value = rigidez;
   checkCatAcumulativa.checked = !!isAcumulativa;
   
   tituloFormCat.textContent = "Editar Envelope / Categoria";
@@ -627,11 +649,22 @@ function processarDados() {
   const gastosMacroGrafico = {};
   const tetosMacroGrafico = {};
 
+  let tetoRigidoTotal = 0;
+  let tetoFlexivelTotal = 0;
+  let gastoFlexivelMes = 0;
+
   Object.keys(envelopesConfig).forEach(catId => {
     const cat = envelopesConfig[catId];
     const macro = cat.macro || "Reservas & Outros";
     if (!grupos[macro]) grupos[macro] = [];
     grupos[macro].push({ id: catId, ...cat });
+
+    if (cat.rigidez === "FLEXIVEL") {
+      tetoFlexivelTotal += cat.teto;
+      gastoFlexivelMes += (acmCategoriasMes[catId] || 0);
+    } else {
+      tetoRigidoTotal += cat.teto;
+    }
   });
 
   if (Object.keys(grupos).length === 0) {
@@ -677,6 +710,7 @@ function processarDados() {
         const gastoHist = acmCategoriasHistSaida[env.id] || 0;
         const entradaHist = acmCategoriasHistEntrada[env.id] || 0;
         const isCaixinha = !!env.is_sinking_fund;
+        const seloRigidez = env.rigidez === "FLEXIVEL" ? "🎈" : "📌";
 
         let pct = 0;
         let corBarra = "bg-emerald-500";
@@ -714,6 +748,7 @@ function processarDados() {
         envCard.innerHTML = `
           <div class="flex justify-between items-center text-xs gap-2">
             <div class="flex items-center gap-1.5 overflow-hidden">
+              <span title="${env.rigidez === 'FLEXIVEL' ? 'Envelope Flexível / Estilo de Vida' : 'Envelope Rígido / Essencial'}">${seloRigidez}</span>
               <span class="font-medium text-slate-200 truncate">${env.nome}</span>
               ${badgeCaixinha}
             </div>
@@ -731,7 +766,84 @@ function processarDados() {
     });
   }
 
-  // Atualiza os Gráficos
+  // --- CÁLCULO DAS MÉTRICAS EXECUTIVAS SEM GRÁFICO ---
+
+  // 1. Margem de Manobra (Rígido vs. Flexível)
+  const tetoGeralMetrica = tetoRigidoTotal + tetoFlexivelTotal;
+  const pctRigido = tetoGeralMetrica > 0 ? Math.round((tetoRigidoTotal / tetoGeralMetrica) * 100) : 0;
+  const pctFlexivel = tetoGeralMetrica > 0 ? (100 - pctRigido) : 0;
+
+  barraRigido.style.width = `${pctRigido}%`;
+  barraFlexivel.style.width = `${pctFlexivel}%`;
+
+  txtValorRigido.textContent = `📌 Rígidos: R$ ${tetoRigidoTotal.toFixed(2)} (${pctRigido}%)`;
+  txtValorFlexivel.textContent = `🎈 Flexíveis: R$ ${tetoFlexivelTotal.toFixed(2)} (${pctFlexivel}%)`;
+
+  if (pctRigido <= 65) {
+    badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+    badgeDiagnosticoMargem.textContent = "🟢 Excelente";
+    txtRaioxMargem.textContent = `💡 Estrutura saudável: Você tem R$ ${tetoFlexivelTotal.toFixed(2)} (${pctFlexivel}%) de margem flexível para manobras ou cortes de emergência.`;
+  } else if (pctRigido <= 80) {
+    badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
+    badgeDiagnosticoMargem.textContent = "🟡 Equilibrada";
+    txtRaioxMargem.textContent = `💡 Atenção moderada: ${pctRigido}% do seu orçamento orçado é de compromissos rígidos. Mantenha os envelopes flexíveis sob vigilância.`;
+  } else {
+    badgeDiagnosticoMargem.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30";
+    badgeDiagnosticoMargem.textContent = "🔴 Engessada";
+    txtRaioxMargem.textContent = `💡 Pouca flexibilidade: ${pctRigido}% do seu orçamento é composto por compromissos fixos/rígidos. Resta pouca margem para manobras.`;
+  }
+
+  // 2. Velocímetro Orçamentário (Gastos Flexíveis / Pacing)
+  const [selAno, selMes] = mesSelecionado.split('-').map(Number);
+  const totalDiasNoMes = new Date(selAno, selMes, 0).getDate();
+
+  let diasDecorridos = 0;
+  if (selAno === anoAtual && selMes === Number(mesAtual)) {
+    diasDecorridos = hoje.getDate();
+  } else if (selAno < anoAtual || (selAno === anoAtual && selMes < Number(mesAtual))) {
+    diasDecorridos = totalDiasNoMes;
+  } else {
+    diasDecorridos = 0;
+  }
+
+  const pctTempo = Math.round((diasDecorridos / totalDiasNoMes) * 100);
+  const pctConsumoFlexivel = tetoFlexivelTotal > 0 ? Math.round((gastoFlexivelMes / tetoFlexivelTotal) * 100) : 0;
+  const deltaPacing = pctConsumoFlexivel - pctTempo;
+
+  txtPacingTempo.textContent = `${pctTempo}% (Dia ${diasDecorridos}/${totalDiasNoMes})`;
+  barraPacingTempo.style.width = `${pctTempo}%`;
+
+  txtPacingConsumo.textContent = `R$ ${gastoFlexivelMes.toFixed(2)} / R$ ${tetoFlexivelTotal.toFixed(2)} (${pctConsumoFlexivel}%)`;
+  barraPacingConsumo.style.width = `${Math.min(pctConsumoFlexivel, 100)}%`;
+
+  if (tetoFlexivelTotal === 0) {
+    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+    badgeStatusPacing.textContent = "⚪ Sem Tetos Flexíveis";
+    txtStatusPacingMensagem.textContent = "Cadastre ou edite um envelope definindo-o como 'Flexível' para ativar a medição do velocímetro.";
+    barraPacingConsumo.className = "bg-slate-600 h-2 rounded-full transition-all duration-500";
+  } else if (diasDecorridos === 0) {
+    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+    badgeStatusPacing.textContent = "📅 Mês Futuro";
+    txtStatusPacingMensagem.textContent = "Período orçamentário ainda não iniciado.";
+    barraPacingConsumo.className = "bg-slate-600 h-2 rounded-full transition-all duration-500";
+  } else if (deltaPacing > 10) {
+    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30";
+    badgeStatusPacing.textContent = "⚠️ Acelerado";
+    txtStatusPacingMensagem.textContent = `Atenção: Seus gastos flexíveis estão ${deltaPacing}% à frente do ritmo esperado para o dia do mês.`;
+    barraPacingConsumo.className = "bg-amber-500 h-2 rounded-full transition-all duration-500";
+  } else if (deltaPacing < -10) {
+    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+    badgeStatusPacing.textContent = "🛡️ Ritmo Poupador";
+    txtStatusPacingMensagem.textContent = `Excelente! Seus gastos flexíveis estão ${Math.abs(deltaPacing)}% abaixo da média de dias transcorridos.`;
+    barraPacingConsumo.className = "bg-emerald-400 h-2 rounded-full transition-all duration-500";
+  } else {
+    badgeStatusPacing.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30";
+    badgeStatusPacing.textContent = "🟢 No Ritmo";
+    txtStatusPacingMensagem.textContent = "Seus gastos flexíveis acompanham perfeitamente o ritmo dos dias do mês.";
+    barraPacingConsumo.className = "bg-sky-400 h-2 rounded-full transition-all duration-500";
+  }
+
+  // Atualização dos Gráficos Existentes
   renderizarGraficoMacroGrupos(gastosMacroGrafico);
   renderizarGraficoOrcadoVsRealizado(tetosMacroGrafico, gastosMacroGrafico);
   renderizarGraficoHistoricoMensal(acumuladoHistoricoPorMes);
@@ -808,25 +920,28 @@ onSnapshot(collection(db, "categories"), (snapshot) => {
     const data = docSnap.data();
     const id = docSnap.id;
     const macro = data.macro_grupo || "Reservas & Outros";
+    const rigidez = data.rigidez || "RIGIDO";
 
     envelopesConfig[id] = { 
       nome: data.nome, 
       teto: data.teto, 
       macro: macro,
+      rigidez: rigidez,
       is_sinking_fund: !!data.is_sinking_fund 
     };
 
     if (!gruposSelect[macro]) gruposSelect[macro] = [];
-    gruposSelect[macro].push({ id, nome: data.nome, teto: data.teto, is_sinking_fund: !!data.is_sinking_fund });
+    gruposSelect[macro].push({ id, nome: data.nome, teto: data.teto, rigidez, is_sinking_fund: !!data.is_sinking_fund });
 
     const tagCaixinhaGerenciador = data.is_sinking_fund ? ' <span class="text-amber-400 text-[10px]">🧰</span>' : '';
+    const seloRigidezGerenciador = rigidez === 'FLEXIVEL' ? '🎈' : '📌';
 
     const itemCat = document.createElement('div');
     itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
     itemCat.innerHTML = `
-      <span class="text-slate-200 font-medium"><span class="text-emerald-400 font-semibold">[${macro}]</span> ${data.nome}${tagCaixinhaGerenciador} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
+      <span class="text-slate-200 font-medium"><span>${seloRigidezGerenciador}</span> <span class="text-emerald-400 font-semibold">[${macro}]</span> ${data.nome}${tagCaixinhaGerenciador} - <span class="text-emerald-400 font-mono">R$ ${data.teto.toFixed(2)}</span></span>
       <div class="flex items-center gap-2">
-        <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
+        <button onclick="prepararEdicaoCat('${id}', '${data.nome.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', '${rigidez}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
         <button onclick="excluirCat('${id}', '${data.nome.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
       </div>
     `;
@@ -840,7 +955,7 @@ onSnapshot(collection(db, "categories"), (snapshot) => {
     gruposSelect[macroNome].forEach(cat => {
       const opt = document.createElement('option');
       opt.value = cat.id;
-      opt.textContent = cat.is_sinking_fund ? `🧰 ${cat.nome}` : cat.nome;
+      opt.textContent = `${cat.rigidez === 'FLEXIVEL' ? '🎈' : '📌'} ${cat.is_sinking_fund ? '🧰 ' + cat.nome : cat.nome}`;
       optgroup.appendChild(opt);
     });
 

@@ -84,29 +84,100 @@
       </div>
     </section>
 
-    <!-- Painel Executivo & Gráficos Visuais -->
+    <!-- Painel Executivo & Análise Financeira -->
     <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-6">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <h2 class="text-lg font-semibold text-slate-200">Painel Executivo & Análise Financeira</h2>
-          <p class="text-xs text-slate-400">Distribuição percentual, orçado vs. realizado e evolução temporal</p>
+          <p class="text-xs text-slate-400">Inteligência de caixa, flexibilidade orçamentária e curva de tendência</p>
         </div>
       </div>
 
-      <!-- Linha 1: Gráfico de Rosca por Macro-Grupo + Comprometimento -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+      <!-- Métricas Sem Gráfico: Margem de Manobra e Velocímetro -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- Bloco 1: Margem de Manobra (Rígidos vs Flexíveis) -->
+        <div class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              🛡️ Margem de Manobra
+            </span>
+            <span id="badge-diagnostico-margem" class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Analisando...
+            </span>
+          </div>
+
+          <!-- Barra Bi-Colorida de Progresso -->
+          <div class="w-full bg-slate-800 rounded-full h-3 flex overflow-hidden">
+            <div id="barra-rigido" class="bg-rose-500/80 h-full transition-all duration-500" style="width: 50%" title="Gastos Rígidos / Essenciais"></div>
+            <div id="barra-flexivel" class="bg-sky-400/80 h-full transition-all duration-500" style="width: 50%" title="Gastos Flexíveis / Estilo de Vida"></div>
+          </div>
+
+          <div class="flex justify-between text-xs font-mono pt-1">
+            <span id="txt-valor-rigido" class="text-rose-400 font-semibold">📌 Rígidos: R$ 0,00 (0%)</span>
+            <span id="txt-valor-flexivel" class="text-sky-400 font-semibold">🎈 Flexíveis: R$ 0,00 (0%)</span>
+          </div>
+
+          <p id="txt-raiox-margem" class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 italic">
+            Carregando estrutura de compromissos do lar...
+          </p>
+        </div>
+
+        <!-- Bloco 2: Velocímetro de Consumo Flexível (Pacing) -->
+        <div class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              ⚡ Velocímetro Orçamentário (Gastos Flexíveis)
+            </span>
+            <span id="badge-status-pacing" class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">
+              No Ritmo
+            </span>
+          </div>
+
+          <!-- Trilhos Duplos de Comparação -->
+          <div class="space-y-2 text-xs">
+            <div>
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>Mês decorrido (Tempo)</span>
+                <span id="txt-pacing-tempo" class="font-mono text-slate-300">0% (Dia 0/30)</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div id="barra-pacing-tempo" class="bg-slate-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>Consumo de Envelopes Flexíveis</span>
+                <span id="txt-pacing-consumo" class="font-mono text-sky-400 font-bold">R$ 0,00 / R$ 0,00 (0%)</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div id="barra-pacing-consumo" class="bg-sky-400 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <p id="txt-status-pacing-mensagem" class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 italic">
+            Calculando ritmo diário de consumo...
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Gráfico de Rosca por Macro-Grupo + Comprometimento da Renda -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center border-t border-slate-800/80 pt-4">
         <div class="relative w-full h-60 flex justify-center">
           <canvas id="grafico-macro-grupos"></canvas>
         </div>
         <div class="space-y-3 text-xs text-slate-300">
-          <p class="font-medium text-slate-200">Resumo de Comprometimento (Mês Atual):</p>
+          <p class="font-medium text-slate-200">Resumo de Comprometimento da Renda:</p>
           <div id="resumo-executivo-texto" class="space-y-1.5 bg-slate-950/50 border border-slate-800 p-3 rounded-lg">
             <p class="text-slate-400">Carregando métricas executivas...</p>
           </div>
         </div>
       </div>
 
-      <!-- Linha 2: Análise Orçado vs. Realizado (Barras Duplas) -->
+      <!-- Análise Orçado vs. Realizado (Barras Duplas) -->
       <div class="border-t border-slate-800/80 pt-4 space-y-2">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📊 Orçado (Teto) vs. Realizado (Gasto) por Macro-Grupo</h3>
         <div class="relative w-full h-64">
@@ -114,7 +185,7 @@
         </div>
       </div>
 
-      <!-- Linha 3: Gráfico de Evolução Temporal (Linhas) -->
+      <!-- Gráfico de Evolução Temporal (Linhas) -->
       <div class="border-t border-slate-800/80 pt-4 space-y-2">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📈 Evolução Histórica de Gastos no Ano</h3>
         <div class="relative w-full h-56">
@@ -147,7 +218,7 @@
           </div>
         </div>
 
-        <form id="form-categoria" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <form id="form-categoria" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <input type="hidden" id="cat-id" value="">
           
           <div>
@@ -175,14 +246,22 @@
             <input type="number" step="0.01" id="cat-teto" required placeholder="0.00" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
           </div>
 
-          <div class="sm:col-span-3 flex items-center gap-2 pt-1 border-t border-slate-800/80">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Natureza do Compromisso</label>
+            <select id="cat-rigidez" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+              <option value="RIGIDO">📌 Rígido / Essencial</option>
+              <option value="FLEXIVEL">🎈 Flexível / Estilo de Vida</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-4 flex items-center gap-2 pt-1 border-t border-slate-800/80">
             <input type="checkbox" id="cat-acumulativa" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
             <label for="cat-acumulativa" class="text-xs text-amber-300/90 font-medium cursor-pointer select-none flex items-center gap-1">
               🧰 Caixinha Acumulativa / Reserva (Sinking Fund — o progresso não zera na virada do mês)
             </label>
           </div>
 
-          <div class="sm:col-span-3">
+          <div class="sm:col-span-2 lg:col-span-4">
             <button type="submit" id="btn-salvar-cat" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors">
               Salvar Envelope
             </button>
