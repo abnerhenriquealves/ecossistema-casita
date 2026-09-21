@@ -295,3 +295,20 @@ export function renderizarListaGerenciadorContas(listaEl, contasConfig) {
     listaEl.appendChild(itemAcc);
   });
 }
+
+// 📌 [Atualiza visualmente o status da sincronização com o Google Sheets]
+export function atualizarStatusSyncUI(status, mensagem = "") {
+  const badgeEl = document.getElementById('sync-badge');
+  if (!badgeEl) return;
+
+  if (status === 'ENVIANDO') {
+    badgeEl.textContent = '🟡 Enviando...';
+    badgeEl.className = "px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse";
+  } else if (status === 'SUCESSO') {
+    badgeEl.textContent = '🟢 Sheets OK';
+    badgeEl.className = "px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+  } else if (status === 'ERRO') {
+    badgeEl.textContent = mensagem || '🔴 Erro Sync';
+    badgeEl.className = "px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/30";
+  }
+}

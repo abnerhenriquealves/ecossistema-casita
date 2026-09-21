@@ -8,6 +8,7 @@ import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, rende
 import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados, atualizarMargemEManobraUI, atualizarVelocimetroPacingUI, atualizarSelectsContas } from "./core/ui.js";
 import { salvarConta, removerConta } from "./core/accounts.js";
 import { renderizarListaGerenciadorContas } from "./core/ui.js";
+import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarTudoGoogleSheets } from "./core/transactions.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -43,6 +44,10 @@ function inicializarEscutadoresDeEventos() {
     else filtroMesInput.focus();
   });
   filtroMesInput?.addEventListener('change', processarDados);
+
+  document.getElementById('btn-sincronizar-sheets-lote')?.addEventListener('click', () => {
+  sincronizarTudoGoogleSheets(snapshotTransactions);
+});
 
   document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
     document.getElementById('painel-gerenciar-categorias')?.classList.toggle('aberto');

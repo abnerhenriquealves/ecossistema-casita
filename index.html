@@ -22,27 +22,45 @@
         <h1 class="text-2xl font-bold text-emerald-400">Dimdim 💰</h1>
         <p class="text-xs text-slate-400">Ecossistema Casita • Livro Caixa & Orçamento</p>
       </div>
-      <span id="status-badge"
-        class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-        Conectado
-      </span>
+      <div class="flex items-center gap-2">
+        <!-- 🟢 Novo: Badge de Status do Google Sheets -->
+        <span id="sync-badge"
+          class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all">
+          🟢 Sheets OK
+        </span>
+        <span id="status-badge"
+          class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          Conectado
+        </span>
+      </div>
     </header>
 
-    <!-- Seletor de Período com Botão de Fechamento de Mês -->
+    <!-- Seletor de Período com Botão de Fechamento de Mês & Sincronização -->
     <section
       class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
+
+      <!-- Lado Esquerdo: Título e Botões de Ação -->
       <div
         class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
         <div>
           <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
           <p class="text-xs text-slate-400">Navegue pelas setas ou clique no calendário para escolher mês/ano</p>
         </div>
-        <button id="btn-abrir-fechamento-mes" type="button"
-          class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow">
-          🔒 Fechar Mês & Aportar Sobra
-        </button>
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btn-abrir-fechamento-mes" type="button"
+            class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow">
+            🔒 Fechar Mês & Aportar Sobra
+          </button>
+          <!-- 🟢 Posicionado junto aos botões de ação -->
+          <button id="btn-sincronizar-sheets-lote" type="button"
+            class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-slate-300 rounded-lg transition-all flex items-center gap-1.5 shadow"
+            title="Re-sincronizar todos os lançamentos com o Google Sheets">
+            🔄 Sincronizar Planilha
+          </button>
+        </div>
       </div>
 
+      <!-- Lado Direito: Navegação de Datas -->
       <div class="flex items-center gap-2 w-full sm:w-auto">
         <button id="btn-mes-anterior"
           class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
