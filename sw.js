@@ -1,4 +1,5 @@
-const CACHE_NAME = 'dimdim-v2.6.4'; // 🟢 Incremente a versão
+const CACHE_NAME = 'dimdim-v2.6.5'; // 🟢 Versão atualizada para renovar o cache do relatório PDF
+
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -12,7 +13,7 @@ const ASSETS_TO_CACHE = [
   './js/core/charts.js',
   './js/core/ui.js',
   './js/core/accounts.js',
-  './js/core/reports.js'
+  './js/core/reports.js',
   './manifest.json'
 ];
 
@@ -44,7 +45,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
-        // 📌 Permite armazenar no cache requisições externas (CORS / CDN) como o SDK do Firebase
+        // 📌 Permite armazenar no cache requisições externas (CORS / CDN) como Firebase e html2pdf
         if (networkResponse && (networkResponse.status === 200 || networkResponse.status === 0) && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));

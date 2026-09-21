@@ -5,10 +5,13 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
   const container = document.createElement('div');
   container.id = "relatorio-pdf-temp";
   
-  // Anexa temporariamente ao DOM fora do ecrã para permitir o cálculo correto de dimensões e estilos pelo html2canvas
-  container.style.position = "absolute";
-  container.style.left = "-9999px";
+  // Posicionamento no plano ativo com opacidade neutra para renderização perfeita no html2canvas
+  container.style.position = "fixed";
+  container.style.left = "0";
   container.style.top = "0";
+  container.style.zIndex = "-9999";
+  container.style.opacity = "0.01";
+  container.style.pointerEvents = "none";
   container.style.width = "750px";
   container.style.backgroundColor = "#ffffff";
   container.style.color = "#0f172a";
@@ -74,7 +77,7 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
       const nomeCat = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id) || "Geral";
 
       html += `
-        <tr style="border-bottom: 1px solid #e2e8f0; page-break-inside: avoid;">
+        <tr style="border-bottom: 1px solid #e2e8f0;">
           <td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${item.date}</td>
           <td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${item.description}</td>
           <td style="padding: 6px 8px; border: 1px solid #e2e8f0;">${nomeCat}</td>
@@ -102,7 +105,7 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
     margin:       10,
     filename:     `Relatorio_Dimdim_${mesSel}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    html2canvas:  { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 },
     jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
