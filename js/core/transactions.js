@@ -32,7 +32,8 @@ export async function removerTransacao(id) {
   sincronizarGoogleSheets({ action: "DELETE", id });
 }
 
-export async function processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, usuario) {
+// 📌 [Processa o fechamento de mês debitando da conta dinamente selecionada]
+export async function processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, usuario, contaId = "ACC_BRADESCO_ABNER") {
   const [anoSel, mSel] = mesSel.split('-').map(Number);
   const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
   const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
@@ -43,7 +44,7 @@ export async function processarFechamentoMes(mesSel, catDestinoId, valorAporte, 
     amount: valorAporte,
     description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
     category_id: catDestinoId,
-    account_id: "ACC_BRADESCO_ABNER",
+    account_id: contaId, // 🟢 Dinâmico
     status: "VALIDATED",
     user_owner: usuario || "Abner",
     source_satellite: "core_dimdim",

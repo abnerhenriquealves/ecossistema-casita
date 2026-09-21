@@ -216,14 +216,15 @@ async function submeterFechamentoMes(e) {
   const catDestinoId = document.getElementById('select-caixinha-destino').value;
   const valorAporte = obterValorNumericoMascara(document.getElementById('input-valor-aporte-sobra'));
   const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
+  const contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value || "ACC_BRADESCO_ABNER";
 
   if (!catDestinoId || valorAporte <= 0) {
     alert("Selecione uma caixinha e informe um valor maior que zero.");
     return;
   }
 
-  await processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value);
-  fecharModalFechamento();
+  await processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value, contaDebitoId);
+  fecharModalFechamento(); // 🟢 Fecha o modal após a gravação
   alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
 }
 
@@ -425,14 +426,14 @@ onSnapshot(collection(db, "accounts"), (snapshot) => {
   contasConfig = {};
   if (snapshot.empty) restaurarContasPadrao();
   snapshot.forEach(docSnap => contasConfig[docSnap.id] = docSnap.data());
-  
+
   atualizarSelectsContas(
     document.getElementById('conta'),
     document.getElementById('filtro-conta-extrato'),
     document.getElementById('select-conta-pagadora-fatura'),
     contasConfig
   );
-  
+
   renderizarListaGerenciadorContas(
     document.getElementById('lista-gerenciador-contas'),
     contasConfig

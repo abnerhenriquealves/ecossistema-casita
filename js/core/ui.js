@@ -94,6 +94,13 @@ export function renderizarExtrato(listaEl, itens, envelopesConfig) {
     const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
     const nomeCat = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id);
 
+    // 📌 Sanitização defensiva contra aspas e quebras de linha inline
+    const descSanitizada = (item.description || "")
+      .replace(/\\/g, "\\\\")
+      .replace(/'/g, "\\'")
+      .replace(/"/g, "&quot;")
+      .replace(/\n/g, " ");
+
     const card = document.createElement('div');
     card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
     card.innerHTML = `
@@ -104,8 +111,8 @@ export function renderizarExtrato(listaEl, itens, envelopesConfig) {
       <div class="flex items-center gap-3 shrink-0">
         <p class="font-bold font-mono ${corValor}">${sinal} ${formatarMoeda(item.amount)}</p>
         <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
-          <button onclick="prepararEdicao('${id}', '${item.date}', '${item.type}', ${item.amount}, '${item.description.replace(/'/g, "\\'")}', '${item.category_id}', '${item.account_id}', '${usuarioItem}')" class="p-1 text-slate-400 hover:text-sky-400">✏️</button>
-          <button onclick="excluirTransacao('${id}', '${item.description.replace(/'/g, "\\'")}')" class="p-1 text-slate-400 hover:text-rose-400">🗑️</button>
+          <button onclick="prepararEdicao('${id}', '${item.date}', '${item.type}', ${item.amount}, '${descSanitizada}', '${item.category_id}', '${item.account_id}', '${usuarioItem}')" class="p-1 text-slate-400 hover:text-sky-400">✏️</button>
+          <button onclick="excluirTransacao('${id}', '${descSanitizada}')" class="p-1 text-slate-400 hover:text-rose-400">🗑️</button>
         </div>
       </div>
     `;

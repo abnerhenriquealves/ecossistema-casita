@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dimdim-v2.6.0';
+const CACHE_NAME = 'dimdim-v2.6.1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -43,7 +43,8 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        // 📌 Permite armazenar no cache requisições externas (CORS / CDN) como o SDK do Firebase
+        if (networkResponse && (networkResponse.status === 200 || networkResponse.status === 0) && (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         }

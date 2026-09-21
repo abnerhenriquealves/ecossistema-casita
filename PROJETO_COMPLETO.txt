@@ -1,0 +1,1832 @@
+=== INICIO_ARQUIVO: css/styles.css ===
+/* Customizações CSS para o Dimdim */
+input[type="month"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 0;
+  display: none;
+}
+
+/* Transição Suave do Painel de Configurações */
+.painel-expansivel {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out, margin-top 0.3s ease;
+}
+
+.painel-expansivel.aberto {
+  max-height: 950px;
+  opacity: 1;
+  margin-top: 1rem;
+}
+=== FIM_ARQUIVO: css/styles.css ===
+
+
+=== INICIO_ARQUIVO: index.html ===
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dimdim - Livro Caixa & Orçamento</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js para os Gráficos Visuais -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
+  <div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- Topo -->
+    <header class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold text-emerald-400">Dimdim 💰</h1>
+        <p class="text-xs text-slate-400">Ecossistema Casita • Livro Caixa & Orçamento</p>
+      </div>
+      <span id="status-badge"
+        class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+        Conectado
+      </span>
+    </header>
+
+    <!-- Seletor de Período com Botão de Fechamento de Mês -->
+    <section
+      class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
+          <p class="text-xs text-slate-400">Navegue pelas setas ou clique no calendário para escolher mês/ano</p>
+        </div>
+        <button id="btn-abrir-fechamento-mes" type="button"
+          class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow">
+          🔒 Fechar Mês & Aportar Sobra
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <button id="btn-mes-anterior"
+          class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
+          title="Mês Anterior">
+          ‹
+        </button>
+
+        <div class="relative flex items-center w-full sm:w-auto">
+          <input type="month" id="filtro-mes"
+            class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg py-2.5 pl-3 pr-10 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto text-center"
+            style="color-scheme: dark;">
+
+          <button id="btn-abrir-picker" type="button"
+            class="absolute right-2 text-slate-400 hover:text-emerald-400 p-1.5 focus:outline-none transition-colors"
+            title="Clique para escolher mês e ano">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+        </div>
+
+        <button id="btn-mes-proximo"
+          class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
+          title="Próximo Mês">
+          ›
+        </button>
+      </div>
+    </section>
+
+    <!-- Resumo de Saldos com Quitação de Fatura -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Entradas em Conta</p>
+        <p id="total-entradas" class="text-xl font-bold text-emerald-400 mt-1">R$ 0,00</p>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Saídas Diretas (Conta)</p>
+        <p id="total-saidas" class="text-xl font-bold text-rose-400 mt-1">R$ 0,00</p>
+      </div>
+
+      <!-- Card Fatura com Botão de Quitação -->
+      <div
+        class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md relative group flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-slate-400 uppercase font-semibold">Fatura Cartão do Mês</p>
+            <span id="badge-fatura-status"
+              class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">QUITADA</span>
+          </div>
+          <p id="fatura-cartao" class="text-xl font-bold text-amber-400 mt-1">R$ 0,00</p>
+        </div>
+        <button id="btn-quitar-fatura" type="button"
+          class="hidden mt-2 w-full py-1.5 px-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all items-center justify-center gap-1">
+          💳 Quitar Fatura do Mês
+        </button>
+        <!-- 📌 [Seletor de Conta Pagadora no Modal/Ação de Quitação] -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Debitar Pagamento Da Conta:</label>
+          <select id="select-conta-pagadora-fatura"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+            <option value="">Carregando contas disponíveis...</option>
+          </select>
+        </div>
+
+      </div>
+
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Saldo Livre em Conta</p>
+        <p id="saldo-atual" class="text-xl font-bold text-sky-400 mt-1">R$ 0,00</p>
+      </div>
+    </section>
+
+    <!-- Painel Executivo & Análise Financeira -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-200">Painel Executivo & Análise Financeira</h2>
+          <p class="text-xs text-slate-400">Inteligência de caixa, flexibilidade orçamentária e curva de tendência</p>
+        </div>
+      </div>
+
+      <!-- Métricas Sem Gráfico: Margem de Manobra e Velocímetro -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <!-- Bloco 1: Margem de Manobra (Rígidos vs Flexíveis) -->
+        <div class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              🛡️ Margem de Manobra
+            </span>
+            <span id="badge-diagnostico-margem"
+              class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Analisando...
+            </span>
+          </div>
+
+          <!-- Barra Bi-Colorida de Progresso -->
+          <div class="w-full bg-slate-800 rounded-full h-3 flex overflow-hidden">
+            <div id="barra-rigido" class="bg-rose-500/80 h-full transition-all duration-500" style="width: 50%"
+              title="Gastos Rígidos / Essenciais"></div>
+            <div id="barra-flexivel" class="bg-sky-400/80 h-full transition-all duration-500" style="width: 50%"
+              title="Gastos Flexíveis / Estilo de Vida"></div>
+          </div>
+
+          <div class="flex justify-between text-xs font-mono pt-1">
+            <span id="txt-valor-rigido" class="text-rose-400 font-semibold">📌 Rígidos: R$ 0,00 (0%)</span>
+            <span id="txt-valor-flexivel" class="text-sky-400 font-semibold">🎈 Flexíveis: R$ 0,00 (0%)</span>
+          </div>
+
+          <p id="txt-raiox-margem" class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 italic">
+            Carregando estrutura de compromissos do lar...
+          </p>
+        </div>
+
+        <!-- Bloco 2: Velocímetro de Consumo Flexível (Pacing) -->
+        <div class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              ⚡ Velocímetro Orçamentário (Gastos Flexíveis)
+            </span>
+            <span id="badge-status-pacing"
+              class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">
+              No Ritmo
+            </span>
+          </div>
+
+          <!-- Trilhos Duplos de Comparação -->
+          <div class="space-y-2 text-xs">
+            <div>
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>Mês decorrido (Tempo)</span>
+                <span id="txt-pacing-tempo" class="font-mono text-slate-300">0% (Dia 0/30)</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div id="barra-pacing-tempo" class="bg-slate-500 h-2 rounded-full transition-all duration-500"
+                  style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>Consumo de Envelopes Flexíveis</span>
+                <span id="txt-pacing-consumo" class="font-mono text-sky-400 font-bold">R$ 0,00 / R$ 0,00 (0%)</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div id="barra-pacing-consumo" class="bg-sky-400 h-2 rounded-full transition-all duration-500"
+                  style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <p id="txt-status-pacing-mensagem"
+            class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 italic">
+            Calculando ritmo diário de consumo...
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Gráfico de Rosca por Macro-Grupo + Comprometimento da Renda -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center border-t border-slate-800/80 pt-4">
+        <div class="relative w-full h-60 flex justify-center">
+          <canvas id="grafico-macro-grupos"></canvas>
+        </div>
+        <div class="space-y-3 text-xs text-slate-300">
+          <p class="font-medium text-slate-200">Resumo de Comprometimento da Renda:</p>
+          <div id="resumo-executivo-texto" class="space-y-1.5 bg-slate-950/50 border border-slate-800 p-3 rounded-lg">
+            <p class="text-slate-400">Carregando métricas executivas...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Análise Orçado vs. Realizado (Barras Duplas) -->
+      <div class="border-t border-slate-800/80 pt-4 space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📊 Orçado (Teto) vs. Realizado (Gasto) por
+          Macro-Grupo</h3>
+        <div class="relative w-full h-64">
+          <canvas id="grafico-orcado-vs-realizado"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfico de Evolução Temporal (Linhas) -->
+      <div class="border-t border-slate-800/80 pt-4 space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📈 Evolução Histórica de Gastos no Ano
+        </h3>
+        <div class="relative w-full h-56">
+          <canvas id="grafico-historico-mensal"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Matriz Orçamentária / Envelopes Virtuais Agrupados -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-200">Envelopes Orçamentários</h2>
+          <p class="text-xs text-slate-400">Organizados por Macro-Grupos (Nível 1)</p>
+        </div>
+        <button id="btn-toggle-gerenciar-cat" type="button"
+          class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-emerald-400 rounded-lg transition-all flex items-center gap-1">
+          <span>⚙️</span> Configurar Tetos / Envelopes
+        </button>
+      </div>
+
+      <!-- Painel Expansível de Gerenciamento -->
+      <div id="painel-gerenciar-categorias"
+        class="painel-expansivel bg-slate-950/90 border border-slate-700/80 rounded-lg p-4 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 id="titulo-form-cat" class="text-sm font-semibold text-emerald-400">Novo Envelope / Categoria</h3>
+          <div class="flex items-center gap-3">
+            <button id="btn-restaurar-padroes" type="button"
+              class="text-xs text-amber-400 hover:text-amber-300 font-medium hover:underline flex items-center gap-1">
+              ⚡ Restaurar Padrões Casita
+            </button>
+            <button id="btn-cancelar-cat" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
+              Edição</button>
+          </div>
+        </div>
+
+        <form id="form-categoria" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="cat-id" value="">
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Macro-Grupo (Nível 1)</label>
+            <select id="cat-macro"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+              <option value="Fé">Fé</option>
+              <option value="Habitação & Custos Fixos">Habitação & Custos Fixos</option>
+              <option value="Alimentação & Social">Alimentação & Social</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Saúde & Bem-Estar">Saúde & Bem-Estar</option>
+              <option value="Nossos Meninos (Pets)">Nossos Meninos (Pets)</option>
+              <option value="Estilo de Vida & Assinaturas">Estilo de Vida & Assinaturas</option>
+              <option value="Compromissos & Acordos">Compromissos & Acordos</option>
+              <option value="Reservas & Outros">Reservas & Outros</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Nome do Envelope (Nível 2)</label>
+            <input type="text" id="cat-nome" required placeholder="Ex: Farmácia, Pet, Lazer"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Teto Mensal / Meta (R$)</label>
+            <input type="text" inputmode="numeric" id="cat-teto" required placeholder="R$ 0,00"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Natureza do Compromisso</label>
+            <select id="cat-rigidez"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+              <option value="RIGIDO">📌 Rígido / Essencial</option>
+              <option value="FLEXIVEL">🎈 Flexível / Estilo de Vida</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-4 flex items-center gap-2 pt-1 border-t border-slate-800/80">
+            <input type="checkbox" id="cat-acumulativa" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+            <label for="cat-acumulativa"
+              class="text-xs text-amber-300/90 font-medium cursor-pointer select-none flex items-center gap-1">
+              🧰 Caixinha Acumulativa / Reserva (Sinking Fund — o progresso não zera na virada do mês)
+            </label>
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-4">
+            <button type="submit" id="btn-salvar-cat"
+              class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors">
+              Salvar Envelope
+            </button>
+          </div>
+        </form>
+
+        <div class="border-t border-slate-800 pt-3">
+          <p class="text-xs text-slate-400 mb-2 font-medium">Envelopes Cadastrados no Banco:</p>
+          <div id="lista-gerenciador-categorias" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            <p class="text-xs text-slate-500 text-center py-2">Carregando envelopes...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lista de Envelopes Agrupados por Macro-Grupo -->
+      <div id="lista-envelopes" class="space-y-6 mt-4">
+        <p class="text-sm text-slate-500 py-2 text-center">Calculando envelopes...</p>
+      </div>
+    </section>
+
+    <!-- Formulário de Lançamento / Edição -->
+    <section id="secao-formulario"
+      class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 id="titulo-form" class="text-lg font-semibold text-slate-200">Novo Lançamento</h2>
+        <button id="btn-cancelar-edicao" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
+          Edição</button>
+      </div>
+      <form id="form-transacao" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <input type="hidden" id="transacao-id" value="">
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Lançado por</label>
+          <select id="usuario"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="Abner">Abner</option>
+            <option value="Lucélia">Lucélia</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tipo</label>
+          <select id="tipo"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="SAIDA">Saída (-)</option>
+            <option value="ENTRADA">Entrada (+)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Valor (R$)</label>
+          <input type="text" inputmode="numeric" id="valor" required placeholder="R$ 0,00"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Data</label>
+          <input type="date" id="data" required
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+            style="color-scheme: dark;">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Descrição</label>
+          <input type="text" id="descricao" required placeholder="Ex: Mercado, Ração, Combustível"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Categoria / Envelope</label>
+          <select id="categoria"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="">Carregando categorias...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Forma / Conta</label>
+          <select id="conta"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="ACC_BRADESCO_ABNER">Conta Corrente / PIX / Débito</option>
+            <option value="ACC_CARTAO_CREDITO">Cartão de Crédito</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-2 lg:col-span-3">
+          <button type="submit" id="btn-salvar"
+            class="w-full py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-medium text-white transition-all shadow-lg mt-2">
+            Registrar Lançamento
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- Painel Expansível de Gerenciamento de Contas & Cartões -->
+    <div class="flex justify-end mb-2">
+      <button id="btn-toggle-gerenciar-contas" type="button"
+        class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-emerald-400 rounded-lg transition-all flex items-center gap-1">
+        <span>💳</span> Gerenciar Contas & Cartões
+      </button>
+    </div>
+
+    <div id="painel-gerenciar-contas"
+      class="painel-expansivel bg-slate-950/90 border border-slate-700/80 rounded-lg p-4 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 id="titulo-form-conta" class="text-sm font-semibold text-emerald-400">Nova Conta / Cartão</h3>
+        <button id="btn-cancelar-conta" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
+          Edição</button>
+      </div>
+
+      <form id="form-conta" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <input type="hidden" id="conta-id" value="">
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Nome da Conta / Cartão</label>
+          <input type="text" id="conta-nome" required placeholder="Ex: Bradesco, Nubank, Itaú"
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tipo</label>
+          <select id="conta-tipo"
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="CORRENTE">🏦 Conta Corrente / PIX / Débito</option>
+            <option value="CARTAO">💳 Cartão de Crédito</option>
+          </select>
+        </div>
+
+        <div class="sm:col-span-2 lg:col-span-3">
+          <button type="submit" id="btn-salvar-conta"
+            class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors">
+            Salvar Conta / Cartão
+          </button>
+        </div>
+      </form>
+
+      <div class="border-t border-slate-800 pt-3">
+        <p class="text-xs text-slate-400 mb-2 font-medium">Contas e Cartões Cadastrados:</p>
+        <div id="lista-gerenciador-contas" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+          <p class="text-xs text-slate-500 text-center py-2">Carregando contas...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Extrato do Mês com Filtros Avançados -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <h2 class="text-lg font-semibold text-slate-200">Extrato do Mês Selecionado</h2>
+        <span id="contador-extrato" class="text-xs text-slate-400">Exibindo todos os lançamentos</span>
+      </div>
+
+      <!-- Barra de Filtros e Busca -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <input type="text" id="busca-extrato" placeholder="🔍 Buscar descrição ou categoria..."
+          class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+
+        <select id="filtro-usuario-extrato"
+          class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODOS">👥 Lançado por: Todos</option>
+          <option value="Abner">Abner</option>
+          <option value="Lucélia">Lucélia</option>
+        </select>
+
+        <select id="filtro-conta-extrato"
+          class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODAS">💳 Conta/Forma: Todas</option>
+          <option value="ACC_BRADESCO_ABNER">Conta Corrente / PIX</option>
+          <option value="ACC_CARTAO_CREDITO">Cartão de Crédito</option>
+        </select>
+
+        <select id="filtro-tipo-extrato"
+          class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODOS">↕️ Tipo: Todos</option>
+          <option value="SAIDA">Saídas (-)</option>
+          <option value="ENTRADA">Entradas (+)</option>
+        </select>
+      </div>
+
+      <div id="lista-transacoes" class="space-y-2 pt-2">
+        <p class="text-sm text-slate-500 py-4 text-center">Carregando lançamentos...</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Modal / Assistente de Fechamento de Mês & Aporte de Sobra -->
+  <div id="modal-fechamento-mes"
+    class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-amber-400 flex items-center gap-2">
+            🔒 Fechamento de Mês Orçamentário
+          </h3>
+          <p class="text-xs text-slate-400">Consolidação de caixa e destinação de sobra</p>
+        </div>
+        <button id="btn-fechar-modal-fechamento" type="button"
+          class="text-slate-400 hover:text-slate-200 text-lg font-bold">✕</button>
+      </div>
+
+      <div class="space-y-3 bg-slate-950/60 border border-slate-800 p-4 rounded-xl text-xs">
+        <div class="flex justify-between items-center text-slate-300">
+          <span>Mês Selecionado:</span>
+          <span id="txt-fechamento-mes-ref" class="font-bold text-emerald-400 font-mono text-sm">--/----</span>
+        </div>
+        <div class="flex justify-between items-center text-slate-300">
+          <span>Saldo Livre Remanescente em Conta:</span>
+          <span id="txt-fechamento-saldo-sobra" class="font-bold text-sky-400 font-mono text-sm">R$ 0,00</span>
+        </div>
+        <div id="box-alerta-fatura-pendente"
+          class="hidden p-2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px]">
+          ⚠️ Existe fatura do cartão pendente de quitação neste mês. Recomendamos quitar a fatura antes do fechamento.
+        </div>
+      </div>
+
+      <form id="form-fechamento-mes" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Destinar Sobra de Caixa Para (Caixinha /
+            Reserva):</label>
+          <select id="select-caixinha-destino" required
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+            <option value="">Carregando caixinhas disponíveis...</option>
+          </select>
+          <p class="text-[11px] text-slate-400 mt-1">A sobra será transferida para esta caixinha e gravada no Firestore
+            + Google Sheets.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Valor do Aporte (R$):</label>
+          <input type="text" inputmode="numeric" id="input-valor-aporte-sobra" required placeholder="R$ 0,00"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm font-mono text-emerald-400 font-bold focus:outline-none focus:border-amber-500">
+        </div>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-800 justify-end">
+          <button id="btn-cancelar-fechamento" type="button"
+            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium rounded-lg transition-colors">
+            Cancelar
+          </button>
+          <button type="submit" id="btn-confirmar-fechamento"
+            class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-xs text-white font-bold rounded-lg transition-colors shadow">
+            Confirmar Fechamento & Aporte
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+
+</html>
+=== FIM_ARQUIVO: index.html ===
+
+
+=== INICIO_ARQUIVO: js/app.js ===
+import { db, collection, onSnapshot, query, orderBy } from "./firebase-config.js";
+import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirValorMascara } from "./core/formatters.js";
+import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
+import { salvarTransacao, removerTransacao, processarFechamentoMes } from "./core/transactions.js";
+import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPorMacroGrupo } from "./core/envelopes.js";
+import { restaurarContasPadrao } from "./core/accounts.js";
+import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
+import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados, atualizarMargemEManobraUI, atualizarVelocimetroPacingUI, atualizarSelectsContas } from "./core/ui.js";
+import { salvarConta, removerConta } from "./core/accounts.js";
+import { renderizarListaGerenciadorContas } from "./core/ui.js";
+
+const hoje = new Date();
+const anoAtual = hoje.getFullYear();
+const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+
+let saldoLivreMemoria = 0;
+let envelopesConfig = {};
+let contasConfig = {};
+let snapshotTransactions = null;
+let valorFaturaPendenteAtual = 0;
+
+// Elementos DOM
+const filtroMesInput = document.getElementById('filtro-mes');
+const formTransacao = document.getElementById('form-transacao');
+const formCategoria = document.getElementById('form-categoria');
+const formFechamentoMes = document.getElementById('form-fechamento-mes');
+const modalFechamentoMes = document.getElementById('modal-fechamento-mes');
+
+// Inicialização de Máscaras
+aplicarMascaraMoeda(document.getElementById('valor'));
+aplicarMascaraMoeda(document.getElementById('cat-teto'));
+aplicarMascaraMoeda(document.getElementById('input-valor-aporte-sobra'));
+
+filtroMesInput.value = `${anoAtual}-${mesAtual}`;
+document.getElementById('data').value = hoje.toISOString().split('T')[0];
+
+// Centralizador Unificado de Escutadores de Eventos
+function inicializarEscutadoresDeEventos() {
+  document.getElementById('btn-mes-anterior')?.addEventListener('click', () => alterarMes(-1));
+  document.getElementById('btn-mes-proximo')?.addEventListener('click', () => alterarMes(1));
+  document.getElementById('btn-abrir-picker')?.addEventListener('click', () => {
+    if ('showPicker' in filtroMesInput) filtroMesInput.showPicker();
+    else filtroMesInput.focus();
+  });
+  filtroMesInput?.addEventListener('change', processarDados);
+
+  document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
+    document.getElementById('painel-gerenciar-categorias')?.classList.toggle('aberto');
+  });
+  document.getElementById('btn-restaurar-padroes')?.addEventListener('click', async () => {
+    if (confirm("Restaurar os envelopes padrão da Casita?")) await restaurarCategoriasPadrao();
+  });
+  document.getElementById('btn-cancelar-cat')?.addEventListener('click', resetarFormCategoria);
+
+  document.getElementById('btn-abrir-fechamento-mes')?.addEventListener('click', abrirModalFechamento);
+  document.getElementById('btn-fechar-modal-fechamento')?.addEventListener('click', fecharModalFechamento);
+  document.getElementById('btn-cancelar-fechamento')?.addEventListener('click', fecharModalFechamento);
+
+  document.getElementById('btn-quitar-fatura')?.addEventListener('click', executarQuitacaoFatura);
+  document.getElementById('btn-cancelar-edicao')?.addEventListener('click', resetarFormTransacao);
+
+  ['busca-extrato', 'filtro-usuario-extrato', 'filtro-conta-extrato', 'filtro-tipo-extrato'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', processarDados);
+      el.addEventListener('change', processarDados);
+    }
+  });
+
+  if (formTransacao) formTransacao.addEventListener('submit', submeterTransacao);
+  if (formCategoria) formCategoria.addEventListener('submit', submeterCategoria);
+  if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
+}
+
+// Modais e Auxiliares
+function abrirModalFechamento() {
+  document.getElementById('txt-fechamento-mes-ref').textContent = filtroMesInput.value;
+  document.getElementById('txt-fechamento-saldo-sobra').textContent = formatarMoeda(saldoLivreMemoria);
+  definirValorMascara(document.getElementById('input-valor-aporte-sobra'), Math.max(0, saldoLivreMemoria));
+
+  const boxAlerta = document.getElementById('box-alerta-fatura-pendente');
+  if (boxAlerta) {
+    if (valorFaturaPendenteAtual > 0) boxAlerta.classList.remove('hidden');
+    else boxAlerta.classList.add('hidden');
+  }
+
+  const selectDestino = document.getElementById('select-caixinha-destino');
+  selectDestino.innerHTML = "";
+  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+
+  if (caixinhas.length === 0) {
+    selectDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
+  } else {
+    caixinhas.forEach(catId => {
+      const opt = document.createElement('option');
+      opt.value = catId;
+      opt.textContent = `🧰 ${envelopesConfig[catId].nome}`;
+      selectDestino.appendChild(opt);
+    });
+  }
+
+  modalFechamentoMes.classList.remove('hidden');
+}
+
+function fecharModalFechamento() {
+  modalFechamentoMes.classList.add('hidden');
+}
+
+function alterarMes(delta) {
+  const [ano, mes] = filtroMesInput.value.split('-').map(Number);
+  const novaData = new Date(ano, mes - 1 + delta, 1);
+  filtroMesInput.value = `${novaData.getFullYear()}-${String(novaData.getMonth() + 1).padStart(2, '0')}`;
+  processarDados();
+}
+
+function resetarFormTransacao() {
+  document.getElementById('transacao-id').value = "";
+  formTransacao.reset();
+  definirValorMascara(document.getElementById('valor'), 0);
+  document.getElementById('data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('titulo-form').textContent = "Novo Lançamento";
+  document.getElementById('btn-cancelar-edicao').classList.add('hidden');
+}
+
+function resetarFormCategoria() {
+  document.getElementById('cat-id').value = "";
+  formCategoria.reset();
+  definirValorMascara(document.getElementById('cat-teto'), 0);
+  document.getElementById('cat-acumulativa').checked = false;
+  document.getElementById('cat-rigidez').value = "RIGIDO";
+  document.getElementById('titulo-form-cat').textContent = "Novo Envelope / Categoria";
+  document.getElementById('btn-cancelar-cat').classList.add('hidden');
+}
+
+// Global Window Functions
+window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
+  document.getElementById('transacao-id').value = id;
+  document.getElementById('data').value = data;
+  document.getElementById('tipo').value = tipo;
+  definirValorMascara(document.getElementById('valor'), valor);
+  document.getElementById('descricao').value = descricao;
+  document.getElementById('categoria').value = categoria;
+  document.getElementById('conta').value = conta;
+  document.getElementById('usuario').value = usuario;
+  document.getElementById('titulo-form').textContent = "Editar Lançamento";
+  document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
+  document.getElementById('secao-formulario').scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+window.excluirTransacao = async (id, descricao) => {
+  if (confirm(`Deseja realmente excluir "${descricao}"?`)) await removerTransacao(id);
+};
+
+window.prepararEdicaoCat = (id, nome, teto, macro, rigidez, isAcumulativa) => {
+  document.getElementById('cat-id').value = id;
+  document.getElementById('cat-nome').value = nome;
+  definirValorMascara(document.getElementById('cat-teto'), teto);
+  document.getElementById('cat-macro').value = macro || "Reservas & Outros";
+  document.getElementById('cat-rigidez').value = rigidez || "RIGIDO";
+  document.getElementById('cat-acumulativa').checked = !!isAcumulativa;
+  document.getElementById('titulo-form-cat').textContent = "Editar Envelope / Categoria";
+  document.getElementById('btn-cancelar-cat').classList.remove('hidden');
+};
+
+window.excluirCat = async (id, nome) => {
+  if (confirm(`Deseja excluir a categoria "${nome}"?`)) await removerCategoria(id);
+};
+
+window.prepararEdicaoConta = (id, nome, tipo) => {
+  document.getElementById('conta-id').value = id;
+  document.getElementById('conta-nome').value = nome;
+  document.getElementById('conta-tipo').value = tipo;
+  document.getElementById('titulo-form-conta').textContent = "Editar Conta / Cartão";
+  document.getElementById('btn-cancelar-conta').classList.remove('hidden');
+};
+
+window.excluirConta = async (id, nome) => {
+  if (confirm(`Deseja excluir a conta "${nome}"?`)) await removerConta(id);
+};
+
+// Submissões
+async function submeterTransacao(e) {
+  e.preventDefault();
+  const idEditando = document.getElementById('transacao-id').value;
+  await salvarTransacao(idEditando, {
+    date: document.getElementById('data').value,
+    type: document.getElementById('tipo').value,
+    amount: obterValorNumericoMascara(document.getElementById('valor')),
+    description: document.getElementById('descricao').value,
+    category_id: document.getElementById('categoria').value,
+    account_id: document.getElementById('conta').value,
+    status: "VALIDATED",
+    user_owner: document.getElementById('usuario').value,
+    source_satellite: "core_dimdim",
+    updated_at: new Date().toISOString()
+  });
+  resetarFormTransacao();
+}
+
+async function submeterCategoria(e) {
+  e.preventDefault();
+  const catId = document.getElementById('cat-id').value;
+  await salvarCategoria(catId, {
+    nome: document.getElementById('cat-nome').value.trim(),
+    teto: obterValorNumericoMascara(document.getElementById('cat-teto')),
+    macro_grupo: document.getElementById('cat-macro').value,
+    rigidez: document.getElementById('cat-rigidez').value,
+    is_sinking_fund: document.getElementById('cat-acumulativa').checked
+  });
+  resetarFormCategoria();
+}
+
+async function submeterFechamentoMes(e) {
+  e.preventDefault();
+  const mesSel = filtroMesInput.value;
+  const catDestinoId = document.getElementById('select-caixinha-destino').value;
+  const valorAporte = obterValorNumericoMascara(document.getElementById('input-valor-aporte-sobra'));
+  const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
+
+  if (!catDestinoId || valorAporte <= 0) {
+    alert("Selecione uma caixinha e informe um valor maior que zero.");
+    return;
+  }
+
+  await processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value);
+  fecharModalFechamento();
+  alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
+}
+
+// 📌 [Executa a quitação da fatura utilizando a conta selecionada pelo usuário]
+async function executarQuitacaoFatura() {
+  if (valorFaturaPendenteAtual <= 0) return;
+  const mesSel = filtroMesInput.value;
+  const contaPagadoraId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value;
+
+  if (!contaPagadoraId) {
+    alert("Selecione uma conta corrente válida para debitar o pagamento da fatura.");
+    return;
+  }
+
+  const nomeConta = contasConfig[contaPagadoraId]?.nome || "Conta Corrente";
+
+  if (confirm(`Confirmar quitação da fatura de ${formatarMoeda(valorFaturaPendenteAtual)} debitando de "${nomeConta}"?`)) {
+    const [anoSel, mSel] = mesSel.split('-').map(Number);
+    const ultimoDia = new Date(anoSel, mSel, 0).getDate();
+
+    await salvarTransacao("", {
+      date: `${mesSel}-${String(ultimoDia).padStart(2, '0')}`,
+      type: "SAIDA",
+      amount: valorFaturaPendenteAtual,
+      description: `Quitação Fatura Cartão (${mesSel})`,
+      category_id: "CAT_FATURA_CARTAO",
+      account_id: contaPagadoraId, // 🟢 Dinâmico
+      status: "VALIDATED",
+      user_owner: document.getElementById('usuario').value || "Abner",
+      source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  }
+}
+
+// No inicializarEscutadoresDeEventos():
+document.getElementById('btn-toggle-gerenciar-contas')?.addEventListener('click', () => {
+  document.getElementById('painel-gerenciar-contas')?.classList.toggle('aberto');
+});
+
+document.getElementById('btn-cancelar-conta')?.addEventListener('click', () => {
+  document.getElementById('conta-id').value = "";
+  document.getElementById('form-conta').reset();
+  document.getElementById('titulo-form-conta').textContent = "Nova Conta / Cartão";
+  document.getElementById('btn-cancelar-conta').classList.add('hidden');
+});
+
+document.getElementById('form-conta')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('conta-id').value;
+  await salvarConta(id, {
+    nome: document.getElementById('conta-nome').value.trim(),
+    tipo: document.getElementById('conta-tipo').value
+  });
+  document.getElementById('conta-id').value = "";
+  document.getElementById('form-conta').reset();
+  document.getElementById('btn-cancelar-conta').classList.add('hidden');
+});
+
+// Processamento Central
+function processarDados() {
+  if (!snapshotTransactions) return;
+  const mesSel = filtroMesInput.value;
+  const anoSel = mesSel.substring(0, 4);
+
+  let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
+  const acmCatMes = {}, acmHistMes = {}, acmCatSaidaHist = {}, acmCatEntradaHist = {};
+  const itensExibicao = [];
+
+  const termoBusca = document.getElementById('busca-extrato')?.value.toLowerCase().trim() || "";
+  const usrFiltro = document.getElementById('filtro-usuario-extrato')?.value || "TODOS";
+  const contaFiltro = document.getElementById('filtro-conta-extrato')?.value || "TODAS";
+  const tipoFiltro = document.getElementById('filtro-tipo-extrato')?.value || "TODOS";
+
+  snapshotTransactions.forEach(docSnap => {
+    const item = docSnap.data();
+    const id = docSnap.id;
+    if (!item.date) return;
+
+    const itemMes = item.date.substring(0, 7);
+    const isSaida = item.type === "SAIDA";
+    const contaObj = contasConfig[item.account_id];
+    const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
+    const isPagto = item.category_id === "CAT_FATURA_CARTAO";
+
+    if (item.date.substring(0, 4) === anoSel && isSaida && !isPagto) {
+      const mChave = item.date.substring(5, 7);
+      acmHistMes[mChave] = (acmHistMes[mChave] || 0) + item.amount;
+    }
+
+    if (itemMes <= mesSel && item.category_id && !isPagto) {
+      if (isSaida) acmCatSaidaHist[item.category_id] = (acmCatSaidaHist[item.category_id] || 0) + item.amount;
+      else acmCatEntradaHist[item.category_id] = (acmCatEntradaHist[item.category_id] || 0) + item.amount;
+    }
+
+    if (itemMes === mesSel) {
+      const usuarioItem = item.user_owner || 'Abner';
+
+      if (isSaida) {
+        if (isCartao) totalFatura += item.amount;
+        else if (isPagto) totalPagtoFatura += item.amount;
+        else totalSaidasDiretas += item.amount;
+        if (!isPagto) acmCatMes[item.category_id] = (acmCatMes[item.category_id] || 0) + item.amount;
+      } else {
+        totalEntradas += item.amount;
+      }
+
+      const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagto ? '💳 Quitação de Fatura' : item.category_id);
+      const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
+      const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
+      const matchConta = contaFiltro === "TODAS" || item.account_id === contaFiltro;
+      const matchTipo = tipoFiltro === "TODOS" || item.type === tipoFiltro;
+
+      if (matchBusca && matchUsuario && matchConta && matchTipo) {
+        itensExibicao.push({ id, item });
+      }
+    }
+  });
+
+  valorFaturaPendenteAtual = Math.max(0, totalFatura - totalPagtoFatura);
+  saldoLivreMemoria = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendenteAtual);
+
+  const btnQuitar = document.getElementById('btn-quitar-fatura');
+  const badgeFatura = document.getElementById('badge-fatura-status');
+  if (btnQuitar && badgeFatura) {
+    if (totalFatura > 0 && valorFaturaPendenteAtual === 0) {
+      badgeFatura.classList.remove('hidden');
+      btnQuitar.classList.add('hidden');
+    } else if (valorFaturaPendenteAtual > 0) {
+      badgeFatura.classList.add('hidden');
+      btnQuitar.classList.remove('hidden');
+      btnQuitar.textContent = `💳 Quitar ${formatarMoeda(valorFaturaPendenteAtual)}`;
+    } else {
+      badgeFatura.classList.add('hidden');
+      btnQuitar.classList.add('hidden');
+    }
+  }
+
+  atualizarCardsSaldo(
+    document.getElementById('total-entradas'),
+    document.getElementById('total-saidas'),
+    document.getElementById('fatura-cartao'),
+    document.getElementById('saldo-atual'),
+    totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivreMemoria
+  );
+
+  renderizarExtrato(document.getElementById('lista-transacoes'), itensExibicao, envelopesConfig);
+  renderizarEnvelopesAgrupados(document.getElementById('lista-envelopes'), envelopesConfig, acmCatMes, acmCatSaidaHist, acmCatEntradaHist);
+
+  const { gastosMacro, tetosMacro } = agruparPorMacroGrupo(envelopesConfig, acmCatMes);
+  renderizarGraficoMacroGrupos(gastosMacro);
+  renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro);
+  renderizarGraficoHistoricoMensal(acmHistMes);
+
+  const metricas = calcularMetricasOrcamento(envelopesConfig, acmCatMes);
+  const pacing = calcularVelocimetroPacing(mesSel, metricas.gastoFlexivelMes, metricas.tetoFlexivelTotal);
+
+  atualizarMargemEManobraUI(
+    document.getElementById('badge-diagnostico-margem'),
+    document.getElementById('txt-raiox-margem'),
+    document.getElementById('barra-rigido'),
+    document.getElementById('barra-flexivel'),
+    document.getElementById('txt-valor-rigido'),
+    document.getElementById('txt-valor-flexivel'),
+    metricas.tetoRigidoTotal,
+    metricas.tetoFlexivelTotal
+  );
+
+  atualizarVelocimetroPacingUI(
+    document.getElementById('badge-status-pacing'),
+    document.getElementById('txt-status-pacing-mensagem'),
+    document.getElementById('txt-pacing-tempo'),
+    document.getElementById('barra-pacing-tempo'),
+    document.getElementById('txt-pacing-consumo'),
+    document.getElementById('barra-pacing-consumo'),
+    pacing,
+    metricas.gastoFlexivelMes,
+    metricas.tetoFlexivelTotal
+  );
+
+  const totalDespesasMes = totalSaidasDiretas + totalPagtoFatura + totalFatura;
+  const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
+  const resumoEl = document.getElementById('resumo-executivo-texto');
+  if (resumoEl) {
+    resumoEl.innerHTML = `
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(totalEntradas)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">${formatarMoeda(totalDespesasMes)}</span></div>
+      <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
+    `;
+  }
+}
+
+// Subscrições Firestore e Start
+inicializarEscutadoresDeEventos();
+
+// 📌 [Escuta mudanças em Accounts e popula todos os seletores]
+onSnapshot(collection(db, "accounts"), (snapshot) => {
+  contasConfig = {};
+  if (snapshot.empty) restaurarContasPadrao();
+  snapshot.forEach(docSnap => contasConfig[docSnap.id] = docSnap.data());
+  
+  atualizarSelectsContas(
+    document.getElementById('conta'),
+    document.getElementById('filtro-conta-extrato'),
+    document.getElementById('select-conta-pagadora-fatura'),
+    contasConfig
+  );
+  
+  renderizarListaGerenciadorContas(
+    document.getElementById('lista-gerenciador-contas'),
+    contasConfig
+  );
+  processarDados();
+});
+
+onSnapshot(collection(db, "categories"), (snapshot) => {
+  envelopesConfig = {};
+  if (snapshot.empty) restaurarCategoriasPadrao();
+  snapshot.forEach(docSnap => envelopesConfig[docSnap.id] = docSnap.data());
+  atualizarSelectsCategorias(document.getElementById('categoria'), document.getElementById('lista-gerenciador-categorias'), envelopesConfig);
+  processarDados();
+});
+
+onSnapshot(query(collection(db, "transactions"), orderBy("date", "desc")), (snapshot) => {
+  snapshotTransactions = snapshot;
+  processarDados();
+});
+=== FIM_ARQUIVO: js/app.js ===
+
+
+=== INICIO_ARQUIVO: js/core/accounts.js ===
+import { db, setDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+
+// Semente das Contas Padrão
+export async function restaurarContasPadrao() {
+  const contasPadrao = [
+    { id: "ACC_BRADESCO_ABNER", nome: "Conta Corrente / PIX", tipo: "CORRENTE", saldo_inicial: 0 },
+    { id: "ACC_CARTAO_CREDITO", nome: "Cartão de Crédito", tipo: "CARTAO", limite: 0, dia_fechamento: 1, dia_vencimento: 10 }
+  ];
+
+  for (const acc of contasPadrao) {
+    await setDoc(doc(db, "accounts", acc.id), {
+      ...acc,
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+// Operações de CRUD
+export async function salvarConta(id, dadosConta) {
+  if (id) {
+    await updateDoc(doc(db, "accounts", id), {
+      ...dadosConta,
+      updated_at: new Date().toISOString()
+    });
+  } else {
+    const novoId = "ACC_" + dadosConta.nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+    await setDoc(doc(db, "accounts", novoId), {
+      ...dadosConta,
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+export async function removerConta(id) {
+  await deleteDoc(doc(db, "accounts", id));
+}
+=== FIM_ARQUIVO: js/core/accounts.js ===
+
+
+=== INICIO_ARQUIVO: js/core/charts.js ===
+import { formatarMoeda } from "./formatters.js";
+
+let graficoMacroInstance = null;
+let graficoOrcadoVsRealizadoInstance = null;
+let graficoHistoricoInstance = null;
+
+export function renderizarGraficoMacroGrupos(dadosMacro) {
+  const canvasEl = document.getElementById('grafico-macro-grupos');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+  const labels = Object.keys(dadosMacro);
+  const valores = Object.values(dadosMacro);
+
+  if (graficoMacroInstance) graficoMacroInstance.destroy();
+
+  if (labels.length === 0 || valores.every(v => v === 0)) {
+    graficoMacroInstance = new Chart(ctx, {
+      type: 'doughnut',
+      data: { labels: ['Sem gastos registrados'], datasets: [{ data: [1], backgroundColor: ['#334155'] }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+    return;
+  }
+
+  const cores = ['#10b981', '#38bdf8', '#f59e0b', '#ec4899', '#8b5cf6', '#6366f1', '#14b8a6', '#f43f5e', '#84cc16'];
+  graficoMacroInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{ data: valores, backgroundColor: cores.slice(0, labels.length), borderWidth: 1, borderColor: '#1e293b' }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'left', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } } }
+    }
+  });
+}
+
+export function renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro) {
+  const canvasEl = document.getElementById('grafico-orcado-vs-realizado');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+
+  const labels = Object.keys(tetosMacro).filter(macro => (tetosMacro[macro] || 0) > 0 || (gastosMacro[macro] || 0) > 0);
+  const dataOrcado = labels.map(m => tetosMacro[m] || 0);
+  const dataRealizado = labels.map(m => gastosMacro[m] || 0);
+
+  if (graficoOrcadoVsRealizadoInstance) graficoOrcadoVsRealizadoInstance.destroy();
+
+  if (labels.length === 0) {
+    graficoOrcadoVsRealizadoInstance = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: ['Sem envelopes configurados'], datasets: [{ label: 'Sem dados', data: [0], backgroundColor: '#334155' }] },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    });
+    return;
+  }
+
+  const coresRealizado = labels.map(m => (gastosMacro[m] || 0) > (tetosMacro[m] || 0) ? '#f43f5e' : '#10b981');
+
+  graficoOrcadoVsRealizadoInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Teto Orçado (R$)', data: dataOrcado, backgroundColor: '#38bdf8', borderRadius: 4 },
+        { label: 'Gasto Realizado (R$)', data: dataRealizado, backgroundColor: coresRealizado, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+      },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: '#94a3b8', boxWidth: 12, font: { size: 11 } } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label || ''}: ${formatarMoeda(ctx.parsed.y)}` } }
+      }
+    }
+  });
+}
+
+export function renderizarGraficoHistoricoMensal(dadosPorMes) {
+  const canvasEl = document.getElementById('grafico-historico-mensal');
+  if (!canvasEl) return;
+  const ctx = canvasEl.getContext('2d');
+
+  const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const valores = mesesNomes.map((_, idx) => dadosPorMes[String(idx + 1).padStart(2, '0')] || 0);
+
+  if (graficoHistoricoInstance) graficoHistoricoInstance.destroy();
+
+  graficoHistoricoInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: mesesNomes,
+      datasets: [{
+        label: 'Total de Gastos (R$)',
+        data: valores,
+        borderColor: '#38bdf8',
+        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#38bdf8',
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', font: { size: 10 } } }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+=== FIM_ARQUIVO: js/core/charts.js ===
+
+
+=== INICIO_ARQUIVO: js/core/engine.js ===
+import { formatarMoeda } from "./formatters.js";
+
+export function calcularMetricasOrcamento(envelopesConfig, acmCategoriasMes) {
+  let tetoRigidoTotal = 0;
+  let tetoFlexivelTotal = 0;
+  let gastoFlexivelMes = 0;
+
+  Object.keys(envelopesConfig).forEach(catId => {
+    const cat = envelopesConfig[catId];
+    if (cat.rigidez === "FLEXIVEL") {
+      tetoFlexivelTotal += cat.teto;
+      gastoFlexivelMes += (acmCategoriasMes[catId] || 0);
+    } else {
+      tetoRigidoTotal += cat.teto;
+    }
+  });
+
+  return { tetoRigidoTotal, tetoFlexivelTotal, gastoFlexivelMes };
+}
+
+export function calcularVelocimetroPacing(mesSelecionado, gastoFlexivelMes, tetoFlexivelTotal) {
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtualChave = String(hoje.getMonth() + 1).padStart(2, '0');
+
+  const [selAno, selMes] = mesSelecionado.split('-').map(Number);
+  const totalDiasNoMes = new Date(selAno, selMes, 0).getDate();
+
+  let diasDecorridos = 0;
+  if (selAno === anoAtual && selMes === Number(mesAtualChave)) {
+    diasDecorridos = hoje.getDate();
+  } else if (selAno < anoAtual || (selAno === anoAtual && selMes < Number(mesAtualChave))) {
+    diasDecorridos = totalDiasNoMes;
+  } else {
+    diasDecorridos = 0;
+  }
+
+  const pctTempo = Math.round((diasDecorridos / totalDiasNoMes) * 100);
+  const pctConsumoFlexivel = tetoFlexivelTotal > 0 ? Math.round((gastoFlexivelMes / tetoFlexivelTotal) * 100) : 0;
+  const deltaPacing = pctConsumoFlexivel - pctTempo;
+
+  return { totalDiasNoMes, diasDecorridos, pctTempo, pctConsumoFlexivel, deltaPacing };
+}
+
+export function calcularSaldoLivre(entradas, saídasSemFatura, pagamentosFatura, faturaPendente) {
+  const saídasTotais = saídasSemFatura + pagamentosFatura;
+  return entradas - saídasTotais - faturaPendente;
+}
+=== FIM_ARQUIVO: js/core/engine.js ===
+
+
+=== INICIO_ARQUIVO: js/core/envelopes.js ===
+import { db, setDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+
+// Semente dos Envelopes Padrão
+export async function restaurarCategoriasPadrao() {
+  const padroes = [
+    { id: "CAT_DIZIMO", nome: "Dízimo & Ofertas", teto: 600.00, macro_grupo: "Fé", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_CASITA_PREST", nome: "Prestação Casita", teto: 2000.00, macro_grupo: "Habitação & Custos Fixos", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_MERCADO", nome: "Supermercado", teto: 1500.00, macro_grupo: "Alimentação & Social", rigidez: "FLEXIVEL", is_sinking_fund: false },
+    { id: "CAT_COMBUSTIVEL", nome: "Combustível", teto: 500.00, macro_grupo: "Transporte", rigidez: "FLEXIVEL", is_sinking_fund: false },
+    { id: "CAT_PETS", nome: "Ração, Banho & Pets", teto: 400.00, macro_grupo: "Nossos Meninos (Pets)", rigidez: "RIGIDO", is_sinking_fund: false },
+    { id: "CAT_MANUT_CASITA", nome: "Caixinha Manutenção da Casita", teto: 1000.00, macro_grupo: "Habitação & Custos Fixos", rigidez: "FLEXIVEL", is_sinking_fund: true }
+  ];
+
+  for (const cat of padroes) {
+    await setDoc(doc(db, "categories", cat.id), {
+      nome: cat.nome,
+      teto: cat.teto,
+      macro_grupo: cat.macro_grupo,
+      rigidez: cat.rigidez,
+      is_sinking_fund: cat.is_sinking_fund,
+      created_at: new Date().toISOString()
+    });
+  }
+}
+
+// Persistência de Categorias
+export async function salvarCategoria(catId, dadosCat) {
+  if (catId) {
+    await updateDoc(doc(db, "categories", catId), { 
+      ...dadosCat, 
+      updated_at: new Date().toISOString() 
+    });
+  } else {
+    const novoId = "CAT_" + dadosCat.nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+    await setDoc(doc(db, "categories", novoId), { 
+      ...dadosCat, 
+      created_at: new Date().toISOString() 
+    });
+  }
+}
+
+export async function removerCategoria(catId) {
+  await deleteDoc(doc(db, "categories", catId));
+}
+
+// Agrupador para Gráficos e Envelopes
+export function agruparPorMacroGrupo(envelopesConfig, acmCatMes) {
+  const gastosMacro = {};
+  const tetosMacro = {};
+
+  Object.keys(envelopesConfig).forEach(catId => {
+    const cat = envelopesConfig[catId];
+    const macroNome = cat.macro_grupo || cat.macro || "Reservas & Outros";
+
+    if (!gastosMacro[macroNome]) gastosMacro[macroNome] = 0;
+    if (!tetosMacro[macroNome]) tetosMacro[macroNome] = 0;
+
+    gastosMacro[macroNome] += (acmCatMes[catId] || 0);
+    tetosMacro[macroNome] += (cat.teto || 0);
+  });
+
+  return { gastosMacro, tetosMacro };
+}
+=== FIM_ARQUIVO: js/core/envelopes.js ===
+
+
+=== INICIO_ARQUIVO: js/core/formatters.js ===
+export function formatarMoeda(valor) {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
+}
+
+export function aplicarMascaraMoeda(inputEl) {
+  if (!inputEl) return;
+  inputEl.addEventListener('input', (e) => {
+    let digits = e.target.value.replace(/\D/g, '');
+    if (!digits) {
+      e.target.value = '';
+      return;
+    }
+    let numero = parseFloat(digits) / 100;
+    e.target.value = formatarMoeda(numero);
+  });
+}
+
+export function obterValorNumericoMascara(inputEl) {
+  if (!inputEl || !inputEl.value) return 0;
+  let digits = inputEl.value.replace(/\D/g, '');
+  return (parseFloat(digits) / 100) || 0;
+}
+
+export function definirValorMascara(inputEl, valorNumerico) {
+  if (!inputEl) return;
+  if (valorNumerico === null || valorNumerico === undefined || isNaN(valorNumerico) || valorNumerico === 0) {
+    inputEl.value = '';
+    return;
+  }
+  inputEl.value = formatarMoeda(valorNumerico);
+}
+=== FIM_ARQUIVO: js/core/formatters.js ===
+
+
+=== INICIO_ARQUIVO: js/core/transactions.js ===
+import { db, collection, addDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+
+const GOOGLE_SHEETS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbx18ow_I8Clf0K1hw4X3QnBQjfbfX2ZHLD__-sYuDqJPp37l0i0pPepAL4DG1Nzj0TS/exec";
+
+export async function sincronizarGoogleSheets(payload) {
+  if (!GOOGLE_SHEETS_WEBHOOK_URL) return;
+  try {
+    await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.warn("[Sheets Sync] Aviso no espelhamento:", err);
+  }
+}
+
+export async function salvarTransacao(idEditando, dadosTransacao) {
+  if (idEditando) {
+    await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
+    sincronizarGoogleSheets({ action: "UPSERT", id: idEditando, ...dadosTransacao });
+  } else {
+    dadosTransacao.created_at = new Date().toISOString();
+    const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
+    sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
+  }
+}
+
+export async function removerTransacao(id) {
+  await deleteDoc(doc(db, "transactions", id));
+  sincronizarGoogleSheets({ action: "DELETE", id });
+}
+
+export async function processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, usuario) {
+  const [anoSel, mSel] = mesSel.split('-').map(Number);
+  const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
+  const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
+
+  const dadosAporte = {
+    date: dataUltimoDiaMes,
+    type: "SAIDA",
+    amount: valorAporte,
+    description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
+    category_id: catDestinoId,
+    account_id: "ACC_BRADESCO_ABNER",
+    status: "VALIDATED",
+    user_owner: usuario || "Abner",
+    source_satellite: "core_dimdim",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+
+  const docRef = await addDoc(collection(db, "transactions"), dadosAporte);
+  sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosAporte });
+}
+=== FIM_ARQUIVO: js/core/transactions.js ===
+
+
+=== INICIO_ARQUIVO: js/core/ui.js ===
+import { formatarMoeda } from "./formatters.js";
+
+export function atualizarCardsSaldo(elEntradas, elSaidas, elFatura, elSaldo, entradas, saidas, fatura, saldo) {
+  if (elEntradas) elEntradas.textContent = formatarMoeda(entradas);
+  if (elSaidas) elSaidas.textContent = formatarMoeda(saidas);
+  if (elFatura) elFatura.textContent = formatarMoeda(fatura);
+  if (elSaldo) elSaldo.textContent = formatarMoeda(saldo);
+}
+
+export function atualizarMargemEManobraUI(badgeEl, txtRaioxEl, barraRigidoEl, barraFlexivelEl, txtRigidoEl, txtFlexivelEl, tetoRigido, tetoFlexivel) {
+  const totalTeto = tetoRigido + tetoFlexivel;
+  const pctRigido = totalTeto > 0 ? Math.round((tetoRigido / totalTeto) * 100) : 0;
+  const pctFlexivel = totalTeto > 0 ? (100 - pctRigido) : 0;
+
+  if (barraRigidoEl && barraFlexivelEl) {
+    barraRigidoEl.style.width = `${pctRigido}%`;
+    barraFlexivelEl.style.width = `${pctFlexivel}%`;
+  }
+
+  if (txtRigidoEl) txtRigidoEl.textContent = `📌 Rígidos: ${formatarMoeda(tetoRigido)} (${pctRigido}%)`;
+  if (txtFlexivelEl) txtFlexivelEl.textContent = `🎈 Flexíveis: ${formatarMoeda(tetoFlexivel)} (${pctFlexivel}%)`;
+
+  if (!badgeEl || !txtRaioxEl) return;
+
+  if (totalTeto === 0) {
+    badgeEl.textContent = "Sem Tetos";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 border border-slate-500/30";
+    txtRaioxEl.textContent = "Cadastre tetos nos envelopes para calcular a margem de manobra.";
+    return;
+  }
+
+  if (pctRigido <= 50) {
+    badgeEl.textContent = "Excelente 🟢";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+  } else if (pctRigido <= 70) {
+    badgeEl.textContent = "Equilibrada 🟡";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30";
+  } else {
+    badgeEl.textContent = "Engessada 🔴";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30";
+  }
+
+  txtRaioxEl.textContent = `Sua estrutura orçamentária é composta por ${pctRigido}% de compromissos rígidos/essenciais e ${pctFlexivel}% de estilo de vida flexível.`;
+}
+
+export function atualizarVelocimetroPacingUI(badgeEl, txtMsgEl, txtTempoEl, barraTempoEl, txtConsumoEl, barraConsumoEl, pacing, gastoFlexivel, tetoFlexivel) {
+  if (txtTempoEl) txtTempoEl.textContent = `${pacing.pctTempo}% (Dia ${pacing.diasDecorridos}/${pacing.totalDiasNoMes})`;
+  if (barraTempoEl) barraTempoEl.style.width = `${pacing.pctTempo}%`;
+
+  if (txtConsumoEl) txtConsumoEl.textContent = `${formatarMoeda(gastoFlexivel)} / ${formatarMoeda(tetoFlexivel)} (${pacing.pctConsumoFlexivel}%)`;
+  if (barraConsumoEl) barraConsumoEl.style.width = `${Math.min(pacing.pctConsumoFlexivel, 100)}%`;
+
+  if (!badgeEl || !txtMsgEl) return;
+
+  if (tetoFlexivel === 0) {
+    badgeEl.textContent = "Sem Teto Flexível";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-slate-500/20 text-slate-400 border border-slate-500/30";
+    txtMsgEl.textContent = "Cadastre ao menos um envelope flexível para monitorar o ritmo de consumo.";
+    return;
+  }
+
+  if (pacing.deltaPacing <= 0) {
+    badgeEl.textContent = "No Ritmo 🟢";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+    txtMsgEl.textContent = `Ritmo sob controle: você consumiu ${pacing.pctConsumoFlexivel}% dos envelopes flexíveis para ${pacing.pctTempo}% do mês decorrido.`;
+  } else if (pacing.deltaPacing <= 15) {
+    badgeEl.textContent = "Atenção 🟡";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30";
+    txtMsgEl.textContent = `Atenção ao ritmo: o consumo flexível (${pacing.pctConsumoFlexivel}%) está ligeiramente à frente do tempo decorrido (${pacing.pctTempo}%).`;
+  } else {
+    badgeEl.textContent = "Acelerado 🔴";
+    badgeEl.className = "text-[10px] font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30";
+    txtMsgEl.textContent = `Alerta de ritmo: o consumo de envelopes flexíveis (${pacing.pctConsumoFlexivel}%) superou o tempo decorrido (${pacing.pctTempo}%).`;
+  }
+}
+
+export function renderizarExtrato(listaEl, itens, envelopesConfig) {
+  if (!listaEl) return;
+  listaEl.innerHTML = "";
+
+  if (itens.length === 0) {
+    listaEl.innerHTML = `<p class="text-sm text-slate-500 py-4 text-center">Nenhum lançamento encontrado.</p>`;
+    return;
+  }
+
+  itens.forEach(({ id, item }) => {
+    const isSaida = item.type === "SAIDA";
+    const isCartao = item.account_id === "ACC_CARTAO_CREDITO";
+    const isPagtoFatura = item.category_id === "CAT_FATURA_CARTAO";
+    const usuarioItem = item.user_owner || 'Abner';
+
+    const corValor = isSaida ? (isCartao ? "text-amber-400" : (isPagtoFatura ? "text-sky-400" : "text-rose-400")) : "text-emerald-400";
+    const sinal = isSaida ? "-" : "+";
+    const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
+    const nomeCat = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id);
+
+    const card = document.createElement('div');
+    card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
+    card.innerHTML = `
+      <div class="space-y-0.5 overflow-hidden">
+        <p class="font-medium text-slate-200 truncate">${item.description}</p>
+        <p class="text-xs text-slate-400">${item.date} • <span class="text-emerald-400/80">${nomeCat}</span> • <span class="text-slate-500">${seloConta}</span> • <span class="text-slate-500">${usuarioItem}</span></p>
+      </div>
+      <div class="flex items-center gap-3 shrink-0">
+        <p class="font-bold font-mono ${corValor}">${sinal} ${formatarMoeda(item.amount)}</p>
+        <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
+          <button onclick="prepararEdicao('${id}', '${item.date}', '${item.type}', ${item.amount}, '${item.description.replace(/'/g, "\\'")}', '${item.category_id}', '${item.account_id}', '${usuarioItem}')" class="p-1 text-slate-400 hover:text-sky-400">✏️</button>
+          <button onclick="excluirTransacao('${id}', '${item.description.replace(/'/g, "\\'")}')" class="p-1 text-slate-400 hover:text-rose-400">🗑️</button>
+        </div>
+      </div>
+    `;
+    listaEl.appendChild(card);
+  });
+}
+
+export function atualizarSelectsCategorias(selectCategoria, listaGerenciadorCat, envelopesConfig) {
+  if (!selectCategoria) return;
+  selectCategoria.innerHTML = "";
+  if (listaGerenciadorCat) listaGerenciadorCat.innerHTML = "";
+
+  const gruposSelect = {};
+
+  Object.keys(envelopesConfig).forEach(id => {
+    const data = envelopesConfig[id];
+    const macro = data.macro_grupo || data.macro || "Reservas & Outros";
+    if (!gruposSelect[macro]) gruposSelect[macro] = [];
+    gruposSelect[macro].push({ id, ...data });
+
+    if (listaGerenciadorCat) {
+      const nomeCat = data.nome || "Sem Nome";
+      const itemCat = document.createElement('div');
+      itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+      itemCat.innerHTML = `
+        <span class="text-slate-200 font-medium">[${macro}] ${nomeCat} - <span class="text-emerald-400 font-mono">${formatarMoeda(data.teto)}</span></span>
+        <div class="flex items-center gap-2">
+          <button onclick="prepararEdicaoCat('${id}', '${nomeCat.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', '${data.rigidez}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
+          <button onclick="excluirCat('${id}', '${nomeCat.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+        </div>
+      `;
+      listaGerenciadorCat.appendChild(itemCat);
+    }
+  });
+
+  Object.keys(gruposSelect).forEach(macroNome => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = `📁 ${macroNome}`;
+    gruposSelect[macroNome].forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.textContent = `${cat.rigidez === 'FLEXIVEL' ? '🎈' : '📌'} ${cat.is_sinking_fund ? '🧰 ' + (cat.nome || 'Sem Nome') : (cat.nome || 'Sem Nome')}`;
+      optgroup.appendChild(opt);
+    });
+    selectCategoria.appendChild(optgroup);
+  });
+
+  const optFatura = document.createElement('option');
+  optFatura.value = "CAT_FATURA_CARTAO";
+  optFatura.textContent = "💳 Pagamento de Fatura do Cartão";
+  selectCategoria.appendChild(optFatura);
+}
+
+export function renderizarEnvelopesAgrupados(listaEnvelopes, envelopesConfig, acmCatMes, acmCatSaidaHist, acmCatEntradaHist) {
+  if (!listaEnvelopes) return;
+  listaEnvelopes.innerHTML = "";
+
+  const grupos = {};
+  Object.keys(envelopesConfig).forEach(catId => {
+    const cat = envelopesConfig[catId];
+    const macro = cat.macro_grupo || cat.macro || "Reservas & Outros";
+    if (!grupos[macro]) grupos[macro] = [];
+    grupos[macro].push({ id: catId, ...cat });
+  });
+
+  Object.keys(grupos).forEach(macroNome => {
+    const grupoBloco = document.createElement('div');
+    grupoBloco.className = "bg-slate-950/40 border border-slate-800/80 rounded-xl p-4 space-y-3";
+
+    let totalGastoVisual = 0, totalTetoGrupo = 0;
+    grupos[macroNome].forEach(item => {
+      const isCaixinha = !!item.is_sinking_fund;
+      const gastoVisual = isCaixinha 
+        ? ((acmCatSaidaHist[item.id] || 0) - (acmCatEntradaHist[item.id] || 0))
+        : (acmCatMes[item.id] || 0);
+      totalGastoVisual += gastoVisual;
+      totalTetoGrupo += (item.teto || 0);
+    });
+
+    grupoBloco.innerHTML = `
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">📁 ${macroNome}</span>
+        <span class="text-xs font-mono text-slate-400">${formatarMoeda(totalGastoVisual)} / ${formatarMoeda(totalTetoGrupo)}</span>
+      </div>
+    `;
+
+    const gridEnvelopes = document.createElement('div');
+    gridEnvelopes.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
+
+    grupos[macroNome].forEach(env => {
+      const gastoMes = acmCatMes[env.id] || 0;
+      const gastoHist = acmCatSaidaHist[env.id] || 0;
+      const entradaHist = acmCatEntradaHist[env.id] || 0;
+      const isCaixinha = !!env.is_sinking_fund;
+
+      let pct = 0, textoValores = "";
+      if (isCaixinha) {
+        const saldoCaixinha = gastoHist - entradaHist;
+        pct = env.teto > 0 ? Math.min(Math.round((saldoCaixinha / env.teto) * 100), 100) : 0;
+        textoValores = `Saldo: ${formatarMoeda(saldoCaixinha)} / Meta: ${formatarMoeda(env.teto)}`;
+      } else {
+        pct = env.teto > 0 ? Math.min(Math.round((gastoMes / env.teto) * 100), 100) : 0;
+        textoValores = `${formatarMoeda(gastoMes)} / ${formatarMoeda(env.teto)} (${pct}%)`;
+      }
+
+      const envCard = document.createElement('div');
+      envCard.className = "bg-slate-900/60 border border-slate-800 p-3 rounded-lg space-y-2";
+      envCard.innerHTML = `
+        <div class="flex justify-between items-center text-xs">
+          <span class="font-medium text-slate-200">${env.nome || 'Sem Nome'} ${isCaixinha ? '🧰' : ''}</span>
+          <span class="font-mono text-emerald-400">${textoValores}</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+          <div class="bg-emerald-500 h-2 rounded-full" style="width: ${Math.max(0, pct)}%"></div>
+        </div>
+      `;
+      gridEnvelopes.appendChild(envCard);
+    });
+
+    grupoBloco.appendChild(gridEnvelopes);
+    listaEnvelopes.appendChild(grupoBloco);
+  });
+}
+
+export function atualizarSelectsContas(selectConta, filtroContaExtrato, selectPagadora, contasConfig) {
+  if (selectConta) selectConta.innerHTML = "";
+  if (selectPagadora) selectPagadora.innerHTML = "";
+  if (filtroContaExtrato) {
+    filtroContaExtrato.innerHTML = '<option value="TODAS">💳 Conta/Forma: Todas</option>';
+  }
+
+  Object.keys(contasConfig).forEach(id => {
+    const acc = contasConfig[id];
+    const nomeConta = acc.nome || "Conta Sem Nome";
+    const tipoConta = acc.tipo || "CORRENTE";
+    const selo = tipoConta === "CARTAO" ? "💳" : "🏦";
+
+    if (selectConta) {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = `${selo} ${nomeConta}`;
+      selectConta.appendChild(opt);
+    }
+
+    if (filtroContaExtrato) {
+      const optFiltro = document.createElement('option');
+      optFiltro.value = id;
+      optFiltro.textContent = `${selo} ${nomeConta}`;
+      filtroContaExtrato.appendChild(optFiltro);
+    }
+
+    if (selectPagadora && tipoConta === "CORRENTE") {
+      const optPagadora = document.createElement('option');
+      optPagadora.value = id;
+      optPagadora.textContent = `🏦 ${nomeConta}`;
+      selectPagadora.appendChild(optPagadora);
+    }
+  });
+}
+
+export function renderizarListaGerenciadorContas(listaEl, contasConfig) {
+  if (!listaEl) return;
+  listaEl.innerHTML = "";
+
+  Object.keys(contasConfig).forEach(id => {
+    const acc = contasConfig[id];
+    const nomeConta = acc.nome || "Conta Sem Nome";
+    const tipoConta = acc.tipo || "CORRENTE";
+    const selo = tipoConta === "CARTAO" ? "💳" : "🏦";
+
+    const itemAcc = document.createElement('div');
+    itemAcc.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+    itemAcc.innerHTML = `
+      <span class="text-slate-200 font-medium">${selo} ${nomeConta} <span class="text-slate-500">(${tipoConta})</span></span>
+      <div class="flex items-center gap-2">
+        <button onclick="prepararEdicaoConta('${id}', '${nomeConta.replace(/'/g, "\\'")}', '${tipoConta}')" class="text-slate-400 hover:text-sky-400">✏️</button>
+        <button onclick="excluirConta('${id}', '${nomeConta.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+      </div>
+    `;
+    listaEl.appendChild(itemAcc);
+  });
+}
+=== FIM_ARQUIVO: js/core/ui.js ===
+
+
+=== INICIO_ARQUIVO: js/firebase-config.js ===
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCjGBOUUThDgCqAOQJtXYeKdq2Pb0IG7PU",
+  authDomain: "ecossistema-casita.firebaseapp.com",
+  projectId: "ecossistema-casita",
+  storageBucket: "ecossistema-casita.firebasestorage.app",
+  messagingSenderId: "161524545654",
+  appId: "1:161524545654:web:0362a680d6675b5e2e8757"
+};
+
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+export { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy };
+=== FIM_ARQUIVO: js/firebase-config.js ===
+
+
+=== INICIO_ARQUIVO: manifest.json ===
+{
+  "short_name": "Dimdim",
+  "name": "Dimdim - Ecossistema Casita",
+  "id": "/ecossistema-casita/",
+  "start_url": "/ecossistema-casita/index.html",
+  "scope": "/ecossistema-casita/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/emoji/192/money-bag-emoji.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://img.icons8.com/emoji/512/money-bag-emoji.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
+=== FIM_ARQUIVO: manifest.json ===
+
+
+=== INICIO_ARQUIVO: sw.js ===
+const CACHE_NAME = 'dimdim-v2.6.0';
+const ASSETS_TO_CACHE = [
+  './',
+  './index.html',
+  './css/styles.css',
+  './js/app.js',
+  './js/firebase-config.js',
+  './js/core/formatters.js',
+  './js/core/engine.js',
+  './js/core/transactions.js',
+  './js/core/envelopes.js',
+  './js/core/charts.js',
+  './js/core/ui.js',
+  './js/core/accounts.js',
+  './manifest.json'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            console.log('[Service Worker] Limpando versão antiga de cache:', cache);
+            return caches.delete(cache);
+          }
+        })
+      );
+    })
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+  event.respondWith(
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
+=== FIM_ARQUIVO: sw.js ===
+
+
