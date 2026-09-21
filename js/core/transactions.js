@@ -76,25 +76,51 @@ export async function removerTransacao(id) {
   sincronizarGoogleSheets({ action: "DELETE", id });
 }
 
-export async function processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, usuario, contaId = "ACC_BRADESCO_ABNER") {
+// 📌 [Processa o fechamento de mês: Aporte em Caixinha (SAIDA) ou Rollover (ENTRADA no prox. mês)]
+export async function processarFechamentoMes(mesSel, tipoFechamento, catDestinoId, valorAporte, nomeCaixinha, usuario, contaId = "ACC_BRADESCO_ABNER") {
   const [anoSel, mSel] = mesSel.split('-').map(Number);
-  const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
-  const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
+  let dadosLancamento = {};
 
-  const dadosAporte = {
-    date: dataUltimoDiaMes,
-    type: "SAIDA",
-    amount: valorAporte,
-    description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
-    category_id: catDestinoId,
-    account_id: contaId,
-    status: "VALIDATED",
-    user_owner: usuario || "Abner",
-    source_satellite: "core_dimdim",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+  if (tipoFechamento === 'ROLLOVER') {
+    // 📌 Rollover: Gera lançamento de ENTRADA no dia 01 do mês seguinte
+    const dataProxMes = new Date(anoSel, mSel, 1);
+    const anoProx = dataProxMes.getFullYear();
+    const mesProx = String(dataProxMes.getMonth() + 1).padStart(2, '0');
+    const dataPrimeiroDiaProxMes = `${anoProx}-${mesProx}-01`;
 
-  const docRef = await addDoc(collection(db, "transactions"), dadosAporte);
-  sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosAporte });
+    dadosLancamento = {
+      date: dataPrimeiroDiaProxMes,
+      type: "ENTRADA",
+      amount: valorAporte,
+      description: `Saldo Anterior / Rollover (${mesSel})`,
+      category_id: catDestinoId || "CAT_RESERVAS",
+      account_id: contaId,
+      status: "VALIDATED",
+      user_owner: usuario || "Abner",
+      source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  } else {
+    // 📌 Caixinha: Gera lançamento de SAÍDA no último dia do mês atual
+    const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
+    const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
+
+    dadosLancamento = {
+      date: dataUltimoDiaMes,
+      type: "SAIDA",
+      amount: valorAporte,
+      description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
+      category_id: catDestinoId,
+      account_id: contaId,
+      status: "VALIDATED",
+      user_owner: usuario || "Abner",
+      source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  const docRef = await addDoc(collection(db, "transactions"), dadosLancamento);
+  sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosLancamento });
 }

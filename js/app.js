@@ -5,15 +5,15 @@ import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarT
 import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPorMacroGrupo } from "./core/envelopes.js";
 import { restaurarContasPadrao, salvarConta, removerConta } from "./core/accounts.js";
 import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
-import { 
-  atualizarCardsSaldo, 
-  renderizarExtrato, 
-  atualizarSelectsCategorias, 
-  renderizarEnvelopesAgrupados, 
-  atualizarMargemEManobraUI, 
-  atualizarVelocimetroPacingUI, 
-  atualizarSelectsContas, 
-  renderizarListaGerenciadorContas 
+import {
+  atualizarCardsSaldo,
+  renderizarExtrato,
+  atualizarSelectsCategorias,
+  renderizarEnvelopesAgrupados,
+  atualizarMargemEManobraUI,
+  atualizarVelocimetroPacingUI,
+  atualizarSelectsContas,
+  renderizarListaGerenciadorContas
 } from "./core/ui.js";
 
 const hoje = new Date();
@@ -52,6 +52,23 @@ function inicializarEscutadoresDeEventos() {
     else filtroMesInput.focus();
   });
   filtroMesInput?.addEventListener('change', processarDados);
+
+  // Alternador de Modo do Fechamento de Mês (Caixinha vs. Rollover)
+  document.querySelectorAll('input[name="tipo-fechamento"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const modo = e.target.value;
+      const boxCaixinha = document.getElementById('box-destino-caixinha');
+      const boxRollover = document.getElementById('box-info-rollover');
+
+      if (modo === 'ROLLOVER') {
+        boxCaixinha?.classList.add('hidden');
+        boxRollover?.classList.remove('hidden');
+      } else {
+        boxCaixinha?.classList.remove('hidden');
+        boxRollover?.classList.add('hidden');
+      }
+    });
+  });
 
   // Sincronização em Lote com Google Sheets
   document.getElementById('btn-sincronizar-sheets-lote')?.addEventListener('click', () => {
@@ -244,19 +261,30 @@ async function submeterCategoria(e) {
 async function submeterFechamentoMes(e) {
   e.preventDefault();
   const mesSel = filtroMesInput.value;
-  const catDestinoId = document.getElementById('select-caixinha-destino').value;
+  const tipoFechamento = document.querySelector('input[name="tipo-fechamento"]:checked')?.value || 'CAIXINHA';
+  const catDestinoId = document.getElementById('select-caixinha-destino')?.value || "CAT_RESERVAS";
   const valorAporte = obterValorNumericoMascara(document.getElementById('input-valor-aporte-sobra'));
   const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
   const contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value || "ACC_BRADESCO_ABNER";
 
-  if (!catDestinoId || valorAporte <= 0) {
-    alert("Selecione uma caixinha e informe um valor maior que zero.");
+  if (valorAporte <= 0) {
+    alert("Informe um valor maior que zero para o fechamento.");
     return;
   }
 
-  await processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value, contaDebitoId);
+  if (tipoFechamento === 'CAIXINHA' && !catDestinoId) {
+    alert("Selecione uma caixinha de destino.");
+    return;
+  }
+
+  await processarFechamentoMes(mesSel, tipoFechamento, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value, contaDebitoId);
   fecharModalFechamento();
-  alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
+
+  if (tipoFechamento === 'ROLLOVER') {
+    alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} agendados como Saldo Anterior no 1º dia do mês seguinte.`);
+  } else {
+    alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
+  }
 }
 
 async function submeterConta(e) {

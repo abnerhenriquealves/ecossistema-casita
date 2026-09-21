@@ -549,19 +549,44 @@
       </div>
 
       <form id="form-fechamento-mes" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Destinar Sobra de Caixa Para (Caixinha /
-            Reserva):</label>
-          <select id="select-caixinha-destino" required
+
+        <!-- 🟢 Seleção do Destino da Sobra -->
+        <div class="space-y-2">
+          <label class="block text-xs font-semibold text-slate-300">Como deseja destinar a sobra de caixa?</label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label
+              class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer hover:border-amber-500/60 transition-all select-none">
+              <input type="radio" name="tipo-fechamento" value="CAIXINHA" checked class="accent-amber-500">
+              <span class="text-xs text-slate-200 font-medium">🧰 Aportar em Caixinha</span>
+            </label>
+            <label
+              class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer hover:border-amber-500/60 transition-all select-none">
+              <input type="radio" name="tipo-fechamento" value="ROLLOVER" class="accent-amber-500">
+              <span class="text-xs text-slate-200 font-medium">🔄 Rollover p/ Próx. Mês</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Bloco 1: Seleção de Caixinha (Exibido apenas no modo CAIXINHA) -->
+        <div id="box-destino-caixinha" class="space-y-1">
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Caixinha / Reserva de Destino:</label>
+          <select id="select-caixinha-destino"
             class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
             <option value="">Carregando caixinhas disponíveis...</option>
           </select>
-          <p class="text-[11px] text-slate-400 mt-1">A sobra será transferida para esta caixinha e gravada no Firestore
-            + Google Sheets.</p>
+          <p class="text-[11px] text-slate-400">A sobra será lançada como **SAÍDA** no último dia do mês atual.</p>
+        </div>
+
+        <!-- Bloco 2: Mensagem Informativa do Rollover (Exibido apenas no modo ROLLOVER) -->
+        <div id="box-info-rollover"
+          class="hidden p-3 bg-slate-950/80 border border-slate-800 rounded-lg text-[11px] text-slate-300 space-y-1">
+          <p class="font-semibold text-amber-400">💡 Como funciona o Rollover:</p>
+          <p class="text-slate-400">A sobra será lançada automaticamente como **ENTRADA (+)** no dia **1º do mês
+            seguinte** com a descrição *"Saldo Anterior / Rollover"*, compondo o caixa inicial.</p>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Valor do Aporte (R$):</label>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Valor do Aporte / Transporte (R$):</label>
           <input type="text" inputmode="numeric" id="input-valor-aporte-sobra" required placeholder="R$ 0,00"
             class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm font-mono text-emerald-400 font-bold focus:outline-none focus:border-amber-500">
         </div>
@@ -573,7 +598,7 @@
           </button>
           <button type="submit" id="btn-confirmar-fechamento"
             class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-xs text-white font-bold rounded-lg transition-colors shadow">
-            Confirmar Fechamento & Aporte
+            Confirmar Fechamento
           </button>
         </div>
       </form>
