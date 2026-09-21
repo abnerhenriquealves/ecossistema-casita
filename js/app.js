@@ -1,14 +1,20 @@
 import { db, collection, onSnapshot, query, orderBy } from "./firebase-config.js";
 import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirValorMascara } from "./core/formatters.js";
 import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
-import { salvarTransacao, removerTransacao, processarFechamentoMes } from "./core/transactions.js";
-import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPorMacroGrupo } from "./core/envelopes.js";
-import { restaurarContasPadrao } from "./core/accounts.js";
-import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
-import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados, atualizarMargemEManobraUI, atualizarVelocimetroPacingUI, atualizarSelectsContas } from "./core/ui.js";
-import { salvarConta, removerConta } from "./core/accounts.js";
-import { renderizarListaGerenciadorContas } from "./core/ui.js";
 import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarTudoGoogleSheets } from "./core/transactions.js";
+import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPorMacroGrupo } from "./core/envelopes.js";
+import { restaurarContasPadrao, salvarConta, removerConta } from "./core/accounts.js";
+import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
+import { 
+  atualizarCardsSaldo, 
+  renderizarExtrato, 
+  atualizarSelectsCategorias, 
+  renderizarEnvelopesAgrupados, 
+  atualizarMargemEManobraUI, 
+  atualizarVelocimetroPacingUI, 
+  atualizarSelectsContas, 
+  renderizarListaGerenciadorContas 
+} from "./core/ui.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -25,6 +31,7 @@ const filtroMesInput = document.getElementById('filtro-mes');
 const formTransacao = document.getElementById('form-transacao');
 const formCategoria = document.getElementById('form-categoria');
 const formFechamentoMes = document.getElementById('form-fechamento-mes');
+const formConta = document.getElementById('form-conta');
 const modalFechamentoMes = document.getElementById('modal-fechamento-mes');
 
 // Inicialização de Máscaras
@@ -32,8 +39,9 @@ aplicarMascaraMoeda(document.getElementById('valor'));
 aplicarMascaraMoeda(document.getElementById('cat-teto'));
 aplicarMascaraMoeda(document.getElementById('input-valor-aporte-sobra'));
 
-filtroMesInput.value = `${anoAtual}-${mesAtual}`;
-document.getElementById('data').value = hoje.toISOString().split('T')[0];
+if (filtroMesInput) filtroMesInput.value = `${anoAtual}-${mesAtual}`;
+const inputData = document.getElementById('data');
+if (inputData) inputData.value = hoje.toISOString().split('T')[0];
 
 // Centralizador Unificado de Escutadores de Eventos
 function inicializarEscutadoresDeEventos() {
@@ -45,10 +53,12 @@ function inicializarEscutadoresDeEventos() {
   });
   filtroMesInput?.addEventListener('change', processarDados);
 
+  // Sincronização em Lote com Google Sheets
   document.getElementById('btn-sincronizar-sheets-lote')?.addEventListener('click', () => {
-  sincronizarTudoGoogleSheets(snapshotTransactions);
-});
+    sincronizarTudoGoogleSheets(snapshotTransactions);
+  });
 
+  // Painel de Categorias
   document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
     document.getElementById('painel-gerenciar-categorias')?.classList.toggle('aberto');
   });
@@ -57,13 +67,20 @@ function inicializarEscutadoresDeEventos() {
   });
   document.getElementById('btn-cancelar-cat')?.addEventListener('click', resetarFormCategoria);
 
+  // Painel de Contas
+  document.getElementById('btn-toggle-gerenciar-contas')?.addEventListener('click', () => {
+    document.getElementById('painel-gerenciar-contas')?.classList.toggle('aberto');
+  });
+  document.getElementById('btn-cancelar-conta')?.addEventListener('click', resetarFormConta);
+
+  // Fechamento e Quitação
   document.getElementById('btn-abrir-fechamento-mes')?.addEventListener('click', abrirModalFechamento);
   document.getElementById('btn-fechar-modal-fechamento')?.addEventListener('click', fecharModalFechamento);
   document.getElementById('btn-cancelar-fechamento')?.addEventListener('click', fecharModalFechamento);
-
   document.getElementById('btn-quitar-fatura')?.addEventListener('click', executarQuitacaoFatura);
   document.getElementById('btn-cancelar-edicao')?.addEventListener('click', resetarFormTransacao);
 
+  // Filtros
   ['busca-extrato', 'filtro-usuario-extrato', 'filtro-conta-extrato', 'filtro-tipo-extrato'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -72,9 +89,11 @@ function inicializarEscutadoresDeEventos() {
     }
   });
 
+  // Submissão de Formulários
   if (formTransacao) formTransacao.addEventListener('submit', submeterTransacao);
   if (formCategoria) formCategoria.addEventListener('submit', submeterCategoria);
   if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
+  if (formConta) formConta.addEventListener('submit', submeterConta);
 }
 
 // Modais e Auxiliares
@@ -137,7 +156,14 @@ function resetarFormCategoria() {
   document.getElementById('btn-cancelar-cat').classList.add('hidden');
 }
 
-// Global Window Functions
+function resetarFormConta() {
+  document.getElementById('conta-id').value = "";
+  if (formConta) formConta.reset();
+  document.getElementById('titulo-form-conta').textContent = "Nova Conta / Cartão";
+  document.getElementById('btn-cancelar-conta').classList.add('hidden');
+}
+
+// Window Functions para Ações de Tabela
 window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
   document.getElementById('transacao-id').value = id;
   document.getElementById('data').value = data;
@@ -183,7 +209,7 @@ window.excluirConta = async (id, nome) => {
   if (confirm(`Deseja excluir a conta "${nome}"?`)) await removerConta(id);
 };
 
-// Submissões
+// Handlers de Submissão
 async function submeterTransacao(e) {
   e.preventDefault();
   const idEditando = document.getElementById('transacao-id').value;
@@ -229,11 +255,20 @@ async function submeterFechamentoMes(e) {
   }
 
   await processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value, contaDebitoId);
-  fecharModalFechamento(); // 🟢 Fecha o modal após a gravação
+  fecharModalFechamento();
   alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
 }
 
-// 📌 [Executa a quitação da fatura utilizando a conta selecionada pelo usuário]
+async function submeterConta(e) {
+  e.preventDefault();
+  const id = document.getElementById('conta-id').value;
+  await salvarConta(id, {
+    nome: document.getElementById('conta-nome').value.trim(),
+    tipo: document.getElementById('conta-tipo').value
+  });
+  resetarFormConta();
+}
+
 async function executarQuitacaoFatura() {
   if (valorFaturaPendenteAtual <= 0) return;
   const mesSel = filtroMesInput.value;
@@ -256,7 +291,7 @@ async function executarQuitacaoFatura() {
       amount: valorFaturaPendenteAtual,
       description: `Quitação Fatura Cartão (${mesSel})`,
       category_id: "CAT_FATURA_CARTAO",
-      account_id: contaPagadoraId, // 🟢 Dinâmico
+      account_id: contaPagadoraId,
       status: "VALIDATED",
       user_owner: document.getElementById('usuario').value || "Abner",
       source_satellite: "core_dimdim",
@@ -265,30 +300,6 @@ async function executarQuitacaoFatura() {
     });
   }
 }
-
-// No inicializarEscutadoresDeEventos():
-document.getElementById('btn-toggle-gerenciar-contas')?.addEventListener('click', () => {
-  document.getElementById('painel-gerenciar-contas')?.classList.toggle('aberto');
-});
-
-document.getElementById('btn-cancelar-conta')?.addEventListener('click', () => {
-  document.getElementById('conta-id').value = "";
-  document.getElementById('form-conta').reset();
-  document.getElementById('titulo-form-conta').textContent = "Nova Conta / Cartão";
-  document.getElementById('btn-cancelar-conta').classList.add('hidden');
-});
-
-document.getElementById('form-conta')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('conta-id').value;
-  await salvarConta(id, {
-    nome: document.getElementById('conta-nome').value.trim(),
-    tipo: document.getElementById('conta-tipo').value
-  });
-  document.getElementById('conta-id').value = "";
-  document.getElementById('form-conta').reset();
-  document.getElementById('btn-cancelar-conta').classList.add('hidden');
-});
 
 // Processamento Central
 function processarDados() {
@@ -426,7 +437,6 @@ function processarDados() {
 // Subscrições Firestore e Start
 inicializarEscutadoresDeEventos();
 
-// 📌 [Escuta mudanças em Accounts e popula todos os seletores]
 onSnapshot(collection(db, "accounts"), (snapshot) => {
   contasConfig = {};
   if (snapshot.empty) restaurarContasPadrao();
