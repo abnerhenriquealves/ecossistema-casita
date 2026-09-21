@@ -5,12 +5,12 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
   const container = document.createElement('div');
   container.id = "relatorio-pdf-temp";
   
-  // Posicionamento no plano ativo com opacidade neutra para renderização perfeita no html2canvas
+  // Posicionamento no plano ativo com opacidade total (1) e z-index negativo para renderização perfeita no html2canvas sem poluir a tela
   container.style.position = "fixed";
   container.style.left = "0";
   container.style.top = "0";
   container.style.zIndex = "-9999";
-  container.style.opacity = "0.01";
+  container.style.opacity = "1";
   container.style.pointerEvents = "none";
   container.style.width = "750px";
   container.style.backgroundColor = "#ffffff";
@@ -20,35 +20,40 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
   container.style.boxSizing = "border-box";
 
   let html = `
-    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <h1 style="font-size: 20px; font-weight: bold; color: #047857; margin: 0;">Dimdim 💰 • Ecossistema Casita</h1>
-        <p style="font-size: 12px; color: #64748b; margin: 2px 0 0 0;">Relatório Executivo Mensal de Caixa & Orçamento</p>
-      </div>
-      <div style="text-align: right;">
-        <span style="font-size: 13px; font-weight: bold; background: #f1f5f9; padding: 6px 12px; border-radius: 6px; color: #0f172a; border: 1px solid #cbd5e1;">Mês Ref: ${mesSel}</span>
-      </div>
-    </div>
+    <!-- Cabeçalho -->
+    <table style="width: 100%; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
+      <tr>
+        <td style="vertical-align: middle;">
+          <h1 style="font-size: 20px; font-weight: bold; color: #047857; margin: 0;">Dimdim 💰 • Ecossistema Casita</h1>
+          <p style="font-size: 12px; color: #64748b; margin: 2px 0 0 0;">Relatório Executivo Mensal de Caixa & Orçamento</p>
+        </td>
+        <td style="vertical-align: middle; text-align: right;">
+          <span style="font-size: 13px; font-weight: bold; background: #f1f5f9; padding: 6px 12px; border-radius: 6px; color: #0f172a; border: 1px solid #cbd5e1; display: inline-block;">Mês Ref: ${mesSel}</span>
+        </td>
+      </tr>
+    </table>
 
-    <!-- Resumo de Saldos -->
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px;">
-        <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; display: block;">Entradas</span>
-        <p style="font-size: 14px; font-weight: bold; color: #047857; margin: 4px 0 0 0;">${formatarMoeda(totalEntradas)}</p>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px;">
-        <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; display: block;">Saídas Diretas</span>
-        <p style="font-size: 14px; font-weight: bold; color: #e11d48; margin: 4px 0 0 0;">${formatarMoeda(totalSaidas)}</p>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px;">
-        <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; display: block;">Fatura Cartão</span>
-        <p style="font-size: 14px; font-weight: bold; color: #d97706; margin: 4px 0 0 0;">${formatarMoeda(totalFatura)}</p>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px;">
-        <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; display: block;">Saldo Livre</span>
-        <p style="font-size: 14px; font-weight: bold; color: #0284c7; margin: 4px 0 0 0;">${formatarMoeda(saldoLivre)}</p>
-      </div>
-    </div>
+    <!-- Resumo de Saldos (Tabela para compatibilidade total com html2canvas) -->
+    <table style="width: 100%; margin-bottom: 20px; border-spacing: 6px; border-collapse: separate;">
+      <tr>
+        <td style="width: 25%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; vertical-align: top;">
+          <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; display: block;">Entradas</span>
+          <p style="font-size: 14px; font-weight: bold; color: #047857; margin: 4px 0 0 0;">${formatarMoeda(totalEntradas)}</p>
+        </td>
+        <td style="width: 25%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; vertical-align: top;">
+          <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; display: block;">Saídas Diretas</span>
+          <p style="font-size: 14px; font-weight: bold; color: #e11d48; margin: 4px 0 0 0;">${formatarMoeda(totalSaidas)}</p>
+        </td>
+        <td style="width: 25%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; vertical-align: top;">
+          <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; display: block;">Fatura Cartão</span>
+          <p style="font-size: 14px; font-weight: bold; color: #d97706; margin: 4px 0 0 0;">${formatarMoeda(totalFatura)}</p>
+        </td>
+        <td style="width: 25%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; vertical-align: top;">
+          <span style="font-size: 10px; color: #64748b; font-weight: bold; text-transform: uppercase; display: block;">Saldo Livre</span>
+          <p style="font-size: 14px; font-weight: bold; color: #0284c7; margin: 4px 0 0 0;">${formatarMoeda(saldoLivre)}</p>
+        </td>
+      </tr>
+    </table>
 
     <!-- Tabela de Lançamentos -->
     <div style="margin-top: 20px;">
