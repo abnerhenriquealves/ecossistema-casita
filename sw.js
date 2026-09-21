@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dimdim-v2.6.9';
+const CACHE_NAME = 'dimdim-v2.6.10';
 
 const ASSETS_TO_CACHE = [
   './',

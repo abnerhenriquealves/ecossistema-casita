@@ -1,4 +1,4 @@
-import { db, setDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+import { db, setDoc, doc, updateDoc, deleteDoc, collection, query, where, getDocs } from "../firebase-config.js";
 
 // Semente das Contas Padrão
 export async function restaurarContasPadrao() {
@@ -23,7 +23,12 @@ export async function salvarConta(id, dadosConta) {
       updated_at: new Date().toISOString()
     });
   } else {
-    const novoId = "ACC_" + dadosConta.nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+    // Sanitização de ID: Remove acentos e caracteres especiais, garantindo índice limpo no Firestore
+    const baseNome = (dadosConta.nome || "ACC")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().replace(/[^A-Z0-9]/g, "_");
+    const novoId = "ACC_" + baseNome + "_" + Date.now();
+    
     await setDoc(doc(db, "accounts", novoId), {
       ...dadosConta,
       created_at: new Date().toISOString()
@@ -32,5 +37,15 @@ export async function salvarConta(id, dadosConta) {
 }
 
 export async function removerConta(id) {
+  // 📌 Fase 2: Integridade Relacional (Guardião de Orfandade)
+  const q = query(collection(db, "transactions"), where("account_id", "==", id));
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    alert(`⛔ BLOQUEIO DE INTEGRIDADE:\nNão é possível excluir esta conta pois existem ${snapshot.size} lançamento(s) vinculado(s) a ela.\nExclua ou altere a conta pagadora destes lançamentos primeiro.`);
+    return false;
+  }
+
   await deleteDoc(doc(db, "accounts", id));
+  return true;
 }

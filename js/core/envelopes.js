@@ -1,4 +1,4 @@
-import { db, setDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+import { db, setDoc, doc, updateDoc, deleteDoc, collection, query, where, getDocs } from "../firebase-config.js";
 
 // Semente dos Envelopes Padrão
 export async function restaurarCategoriasPadrao() {
@@ -31,7 +31,12 @@ export async function salvarCategoria(catId, dadosCat) {
       updated_at: new Date().toISOString() 
     });
   } else {
-    const novoId = "CAT_" + dadosCat.nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+    // Sanitização de ID: Remove acentos e caracteres especiais, garantindo índice limpo no Firestore
+    const baseNome = (dadosCat.nome || "CAT")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().replace(/[^A-Z0-9]/g, "_");
+    const novoId = "CAT_" + baseNome + "_" + Date.now();
+    
     await setDoc(doc(db, "categories", novoId), { 
       ...dadosCat, 
       created_at: new Date().toISOString() 
@@ -40,7 +45,17 @@ export async function salvarCategoria(catId, dadosCat) {
 }
 
 export async function removerCategoria(catId) {
+  // 📌 Fase 2: Integridade Relacional (Guardião de Orfandade)
+  const q = query(collection(db, "transactions"), where("category_id", "==", catId));
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    alert(`⛔ BLOQUEIO DE INTEGRIDADE:\nNão é possível excluir este envelope pois existem ${snapshot.size} lançamento(s) vinculado(s) a ele.\nAltere a classificação destes lançamentos antes de excluir.`);
+    return false;
+  }
+
   await deleteDoc(doc(db, "categories", catId));
+  return true;
 }
 
 // Agrupador para Gráficos e Envelopes
