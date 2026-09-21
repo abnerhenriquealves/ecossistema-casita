@@ -120,16 +120,43 @@ function abrirModalFechamento() {
   document.getElementById('txt-fechamento-saldo-sobra').textContent = formatarMoeda(saldoLivreMemoria);
   definirValorMascara(document.getElementById('input-valor-aporte-sobra'), Math.max(0, saldoLivreMemoria));
 
+  // 📌 1. Alerta de Fatura do Cartão Pendente
+  const boxAlerta = document.getElementById('box-alerta-fatura-pendente');
+  if (boxAlerta) {
+    if (valorFaturaPendenteAtual > 0) boxAlerta.classList.remove('hidden');
+    else boxAlerta.classList.add('hidden');
+  }
+
+  // 📌 2. Povoamento do Seletor de Caixinhas / Reservas (Sinking Funds)
+  const selectDestino = document.getElementById('select-caixinha-destino');
+  if (selectDestino) {
+    selectDestino.innerHTML = "";
+    const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+
+    if (caixinhas.length === 0) {
+      selectDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
+    } else {
+      caixinhas.forEach(catId => {
+        const opt = document.createElement('option');
+        opt.value = catId;
+        opt.textContent = `🧰 ${envelopesConfig[catId].nome}`;
+        selectDestino.appendChild(opt);
+      });
+    }
+  }
+
+  // 📌 3. Trava de Fechamento Já Existente
   const fechamentoExistente = obterFechamentoExistente(snapshotTransactions, mesSel);
   const boxJaFechado = document.getElementById('box-alerta-ja-fechado');
   const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
 
   if (fechamentoExistente) {
     boxJaFechado?.classList.remove('hidden');
-    if (btnConfirmar) btnConfirmar.disabled = true;
-    if (btnConfirmar) btnConfirmar.classList.add('opacity-50', 'cursor-not-allowed');
+    if (btnConfirmar) {
+      btnConfirmar.disabled = true;
+      btnConfirmar.classList.add('opacity-50', 'cursor-not-allowed');
+    }
 
-    // Escutador do botão de desfazer
     const btnDesfazer = document.getElementById('btn-desfazer-fechamento');
     if (btnDesfazer) {
       btnDesfazer.onclick = async () => {
@@ -142,8 +169,10 @@ function abrirModalFechamento() {
     }
   } else {
     boxJaFechado?.classList.add('hidden');
-    if (btnConfirmar) btnConfirmar.disabled = false;
-    if (btnConfirmar) btnConfirmar.classList.remove('opacity-50', 'cursor-not-allowed');
+    if (btnConfirmar) {
+      btnConfirmar.disabled = false;
+      btnConfirmar.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
   }
 
   modalFechamentoMes.classList.remove('hidden');
