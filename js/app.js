@@ -1,7 +1,7 @@
 import { db, collection, onSnapshot, query, orderBy } from "./firebase-config.js";
 import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirValorMascara } from "./core/formatters.js";
 import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
-import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarTudoGoogleSheets } from "./core/transactions.js";
+import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarTudoGoogleSheets, obterFechamentoExistente, removerFechamentoAnterior } from "./core/transactions.js";
 import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPorMacroGrupo } from "./core/envelopes.js";
 import { restaurarContasPadrao, salvarConta, removerConta } from "./core/accounts.js";
 import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
@@ -115,29 +115,35 @@ function inicializarEscutadoresDeEventos() {
 
 // Modais e Auxiliares
 function abrirModalFechamento() {
-  document.getElementById('txt-fechamento-mes-ref').textContent = filtroMesInput.value;
+  const mesSel = filtroMesInput.value;
+  document.getElementById('txt-fechamento-mes-ref').textContent = mesSel;
   document.getElementById('txt-fechamento-saldo-sobra').textContent = formatarMoeda(saldoLivreMemoria);
   definirValorMascara(document.getElementById('input-valor-aporte-sobra'), Math.max(0, saldoLivreMemoria));
 
-  const boxAlerta = document.getElementById('box-alerta-fatura-pendente');
-  if (boxAlerta) {
-    if (valorFaturaPendenteAtual > 0) boxAlerta.classList.remove('hidden');
-    else boxAlerta.classList.add('hidden');
-  }
+  const fechamentoExistente = obterFechamentoExistente(snapshotTransactions, mesSel);
+  const boxJaFechado = document.getElementById('box-alerta-ja-fechado');
+  const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
 
-  const selectDestino = document.getElementById('select-caixinha-destino');
-  selectDestino.innerHTML = "";
-  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+  if (fechamentoExistente) {
+    boxJaFechado?.classList.remove('hidden');
+    if (btnConfirmar) btnConfirmar.disabled = true;
+    if (btnConfirmar) btnConfirmar.classList.add('opacity-50', 'cursor-not-allowed');
 
-  if (caixinhas.length === 0) {
-    selectDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
+    // Escutador do botão de desfazer
+    const btnDesfazer = document.getElementById('btn-desfazer-fechamento');
+    if (btnDesfazer) {
+      btnDesfazer.onclick = async () => {
+        if (confirm("Deseja realmente desfazer o fechamento anterior e reabrir o mês?")) {
+          await removerFechamentoAnterior(fechamentoExistente.id);
+          alert("Fechamento anterior removido com sucesso!");
+          fecharModalFechamento();
+        }
+      };
+    }
   } else {
-    caixinhas.forEach(catId => {
-      const opt = document.createElement('option');
-      opt.value = catId;
-      opt.textContent = `🧰 ${envelopesConfig[catId].nome}`;
-      selectDestino.appendChild(opt);
-    });
+    boxJaFechado?.classList.add('hidden');
+    if (btnConfirmar) btnConfirmar.disabled = false;
+    if (btnConfirmar) btnConfirmar.classList.remove('opacity-50', 'cursor-not-allowed');
   }
 
   modalFechamentoMes.classList.remove('hidden');

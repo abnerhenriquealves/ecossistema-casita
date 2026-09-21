@@ -124,3 +124,38 @@ export async function processarFechamentoMes(mesSel, tipoFechamento, catDestinoI
   const docRef = await addDoc(collection(db, "transactions"), dadosLancamento);
   sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosLancamento });
 }
+// 📌 [Verifica se o mês selecionado já possui lançamento de fechamento ou rollover]
+export function obterFechamentoExistente(snapshotTransactions, mesSel) {
+  if (!snapshotTransactions || snapshotTransactions.empty) return null;
+
+  const [anoSel, mSel] = mesSel.split('-').map(Number);
+  const dataProxMes = new Date(anoSel, mSel, 1);
+  const anoProx = dataProxMes.getFullYear();
+  const mesProx = String(dataProxMes.getMonth() + 1).padStart(2, '0');
+  const dataPrimeiroDiaProxMes = `${anoProx}-${mesProx}-01`;
+
+  let lancamentoEncontrado = null;
+
+  snapshotTransactions.forEach(docSnap => {
+    const item = docSnap.data();
+    const id = docSnap.id;
+
+    // Procura fecho por caixinha no mês atual
+    if (item.date && item.date.substring(0, 7) === mesSel && item.description && item.description.includes(`Aporte Sobra Fechamento Mês (${mesSel})`)) {
+      lancamentoEncontrado = { id, type: 'CAIXINHA', ...item };
+    }
+
+    // Procura fecho por rollover no primeiro dia do mês seguinte
+    if (item.date === dataPrimeiroDiaProxMes && item.description && item.description.includes(`Saldo Anterior / Rollover (${mesSel})`)) {
+      lancamentoEncontrado = { id, type: 'ROLLOVER', ...item };
+    }
+  });
+
+  return lancamentoEncontrado;
+}
+
+// 📌 [Remove um fechamento prévio para permitir refazer a operação com segurança]
+export async function removerFechamentoAnterior(idFechamento) {
+  if (!idFechamento) return;
+  await removerTransacao(idFechamento);
+}
