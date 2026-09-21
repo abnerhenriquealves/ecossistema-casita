@@ -2,16 +2,18 @@ import { formatarMoeda } from "./formatters.js";
 
 // 📌 [Gera e faz o download do Relatório Executivo Mensal em PDF]
 export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, totalFatura, saldoLivre, itensExibicao, envelopesConfig) {
+  // Salva a posição de scroll atual e rola temporariamente para o topo para captura perfeita do html2canvas
+  const scrollYOriginal = window.scrollY;
+  window.scrollTo(0, 0);
+
   const container = document.createElement('div');
   container.id = "relatorio-pdf-temp";
   
-  // Posicionamento no plano ativo com opacidade total (1) e z-index negativo para renderização perfeita no html2canvas sem poluir a tela
-  container.style.position = "fixed";
+  // Posicionamento no topo com z-index positivo no topo da pilha (99999) para renderização completa
+  container.style.position = "absolute";
   container.style.left = "0";
   container.style.top = "0";
-  container.style.zIndex = "-9999";
-  container.style.opacity = "1";
-  container.style.pointerEvents = "none";
+  container.style.zIndex = "99999";
   container.style.width = "750px";
   container.style.backgroundColor = "#ffffff";
   container.style.color = "#0f172a";
@@ -33,7 +35,7 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
       </tr>
     </table>
 
-    <!-- Resumo de Saldos (Tabela para compatibilidade total com html2canvas) -->
+    <!-- Resumo de Saldos -->
     <table style="width: 100%; margin-bottom: 20px; border-spacing: 6px; border-collapse: separate;">
       <tr>
         <td style="width: 25%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; vertical-align: top;">
@@ -120,5 +122,7 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
     if (document.body.contains(container)) {
       document.body.removeChild(container);
     }
+    // Restaura o scroll original da tela
+    window.scrollTo(0, scrollYOriginal);
   }
 }
