@@ -342,20 +342,27 @@ async function submeterFechamentoMes(e) {
   const mesSel = filtroMesInput.value;
   const contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value || "ACC_BRADESCO_ABNER";
 
-  const alocacoes = [];
+  // 📌 Agrupador dinâmico para consolidar valores de mesmos destinos
+  const mapaAlocacoes = {};
+
   document.querySelectorAll('.item-alocacao-row').forEach(row => {
     const tipoCat = row.querySelector('.select-destino-tipo').value;
     const valor = obterValorNumericoMascara(row.querySelector('.input-destino-valor'));
 
     if (valor > 0) {
-      if (tipoCat === 'ROLLOVER') {
-        alocacoes.push({ tipo: 'ROLLOVER', catDestinoId: 'CAT_RESERVAS', valor });
-      } else {
-        const nomeCaixinha = envelopesConfig[tipoCat]?.nome || "Caixinha";
-        alocacoes.push({ tipo: 'CAIXINHA', catDestinoId: tipoCat, valor, nomeCaixinha });
+      if (!mapaAlocacoes[tipoCat]) {
+        if (tipoCat === 'ROLLOVER') {
+          mapaAlocacoes[tipoCat] = { tipo: 'ROLLOVER', catDestinoId: 'CAT_RESERVAS', valor: 0 };
+        } else {
+          const nomeCaixinha = envelopesConfig[tipoCat]?.nome || "Caixinha";
+          mapaAlocacoes[tipoCat] = { tipo: 'CAIXINHA', catDestinoId: tipoCat, valor: 0, nomeCaixinha };
+        }
       }
+      mapaAlocacoes[tipoCat].valor += valor;
     }
   });
+
+  const alocacoes = Object.values(mapaAlocacoes);
 
   if (alocacoes.length === 0) {
     alert("Adicione ao menos um destino válido com valor maior que zero.");
@@ -364,7 +371,7 @@ async function submeterFechamentoMes(e) {
 
   await processarFechamentoMultiplosDestinos(mesSel, alocacoes, document.getElementById('usuario').value, contaDebitoId);
   fecharModalFechamento();
-  alert(`Fechamento de ${mesSel} concluído com sucesso! ${alocacoes.length} alocação(ões) processada(s).`);
+  alert(`Fechamento de ${mesSel} concluído! ${alocacoes.length} lançamento(s) consolidado(s) gravado(s).`);
 }
 
 async function submeterConta(e) {
