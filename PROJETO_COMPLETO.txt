@@ -112,17 +112,15 @@ input[type="month"]::-webkit-calendar-picker-indicator {
   <link rel="stylesheet" href="css/styles.css">
 </head>
 
-<!-- MANTENHA APENAS UMA TAG BODY -->
-
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
   <!-- 🛠️ Banner DEV de Topo com Build Stamp & Forçar Atualização -->
   <div id="banner-dev-topo"
     class="max-w-4xl mx-auto mb-4 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-2 text-center flex flex-wrap items-center justify-center gap-2 text-xs font-mono text-amber-300 shadow-md">
     <span>🛠️ <strong class="text-amber-400">[DEV - EM DESENVOLVIMENTO]</strong></span>
     <span class="hidden sm:inline text-slate-600">•</span>
-    <span>Dimdim <strong id="app-version-display" class="text-slate-200">v2.6.5</strong></span>
+    <span>Dimdim <strong id="app-version-display" class="text-slate-200">v2.6.6</strong></span>
     <span class="hidden sm:inline text-slate-600">•</span>
-    <span>Build: <span id="app-build-date" class="text-slate-300">21/09/2026 - 14:15</span></span>
+    <span>Build: <span id="app-build-date" class="text-slate-300">21/09/2026 - 18:05</span></span>
     <button id="btn-forcar-atualizacao" type="button"
       class="ml-2 px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/40 border border-amber-500/40 text-amber-200 font-sans font-semibold rounded-lg text-[11px] transition-all flex items-center gap-1 shadow cursor-pointer">
       🔄 Forçar Atualização
@@ -130,606 +128,602 @@ input[type="month"]::-webkit-calendar-picker-indicator {
   </div>
 
   <div class="max-w-4xl mx-auto space-y-6">
-    <!-- Topo / Header Original da Aplicação -->
-    ...
-    <div class="max-w-4xl mx-auto space-y-6">
 
-      <!-- Topo -->
-      <header class="flex items-center justify-between border-b border-slate-800 pb-4">
+    <!-- Topo -->
+    <header class="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold text-emerald-400">Dimdim 💰</h1>
+        <p class="text-xs text-slate-400">Ecossistema Casita • Livro Caixa & Orçamento</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- 🟢 Novo: Badge de Status do Google Sheets -->
+        <span id="sync-badge"
+          class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all">
+          🟢 Sheets OK
+        </span>
+        <span id="status-badge"
+          class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          Conectado
+        </span>
+      </div>
+    </header>
+
+    <!-- Seletor de Período com Botão de Fechamento de Mês & Sincronização -->
+    <section
+      class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
+
+      <!-- Lado Esquerdo: Título e Botões de Ação -->
+      <div
+        class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
         <div>
-          <h1 class="text-2xl font-bold text-emerald-400">Dimdim 💰</h1>
-          <p class="text-xs text-slate-400">Ecossistema Casita • Livro Caixa & Orçamento</p>
+          <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
+          <p class="text-xs text-slate-400">Navegue pelas setas ou clique no calendário para escolher mês/ano</p>
         </div>
-        <div class="flex items-center gap-2">
-          <!-- 🟢 Novo: Badge de Status do Google Sheets -->
-          <span id="sync-badge"
-            class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all">
-            🟢 Sheets OK
-          </span>
-          <span id="status-badge"
-            class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            Conectado
-          </span>
-        </div>
-      </header>
-
-      <!-- Seletor de Período com Botão de Fechamento de Mês & Sincronização -->
-      <section
-        class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md gap-3">
-
-        <!-- Lado Esquerdo: Título e Botões de Ação -->
-        <div
-          class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-          <div>
-            <h2 class="text-sm font-semibold text-slate-200">Período Orçamentário</h2>
-            <p class="text-xs text-slate-400">Navegue pelas setas ou clique no calendário para escolher mês/ano</p>
-          </div>
-          <div class="flex items-center gap-2 flex-wrap">
-            <button id="btn-abrir-fechamento-mes" type="button"
-              class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow">
-              🔒 Fechar Mês & Aportar Sobra
-            </button>
-            <!-- 🟢 Posicionado junto aos botões de ação -->
-            <button id="btn-sincronizar-sheets-lote" type="button"
-              class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-slate-300 rounded-lg transition-all flex items-center gap-1.5 shadow"
-              title="Re-sincronizar todos os lançamentos com o Google Sheets">
-              🔄 Sincronizar Planilha
-            </button>
-          </div>
-        </div>
-
-        <!-- Lado Direito: Navegação de Datas -->
-        <div class="flex items-center gap-2 w-full sm:w-auto">
-          <button id="btn-mes-anterior"
-            class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
-            title="Mês Anterior">
-            ‹
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btn-abrir-fechamento-mes" type="button"
+            class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow">
+            🔒 Fechar Mês & Aportar Sobra
           </button>
-
-          <div class="relative flex items-center w-full sm:w-auto">
-            <input type="month" id="filtro-mes"
-              class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg py-2.5 pl-3 pr-10 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto text-center"
-              style="color-scheme: dark;">
-
-            <button id="btn-abrir-picker" type="button"
-              class="absolute right-2 text-slate-400 hover:text-emerald-400 p-1.5 focus:outline-none transition-colors"
-              title="Clique para escolher mês e ano">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </button>
-          </div>
-
-          <button id="btn-mes-proximo"
-            class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
-            title="Próximo Mês">
-            ›
+          <!-- 🟢 Posicionado junto aos botões de ação -->
+          <button id="btn-sincronizar-sheets-lote" type="button"
+            class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-slate-300 rounded-lg transition-all flex items-center gap-1.5 shadow"
+            title="Re-sincronizar todos os lançamentos com o Google Sheets">
+            🔄 Sincronizar Planilha
           </button>
         </div>
-      </section>
+      </div>
 
-      <!-- Resumo de Saldos com Quitação de Fatura -->
-      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
-          <p class="text-xs text-slate-400 uppercase font-semibold">Entradas em Conta</p>
-          <p id="total-entradas" class="text-xl font-bold text-emerald-400 mt-1">R$ 0,00</p>
-        </div>
-        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
-          <p class="text-xs text-slate-400 uppercase font-semibold">Saídas Diretas (Conta)</p>
-          <p id="total-saidas" class="text-xl font-bold text-rose-400 mt-1">R$ 0,00</p>
-        </div>
+      <!-- Lado Direito: Navegação de Datas -->
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <button id="btn-mes-anterior"
+          class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
+          title="Mês Anterior">
+          ‹
+        </button>
 
-        <!-- Card Fatura com Botão de Quitação -->
-        <div
-          class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md relative group flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between">
-              <p class="text-xs text-slate-400 uppercase font-semibold">Fatura Cartão do Mês</p>
-              <span id="badge-fatura-status"
-                class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">QUITADA</span>
-            </div>
-            <p id="fatura-cartao" class="text-xl font-bold text-amber-400 mt-1">R$ 0,00</p>
-          </div>
-          <button id="btn-quitar-fatura" type="button"
-            class="hidden mt-2 w-full py-1.5 px-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all items-center justify-center gap-1">
-            💳 Quitar Fatura do Mês
-          </button>
-          <!-- 📌 [Seletor de Conta Pagadora no Modal/Ação de Quitação] -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Debitar Pagamento Da Conta:</label>
-            <select id="select-conta-pagadora-fatura"
-              class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
-              <option value="">Carregando contas disponíveis...</option>
-            </select>
-          </div>
+        <div class="relative flex items-center w-full sm:w-auto">
+          <input type="month" id="filtro-mes"
+            class="bg-slate-950 border border-slate-700 text-emerald-400 font-bold text-sm rounded-lg py-2.5 pl-3 pr-10 focus:outline-none focus:border-emerald-500 cursor-pointer w-full sm:w-auto text-center"
+            style="color-scheme: dark;">
 
-        </div>
-
-        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
-          <p class="text-xs text-slate-400 uppercase font-semibold">Saldo Livre em Conta</p>
-          <p id="saldo-atual" class="text-xl font-bold text-sky-400 mt-1">R$ 0,00</p>
-        </div>
-      </section>
-
-      <!-- Painel Executivo & Análise Financeira -->
-      <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-6">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-200">Painel Executivo & Análise Financeira</h2>
-            <p class="text-xs text-slate-400">Inteligência de caixa, flexibilidade orçamentária e curva de tendência
-            </p>
-          </div>
-          <!-- 🟢 Botão Exportar PDF -->
-          <button id="btn-exportar-pdf" type="button"
-            class="px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow">
-            📄 Exportar PDF
+          <button id="btn-abrir-picker" type="button"
+            class="absolute right-2 text-slate-400 hover:text-emerald-400 p-1.5 focus:outline-none transition-colors"
+            title="Clique para escolher mês e ano">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
           </button>
         </div>
 
-        <!-- Métricas Sem Gráfico: Margem de Manobra e Velocímetro -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <button id="btn-mes-proximo"
+          class="px-3 py-2 bg-slate-950 border border-slate-700 hover:border-emerald-500 hover:text-emerald-300 rounded-lg text-emerald-400 font-bold transition-all shadow"
+          title="Próximo Mês">
+          ›
+        </button>
+      </div>
+    </section>
 
-          <!-- Bloco 1: Margem de Manobra (Rígidos vs Flexíveis) -->
-          <div class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                🛡️ Margem de Manobra
-              </span>
-              <span id="badge-diagnostico-margem"
-                class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                Analisando...
-              </span>
-            </div>
+    <!-- Resumo de Saldos com Quitação de Fatura -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Entradas em Conta</p>
+        <p id="total-entradas" class="text-xl font-bold text-emerald-400 mt-1">R$ 0,00</p>
+      </div>
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Saídas Diretas (Conta)</p>
+        <p id="total-saidas" class="text-xl font-bold text-rose-400 mt-1">R$ 0,00</p>
+      </div>
 
-            <!-- Barra Bi-Colorida de Progresso -->
-            <div class="w-full bg-slate-800 rounded-full h-3 flex overflow-hidden">
-              <div id="barra-rigido" class="bg-rose-500/80 h-full transition-all duration-500" style="width: 50%"
-                title="Gastos Rígidos / Essenciais"></div>
-              <div id="barra-flexivel" class="bg-sky-400/80 h-full transition-all duration-500" style="width: 50%"
-                title="Gastos Flexíveis / Estilo de Vida"></div>
-            </div>
-
-            <div class="flex justify-between text-xs font-mono pt-1">
-              <span id="txt-valor-rigido" class="text-rose-400 font-semibold">📌 Rígidos: R$ 0,00 (0%)</span>
-              <span id="txt-valor-flexivel" class="text-sky-400 font-semibold">🎈 Flexíveis: R$ 0,00 (0%)</span>
-            </div>
-
-            <p id="txt-raiox-margem" class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 italic">
-              Carregando estrutura de compromissos do lar...
-            </p>
+      <!-- Card Fatura com Botão de Quitação -->
+      <div
+        class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md relative group flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-slate-400 uppercase font-semibold">Fatura Cartão do Mês</p>
+            <span id="badge-fatura-status"
+              class="hidden text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">QUITADA</span>
           </div>
-
-          <!-- Bloco 2: Velocímetro de Consumo Flexível (Pacing) -->
-          <div class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                ⚡ Velocímetro Orçamentário (Gastos Flexíveis)
-              </span>
-              <span id="badge-status-pacing"
-                class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">
-                No Ritmo
-              </span>
-            </div>
-
-            <!-- Trilhos Duplos de Comparação -->
-            <div class="space-y-2 text-xs">
-              <div>
-                <div class="flex justify-between text-[11px] text-slate-400 mb-1">
-                  <span>Mês decorrido (Tempo)</span>
-                  <span id="txt-pacing-tempo" class="font-mono text-slate-300">0% (Dia 0/30)</span>
-                </div>
-                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div id="barra-pacing-tempo" class="bg-slate-500 h-2 rounded-full transition-all duration-500"
-                    style="width: 0%"></div>
-                </div>
-              </div>
-
-              <div>
-                <div class="flex justify-between text-[11px] text-slate-400 mb-1">
-                  <span>Consumo de Envelopes Flexíveis</span>
-                  <span id="txt-pacing-consumo" class="font-mono text-sky-400 font-bold">R$ 0,00 / R$ 0,00 (0%)</span>
-                </div>
-                <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                  <div id="barra-pacing-consumo" class="bg-sky-400 h-2 rounded-full transition-all duration-500"
-                    style="width: 0%"></div>
-                </div>
-              </div>
-            </div>
-
-            <p id="txt-status-pacing-mensagem"
-              class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 italic">
-              Calculando ritmo diário de consumo...
-            </p>
-          </div>
-
+          <p id="fatura-cartao" class="text-xl font-bold text-amber-400 mt-1">R$ 0,00</p>
+        </div>
+        <button id="btn-quitar-fatura" type="button"
+          class="hidden mt-2 w-full py-1.5 px-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold rounded-lg transition-all items-center justify-center gap-1">
+          💳 Quitar Fatura do Mês
+        </button>
+        <!-- 📌 [Seletor de Conta Pagadora no Modal/Ação de Quitação] -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Debitar Pagamento Da Conta:</label>
+          <select id="select-conta-pagadora-fatura"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+            <option value="">Carregando contas disponíveis...</option>
+          </select>
         </div>
 
-        <!-- Gráfico de Rosca por Macro-Grupo + Comprometimento da Renda -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center border-t border-slate-800/80 pt-4">
-          <div class="relative w-full h-60 flex justify-center">
-            <canvas id="grafico-macro-grupos"></canvas>
-          </div>
-          <div class="space-y-3 text-xs text-slate-300">
-            <p class="font-medium text-slate-200">Resumo de Comprometimento da Renda:</p>
-            <div id="resumo-executivo-texto" class="space-y-1.5 bg-slate-950/50 border border-slate-800 p-3 rounded-lg">
-              <p class="text-slate-400">Carregando métricas executivas...</p>
-            </div>
-          </div>
+      </div>
+
+      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 shadow-md">
+        <p class="text-xs text-slate-400 uppercase font-semibold">Saldo Livre em Conta</p>
+        <p id="saldo-atual" class="text-xl font-bold text-sky-400 mt-1">R$ 0,00</p>
+      </div>
+    </section>
+
+    <!-- Painel Executivo & Análise Financeira -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-200">Painel Executivo & Análise Financeira</h2>
+          <p class="text-xs text-slate-400">Inteligência de caixa, flexibilidade orçamentária e curva de tendência
+          </p>
         </div>
-
-        <!-- Análise Orçado vs. Realizado (Barras Duplas) -->
-        <div class="border-t border-slate-800/80 pt-4 space-y-2">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📊 Orçado (Teto) vs. Realizado (Gasto)
-            por
-            Macro-Grupo</h3>
-          <div class="relative w-full h-64">
-            <canvas id="grafico-orcado-vs-realizado"></canvas>
-          </div>
-        </div>
-
-        <!-- Gráfico de Evolução Temporal (Linhas) -->
-        <div class="border-t border-slate-800/80 pt-4 space-y-2">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📈 Evolução Histórica de Gastos no Ano
-          </h3>
-          <div class="relative w-full h-56">
-            <canvas id="grafico-historico-mensal"></canvas>
-          </div>
-        </div>
-      </section>
-
-      <!-- Matriz Orçamentária / Envelopes Virtuais Agrupados -->
-      <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-lg font-semibold text-slate-200">Envelopes Orçamentários</h2>
-            <p class="text-xs text-slate-400">Organizados por Macro-Grupos (Nível 1)</p>
-          </div>
-          <button id="btn-toggle-gerenciar-cat" type="button"
-            class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-emerald-400 rounded-lg transition-all flex items-center gap-1">
-            <span>⚙️</span> Configurar Tetos / Envelopes
-          </button>
-        </div>
-
-        <!-- Painel Expansível de Gerenciamento -->
-        <div id="painel-gerenciar-categorias"
-          class="painel-expansivel bg-slate-950/90 border border-slate-700/80 rounded-lg p-4 space-y-4">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-            <h3 id="titulo-form-cat" class="text-sm font-semibold text-emerald-400">Novo Envelope / Categoria</h3>
-            <div class="flex items-center gap-3">
-              <button id="btn-restaurar-padroes" type="button"
-                class="text-xs text-amber-400 hover:text-amber-300 font-medium hover:underline flex items-center gap-1">
-                ⚡ Restaurar Padrões Casita
-              </button>
-              <button id="btn-cancelar-cat" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
-                Edição</button>
-            </div>
-          </div>
-
-          <form id="form-categoria" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <input type="hidden" id="cat-id" value="">
-
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Macro-Grupo (Nível 1)</label>
-              <select id="cat-macro"
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-                <option value="Fé">Fé</option>
-                <option value="Habitação & Custos Fixos">Habitação & Custos Fixos</option>
-                <option value="Alimentação & Social">Alimentação & Social</option>
-                <option value="Transporte">Transporte</option>
-                <option value="Saúde & Bem-Estar">Saúde & Bem-Estar</option>
-                <option value="Nossos Meninos (Pets)">Nossos Meninos (Pets)</option>
-                <option value="Estilo de Vida & Assinaturas">Estilo de Vida & Assinaturas</option>
-                <option value="Compromissos & Acordos">Compromissos & Acordos</option>
-                <option value="Reservas & Outros">Reservas & Outros</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Nome do Envelope (Nível 2)</label>
-              <input type="text" id="cat-nome" required placeholder="Ex: Farmácia, Pet, Lazer"
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-            </div>
-
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Teto Mensal / Meta (R$)</label>
-              <input type="text" inputmode="numeric" id="cat-teto" required placeholder="R$ 0,00"
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
-            </div>
-
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Natureza do Compromisso</label>
-              <select id="cat-rigidez"
-                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-                <option value="RIGIDO">📌 Rígido / Essencial</option>
-                <option value="FLEXIVEL">🎈 Flexível / Estilo de Vida</option>
-              </select>
-            </div>
-
-            <div class="sm:col-span-2 lg:col-span-4 flex items-center gap-2 pt-1 border-t border-slate-800/80">
-              <input type="checkbox" id="cat-acumulativa" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
-              <label for="cat-acumulativa"
-                class="text-xs text-amber-300/90 font-medium cursor-pointer select-none flex items-center gap-1">
-                🧰 Caixinha Acumulativa / Reserva (Sinking Fund — o progresso não zera na virada do mês)
-              </label>
-            </div>
-
-            <div class="sm:col-span-2 lg:col-span-4">
-              <button type="submit" id="btn-salvar-cat"
-                class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors">
-                Salvar Envelope
-              </button>
-            </div>
-          </form>
-
-          <div class="border-t border-slate-800 pt-3">
-            <p class="text-xs text-slate-400 mb-2 font-medium">Envelopes Cadastrados no Banco:</p>
-            <div id="lista-gerenciador-categorias" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              <p class="text-xs text-slate-500 text-center py-2">Carregando envelopes...</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Lista de Envelopes Agrupados por Macro-Grupo -->
-        <div id="lista-envelopes" class="space-y-6 mt-4">
-          <p class="text-sm text-slate-500 py-2 text-center">Calculando envelopes...</p>
-        </div>
-      </section>
-
-      <!-- Formulário de Lançamento / Edição -->
-      <section id="secao-formulario"
-        class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 id="titulo-form" class="text-lg font-semibold text-slate-200">Novo Lançamento</h2>
-          <button id="btn-cancelar-edicao" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
-            Edição</button>
-        </div>
-        <form id="form-transacao" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <input type="hidden" id="transacao-id" value="">
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Lançado por</label>
-            <select id="usuario"
-              class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-              <option value="Abner">Abner</option>
-              <option value="Lucélia">Lucélia</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Tipo</label>
-            <select id="tipo"
-              class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-              <option value="SAIDA">Saída (-)</option>
-              <option value="ENTRADA">Entrada (+)</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Valor (R$)</label>
-            <input type="text" inputmode="numeric" id="valor" required placeholder="R$ 0,00"
-              class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Data</label>
-            <input type="date" id="data" required
-              class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
-              style="color-scheme: dark;">
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Descrição</label>
-            <input type="text" id="descricao" required placeholder="Ex: Mercado, Ração, Combustível"
-              class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Categoria / Envelope</label>
-            <select id="categoria"
-              class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-              <option value="">Carregando categorias...</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Forma / Conta</label>
-            <select id="conta"
-              class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-              <option value="ACC_BRADESCO_ABNER">Conta Corrente / PIX / Débito</option>
-              <option value="ACC_CARTAO_CREDITO">Cartão de Crédito</option>
-            </select>
-          </div>
-
-          <div class="md:col-span-2 lg:col-span-3">
-            <button type="submit" id="btn-salvar"
-              class="w-full py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-medium text-white transition-all shadow-lg mt-2">
-              Registrar Lançamento
-            </button>
-          </div>
-
-        </form>
-      </section>
-
-      <!-- Painel Expansível de Gerenciamento de Contas & Cartões -->
-      <div class="flex justify-end mb-2">
-        <button id="btn-toggle-gerenciar-contas" type="button"
-          class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-emerald-400 rounded-lg transition-all flex items-center gap-1">
-          <span>💳</span> Gerenciar Contas & Cartões
+        <!-- 🟢 Botão Exportar PDF -->
+        <button id="btn-exportar-pdf" type="button"
+          class="px-3 py-1.5 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 shadow">
+          📄 Exportar PDF
         </button>
       </div>
 
-      <div id="painel-gerenciar-contas"
-        class="painel-expansivel bg-slate-950/90 border border-slate-700/80 rounded-lg p-4 space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-          <h3 id="titulo-form-conta" class="text-sm font-semibold text-emerald-400">Nova Conta / Cartão</h3>
-          <button id="btn-cancelar-conta" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
-            Edição</button>
-        </div>
+      <!-- Métricas Sem Gráfico: Margem de Manobra e Velocímetro -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        <form id="form-conta" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <input type="hidden" id="conta-id" value="">
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Nome da Conta / Cartão</label>
-            <input type="text" id="conta-nome" required placeholder="Ex: Bradesco, Nubank, Itaú"
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+        <!-- Bloco 1: Margem de Manobra (Rígidos vs Flexíveis) -->
+        <div class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              🛡️ Margem de Manobra
+            </span>
+            <span id="badge-diagnostico-margem"
+              class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Analisando...
+            </span>
           </div>
 
+          <!-- Barra Bi-Colorida de Progresso -->
+          <div class="w-full bg-slate-800 rounded-full h-3 flex overflow-hidden">
+            <div id="barra-rigido" class="bg-rose-500/80 h-full transition-all duration-500" style="width: 50%"
+              title="Gastos Rígidos / Essenciais"></div>
+            <div id="barra-flexivel" class="bg-sky-400/80 h-full transition-all duration-500" style="width: 50%"
+              title="Gastos Flexíveis / Estilo de Vida"></div>
+          </div>
+
+          <div class="flex justify-between text-xs font-mono pt-1">
+            <span id="txt-valor-rigido" class="text-rose-400 font-semibold">📌 Rígidos: R$ 0,00 (0%)</span>
+            <span id="txt-valor-flexivel" class="text-sky-400 font-semibold">🎈 Flexíveis: R$ 0,00 (0%)</span>
+          </div>
+
+          <p id="txt-raiox-margem" class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 italic">
+            Carregando estrutura de compromissos do lar...
+          </p>
+        </div>
+
+        <!-- Bloco 2: Velocímetro de Consumo Flexível (Pacing) -->
+        <div class="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+              ⚡ Velocímetro Orçamentário (Gastos Flexíveis)
+            </span>
+            <span id="badge-status-pacing"
+              class="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">
+              No Ritmo
+            </span>
+          </div>
+
+          <!-- Trilhos Duplos de Comparação -->
+          <div class="space-y-2 text-xs">
+            <div>
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>Mês decorrido (Tempo)</span>
+                <span id="txt-pacing-tempo" class="font-mono text-slate-300">0% (Dia 0/30)</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div id="barra-pacing-tempo" class="bg-slate-500 h-2 rounded-full transition-all duration-500"
+                  style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                <span>Consumo de Envelopes Flexíveis</span>
+                <span id="txt-pacing-consumo" class="font-mono text-sky-400 font-bold">R$ 0,00 / R$ 0,00 (0%)</span>
+              </div>
+              <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                <div id="barra-pacing-consumo" class="bg-sky-400 h-2 rounded-full transition-all duration-500"
+                  style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <p id="txt-status-pacing-mensagem"
+            class="text-[11px] text-slate-400 border-t border-slate-800/80 pt-2 italic">
+            Calculando ritmo diário de consumo...
+          </p>
+        </div>
+
+      </div>
+
+      <!-- Gráfico de Rosca por Macro-Grupo + Comprometimento da Renda -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center border-t border-slate-800/80 pt-4">
+        <div class="relative w-full h-60 flex justify-center">
+          <canvas id="grafico-macro-grupos"></canvas>
+        </div>
+        <div class="space-y-3 text-xs text-slate-300">
+          <p class="font-medium text-slate-200">Resumo de Comprometimento da Renda:</p>
+          <div id="resumo-executivo-texto" class="space-y-1.5 bg-slate-950/50 border border-slate-800 p-3 rounded-lg">
+            <p class="text-slate-400">Carregando métricas executivas...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Análise Orçado vs. Realizado (Barras Duplas) -->
+      <div class="border-t border-slate-800/80 pt-4 space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📊 Orçado (Teto) vs. Realizado (Gasto)
+          por
+          Macro-Grupo</h3>
+        <div class="relative w-full h-64">
+          <canvas id="grafico-orcado-vs-realizado"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfico de Evolução Temporal (Linhas) -->
+      <div class="border-t border-slate-800/80 pt-4 space-y-2">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">📈 Evolução Histórica de Gastos no Ano
+        </h3>
+        <div class="relative w-full h-56">
+          <canvas id="grafico-historico-mensal"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Matriz Orçamentária / Envelopes Virtuais Agrupados -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold text-slate-200">Envelopes Orçamentários</h2>
+          <p class="text-xs text-slate-400">Organizados por Macro-Grupos (Nível 1)</p>
+        </div>
+        <button id="btn-toggle-gerenciar-cat" type="button"
+          class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-emerald-400 rounded-lg transition-all flex items-center gap-1">
+          <span>⚙️</span> Configurar Tetos / Envelopes
+        </button>
+      </div>
+
+      <!-- Painel Expansível de Gerenciamento -->
+      <div id="painel-gerenciar-categorias"
+        class="painel-expansivel bg-slate-950/90 border border-slate-700/80 rounded-lg p-4 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+          <h3 id="titulo-form-cat" class="text-sm font-semibold text-emerald-400">Novo Envelope / Categoria</h3>
+          <div class="flex items-center gap-3">
+            <button id="btn-restaurar-padroes" type="button"
+              class="text-xs text-amber-400 hover:text-amber-300 font-medium hover:underline flex items-center gap-1">
+              ⚡ Restaurar Padrões Casita
+            </button>
+            <button id="btn-cancelar-cat" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
+              Edição</button>
+          </div>
+        </div>
+
+        <form id="form-categoria" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="cat-id" value="">
+
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Tipo</label>
-            <select id="conta-tipo"
+            <label class="block text-xs text-slate-400 mb-1">Macro-Grupo (Nível 1)</label>
+            <select id="cat-macro"
               class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
-              <option value="CORRENTE">🏦 Conta Corrente / PIX / Débito</option>
-              <option value="CARTAO">💳 Cartão de Crédito</option>
+              <option value="Fé">Fé</option>
+              <option value="Habitação & Custos Fixos">Habitação & Custos Fixos</option>
+              <option value="Alimentação & Social">Alimentação & Social</option>
+              <option value="Transporte">Transporte</option>
+              <option value="Saúde & Bem-Estar">Saúde & Bem-Estar</option>
+              <option value="Nossos Meninos (Pets)">Nossos Meninos (Pets)</option>
+              <option value="Estilo de Vida & Assinaturas">Estilo de Vida & Assinaturas</option>
+              <option value="Compromissos & Acordos">Compromissos & Acordos</option>
+              <option value="Reservas & Outros">Reservas & Outros</option>
             </select>
           </div>
 
-          <div class="sm:col-span-2 lg:col-span-3">
-            <button type="submit" id="btn-salvar-conta"
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Nome do Envelope (Nível 2)</label>
+            <input type="text" id="cat-nome" required placeholder="Ex: Farmácia, Pet, Lazer"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Teto Mensal / Meta (R$)</label>
+            <input type="text" inputmode="numeric" id="cat-teto" required placeholder="R$ 0,00"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+          </div>
+
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Natureza do Compromisso</label>
+            <select id="cat-rigidez"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+              <option value="RIGIDO">📌 Rígido / Essencial</option>
+              <option value="FLEXIVEL">🎈 Flexível / Estilo de Vida</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-4 flex items-center gap-2 pt-1 border-t border-slate-800/80">
+            <input type="checkbox" id="cat-acumulativa" class="w-4 h-4 accent-emerald-500 rounded cursor-pointer">
+            <label for="cat-acumulativa"
+              class="text-xs text-amber-300/90 font-medium cursor-pointer select-none flex items-center gap-1">
+              🧰 Caixinha Acumulativa / Reserva (Sinking Fund — o progresso não zera na virada do mês)
+            </label>
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-4">
+            <button type="submit" id="btn-salvar-cat"
               class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors">
-              Salvar Conta / Cartão
+              Salvar Envelope
             </button>
           </div>
         </form>
 
         <div class="border-t border-slate-800 pt-3">
-          <p class="text-xs text-slate-400 mb-2 font-medium">Contas e Cartões Cadastrados:</p>
-          <div id="lista-gerenciador-contas" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            <p class="text-xs text-slate-500 text-center py-2">Carregando contas...</p>
+          <p class="text-xs text-slate-400 mb-2 font-medium">Envelopes Cadastrados no Banco:</p>
+          <div id="lista-gerenciador-categorias" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            <p class="text-xs text-slate-500 text-center py-2">Carregando envelopes...</p>
           </div>
         </div>
       </div>
 
-      <!-- Extrato do Mês com Filtros Avançados -->
-      <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-          <h2 class="text-lg font-semibold text-slate-200">Extrato do Mês Selecionado</h2>
-          <span id="contador-extrato" class="text-xs text-slate-400">Exibindo todos os lançamentos</span>
-        </div>
+      <!-- Lista de Envelopes Agrupados por Macro-Grupo -->
+      <div id="lista-envelopes" class="space-y-6 mt-4">
+        <p class="text-sm text-slate-500 py-2 text-center">Calculando envelopes...</p>
+      </div>
+    </section>
 
-        <!-- Barra de Filtros e Busca -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-          <input type="text" id="busca-extrato" placeholder="🔍 Buscar descrição ou categoria..."
-            class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+    <!-- Formulário de Lançamento / Edição -->
+    <section id="secao-formulario"
+      class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 id="titulo-form" class="text-lg font-semibold text-slate-200">Novo Lançamento</h2>
+        <button id="btn-cancelar-edicao" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
+          Edição</button>
+      </div>
+      <form id="form-transacao" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <input type="hidden" id="transacao-id" value="">
 
-          <select id="filtro-usuario-extrato"
-            class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-            <option value="TODOS">👥 Lançado por: Todos</option>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Lançado por</label>
+          <select id="usuario"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
             <option value="Abner">Abner</option>
             <option value="Lucélia">Lucélia</option>
           </select>
+        </div>
 
-          <select id="filtro-conta-extrato"
-            class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-            <option value="TODAS">💳 Conta/Forma: Todas</option>
-            <option value="ACC_BRADESCO_ABNER">Conta Corrente / PIX</option>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tipo</label>
+          <select id="tipo"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="SAIDA">Saída (-)</option>
+            <option value="ENTRADA">Entrada (+)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Valor (R$)</label>
+          <input type="text" inputmode="numeric" id="valor" required placeholder="R$ 0,00"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Data</label>
+          <input type="date" id="data" required
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500"
+            style="color-scheme: dark;">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Descrição</label>
+          <input type="text" id="descricao" required placeholder="Ex: Mercado, Ração, Combustível"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Categoria / Envelope</label>
+          <select id="categoria"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="">Carregando categorias...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Forma / Conta</label>
+          <select id="conta"
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="ACC_BRADESCO_ABNER">Conta Corrente / PIX / Débito</option>
             <option value="ACC_CARTAO_CREDITO">Cartão de Crédito</option>
           </select>
-
-          <select id="filtro-tipo-extrato"
-            class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-            <option value="TODOS">↕️ Tipo: Todos</option>
-            <option value="SAIDA">Saídas (-)</option>
-            <option value="ENTRADA">Entradas (+)</option>
-          </select>
         </div>
 
-        <div id="lista-transacoes" class="space-y-2 pt-2">
-          <p class="text-sm text-slate-500 py-4 text-center">Carregando lançamentos...</p>
-        </div>
-      </section>
-
-    </div>
-
-    <!-- Modal / Assistente de Fechamento de Mês & Aporte de Sobra (Versão Multi-Destino) -->
-    <div id="modal-fechamento-mes"
-      class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-      <div
-        class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
-
-        <!-- Cabeçalho Modal -->
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div>
-            <h3 class="text-base font-bold text-amber-400 flex items-center gap-2">
-              🔒 Fechamento de Mês (Orçamento Base Zero)
-            </h3>
-            <p class="text-xs text-slate-400">Distribua a sobra de caixa até zerar o saldo pendente</p>
-          </div>
-          <button id="btn-fechar-modal-fechamento" type="button"
-            class="text-slate-400 hover:text-slate-200 text-lg font-bold">✕</button>
-        </div>
-
-        <!-- Alerta de Fechamento Já Existente com Botão de Desfazer -->
-        <div id="box-alerta-ja-fechado"
-          class="hidden p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl space-y-2">
-          <p class="text-xs font-semibold text-amber-300">⚠️ Este mês já possui um fechamento registrado!</p>
-          <p class="text-[11px] text-slate-300">Para alterar as alocações de sobra, desfaça o fechamento anterior
-            primeiro.</p>
-          <button id="btn-desfazer-fechamento" type="button"
-            class="w-full py-2 bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-200 text-xs font-semibold rounded-lg transition-all shadow">
-            🗑️ Desfazer Fechamento Anterior & Reabrir Mês
+        <div class="md:col-span-2 lg:col-span-3">
+          <button type="submit" id="btn-salvar"
+            class="w-full py-3 px-4 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-medium text-white transition-all shadow-lg mt-2">
+            Registrar Lançamento
           </button>
         </div>
 
-        <!-- Alerta Fatura Pendente -->
-        <div id="box-alerta-fatura-pendente"
-          class="hidden p-2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px]">
-          ⚠️ Existe fatura do cartão pendente de quitação neste mês. Recomendamos quitar a fatura antes do fechamento.
+      </form>
+    </section>
+
+    <!-- Painel Expansível de Gerenciamento de Contas & Cartões -->
+    <div class="flex justify-end mb-2">
+      <button id="btn-toggle-gerenciar-contas" type="button"
+        class="px-3 py-1.5 bg-slate-950 border border-slate-700 hover:border-emerald-500 text-xs font-medium text-emerald-400 rounded-lg transition-all flex items-center gap-1">
+        <span>💳</span> Gerenciar Contas & Cartões
+      </button>
+    </div>
+
+    <div id="painel-gerenciar-contas"
+      class="painel-expansivel bg-slate-950/90 border border-slate-700/80 rounded-lg p-4 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+        <h3 id="titulo-form-conta" class="text-sm font-semibold text-emerald-400">Nova Conta / Cartão</h3>
+        <button id="btn-cancelar-conta" type="button" class="hidden text-xs text-rose-400 hover:underline">Cancelar
+          Edição</button>
+      </div>
+
+      <form id="form-conta" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <input type="hidden" id="conta-id" value="">
+
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Nome da Conta / Cartão</label>
+          <input type="text" id="conta-nome" required placeholder="Ex: Bradesco, Nubank, Itaú"
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
         </div>
 
-        <!-- Placar de Balanço do Fechamento -->
-        <div
-          class="grid grid-cols-3 gap-2 bg-slate-950/60 border border-slate-800 p-3 rounded-xl text-center font-mono">
-          <div>
-            <span class="block text-[10px] text-slate-400 uppercase">Sobra do Mês</span>
-            <span id="txt-fechamento-sobra-total" class="text-xs font-bold text-sky-400">R$ 0,00</span>
-          </div>
-          <div>
-            <span class="block text-[10px] text-slate-400 uppercase">Alocado</span>
-            <span id="txt-fechamento-alocado" class="text-xs font-bold text-emerald-400">R$ 0,00</span>
-          </div>
-          <div>
-            <span class="block text-[10px] text-slate-400 uppercase">Pendente</span>
-            <span id="txt-fechamento-pendente" class="text-xs font-bold text-amber-400">R$ 0,00</span>
-          </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">Tipo</label>
+          <select id="conta-tipo"
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+            <option value="CORRENTE">🏦 Conta Corrente / PIX / Débito</option>
+            <option value="CARTAO">💳 Cartão de Crédito</option>
+          </select>
         </div>
 
-        <!-- Formulário de Alocações Múltiplas -->
-        <form id="form-fechamento-mes" class="space-y-4">
+        <div class="sm:col-span-2 lg:col-span-3">
+          <button type="submit" id="btn-salvar-conta"
+            class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white rounded-lg transition-colors">
+            Salvar Conta / Cartão
+          </button>
+        </div>
+      </form>
 
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="text-xs font-semibold text-slate-300">Destinos da Sobra:</label>
-              <button id="btn-add-destino-fechamento" type="button"
-                class="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1">
-                ➕ Adicionar Destino
-              </button>
-            </div>
-
-            <!-- Contêiner Dinâmico de Linhas de Alocação -->
-            <div id="container-linhas-alocacao" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-              <!-- Linhas inseridas via JS -->
-            </div>
-          </div>
-
-          <div class="flex items-center gap-2 pt-2 border-t border-slate-800 justify-end">
-            <button id="btn-cancelar-fechamento" type="button"
-              class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium rounded-lg transition-colors">
-              Cancelar
-            </button>
-            <button type="submit" id="btn-confirmar-fechamento"
-              class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-xs text-white font-bold rounded-lg transition-colors shadow disabled:opacity-40 disabled:cursor-not-allowed">
-              Confirmar Fechamento
-            </button>
-          </div>
-        </form>
-
+      <div class="border-t border-slate-800 pt-3">
+        <p class="text-xs text-slate-400 mb-2 font-medium">Contas e Cartões Cadastrados:</p>
+        <div id="lista-gerenciador-contas" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+          <p class="text-xs text-slate-500 text-center py-2">Carregando contas...</p>
+        </div>
       </div>
     </div>
 
-    <script type="module" src="js/app.js"></script>
+    <!-- Extrato do Mês com Filtros Avançados -->
+    <section class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-6 shadow-xl space-y-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+        <h2 class="text-lg font-semibold text-slate-200">Extrato do Mês Selecionado</h2>
+        <span id="contador-extrato" class="text-xs text-slate-400">Exibindo todos os lançamentos</span>
+      </div>
+
+      <!-- Barra de Filtros e Busca -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <input type="text" id="busca-extrato" placeholder="🔍 Buscar descrição ou categoria..."
+          class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+
+        <select id="filtro-usuario-extrato"
+          class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODOS">👥 Lançado por: Todos</option>
+          <option value="Abner">Abner</option>
+          <option value="Lucélia">Lucélia</option>
+        </select>
+
+        <select id="filtro-conta-extrato"
+          class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODAS">💳 Conta/Forma: Todas</option>
+          <option value="ACC_BRADESCO_ABNER">Conta Corrente / PIX</option>
+          <option value="ACC_CARTAO_CREDITO">Cartão de Crédito</option>
+        </select>
+
+        <select id="filtro-tipo-extrato"
+          class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+          <option value="TODOS">↕️ Tipo: Todos</option>
+          <option value="SAIDA">Saídas (-)</option>
+          <option value="ENTRADA">Entradas (+)</option>
+        </select>
+      </div>
+
+      <div id="lista-transacoes" class="space-y-2 pt-2">
+        <p class="text-sm text-slate-500 py-4 text-center">Carregando lançamentos...</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Modal / Assistente de Fechamento de Mês & Aporte de Sobra (Versão Multi-Destino) -->
+  <div id="modal-fechamento-mes"
+    class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div
+      class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+
+      <!-- Cabeçalho Modal -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-amber-400 flex items-center gap-2">
+            🔒 Fechamento de Mês (Orçamento Base Zero)
+          </h3>
+          <p class="text-xs text-slate-400">Distribua a sobra de caixa até zerar o saldo pendente</p>
+        </div>
+        <button id="btn-fechar-modal-fechamento" type="button"
+          class="text-slate-400 hover:text-slate-200 text-lg font-bold">✕</button>
+      </div>
+
+      <!-- Alerta de Fechamento Já Existente com Botão de Desfazer -->
+      <div id="box-alerta-ja-fechado"
+        class="hidden p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl space-y-2">
+        <p class="text-xs font-semibold text-amber-300">⚠️ Este mês já possui um fechamento registrado!</p>
+        <p class="text-[11px] text-slate-300">Para alterar as alocações de sobra, desfaça o fechamento anterior
+          primeiro.</p>
+        <button id="btn-desfazer-fechamento" type="button"
+          class="w-full py-2 bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-200 text-xs font-semibold rounded-lg transition-all shadow">
+          🗑️ Desfazer Fechamento Anterior & Reabrir Mês
+        </button>
+      </div>
+
+      <!-- Alerta Fatura Pendente -->
+      <div id="box-alerta-fatura-pendente"
+        class="hidden p-2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px]">
+        ⚠️ Existe fatura do cartão pendente de quitação neste mês. Recomendamos quitar a fatura antes do fechamento.
+      </div>
+
+      <!-- Placar de Balanço do Fechamento -->
+      <div class="grid grid-cols-3 gap-2 bg-slate-950/60 border border-slate-800 p-3 rounded-xl text-center font-mono">
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Sobra do Mês</span>
+          <span id="txt-fechamento-sobra-total" class="text-xs font-bold text-sky-400">R$ 0,00</span>
+        </div>
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Alocado</span>
+          <span id="txt-fechamento-alocado" class="text-xs font-bold text-emerald-400">R$ 0,00</span>
+        </div>
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Pendente</span>
+          <span id="txt-fechamento-pendente" class="text-xs font-bold text-amber-400">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Formulário de Alocações Múltiplas -->
+      <form id="form-fechamento-mes" class="space-y-4">
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold text-slate-300">Destinos da Sobra:</label>
+            <button id="btn-add-destino-fechamento" type="button"
+              class="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1">
+              ➕ Adicionar Destino
+            </button>
+          </div>
+
+          <!-- Contêiner Dinâmico de Linhas de Alocação -->
+          <div id="container-linhas-alocacao" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <!-- Linhas inseridas via JS -->
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-2 border-t border-slate-800 justify-end">
+          <button id="btn-cancelar-fechamento" type="button"
+            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium rounded-lg transition-colors">
+            Cancelar
+          </button>
+          <button type="submit" id="btn-confirmar-fechamento"
+            class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-xs text-white font-bold rounded-lg transition-colors shadow disabled:opacity-40 disabled:cursor-not-allowed">
+            Confirmar Fechamento
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
 </body>
 
 </html>
@@ -774,8 +768,8 @@ let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
 // 📌 [Metadados de Build e Versão de Desenvolvimento]
-const APP_VERSION = "v2.6.6";
-const APP_BUILD_TIME = "21/09/2026 - 18:05";
+const APP_VERSION = "v2.6.7";
+const APP_BUILD_TIME = "21/09/2026 - 18:18";
 
 const elVersao = document.getElementById('app-version-display');
 if (elVersao) elVersao.textContent = APP_VERSION;
@@ -1721,16 +1715,18 @@ import { formatarMoeda } from "./formatters.js";
 
 // 📌 [Gera e faz o download do Relatório Executivo Mensal em PDF]
 export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, totalFatura, saldoLivre, itensExibicao, envelopesConfig) {
+  // Salva a posição de scroll atual e rola temporariamente para o topo para captura perfeita do html2canvas
+  const scrollYOriginal = window.scrollY;
+  window.scrollTo(0, 0);
+
   const container = document.createElement('div');
   container.id = "relatorio-pdf-temp";
   
-  // Posicionamento no plano ativo com opacidade total (1) e z-index negativo para renderização perfeita no html2canvas sem poluir a tela
-  container.style.position = "fixed";
+  // Posicionamento no topo com z-index positivo no topo da pilha (99999) para renderização completa
+  container.style.position = "absolute";
   container.style.left = "0";
   container.style.top = "0";
-  container.style.zIndex = "-9999";
-  container.style.opacity = "1";
-  container.style.pointerEvents = "none";
+  container.style.zIndex = "99999";
   container.style.width = "750px";
   container.style.backgroundColor = "#ffffff";
   container.style.color = "#0f172a";
@@ -1752,7 +1748,7 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
       </tr>
     </table>
 
-    <!-- Resumo de Saldos (Tabela para compatibilidade total com html2canvas) -->
+    <!-- Resumo de Saldos -->
     <table style="width: 100%; margin-bottom: 20px; border-spacing: 6px; border-collapse: separate;">
       <tr>
         <td style="width: 25%; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; vertical-align: top;">
@@ -1839,6 +1835,8 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
     if (document.body.contains(container)) {
       document.body.removeChild(container);
     }
+    // Restaura o scroll original da tela
+    window.scrollTo(0, scrollYOriginal);
   }
 }
 === FIM_ARQUIVO: js/core/reports.js ===
@@ -2390,7 +2388,7 @@ export { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, quer
 
 
 === INICIO_ARQUIVO: sw.js ===
-const CACHE_NAME = 'dimdim-v2.6.6';
+const CACHE_NAME = 'dimdim-v2.6.7';
 
 const ASSETS_TO_CACHE = [
   './',

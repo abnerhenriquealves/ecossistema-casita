@@ -1,6 +1,6 @@
 import re
 import sys
-import datetime
+from datetime import datetime, timezone, timedelta
 import subprocess
 
 def executar_build():
@@ -21,8 +21,9 @@ def executar_build():
     novo_patch = patch + 1
     nova_versao = f"v{major}.{minor}.{novo_patch}"
 
-    # 3. Pega a data e hora exatas do sistema
-    agora = datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")
+    # 3. Pega a data e hora exatas fixando o fuso horário de São Paulo (UTC-3)
+    fuso_sp = timezone(timedelta(hours=-3))
+    agora = datetime.now(fuso_sp).strftime("%d/%m/%Y - %H:%M")
 
     # 4. Atualiza as constantes no js/app.js
     conteudo_app = re.sub(
