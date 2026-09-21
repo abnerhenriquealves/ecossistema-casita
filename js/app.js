@@ -115,7 +115,7 @@ function inicializarEscutadoresDeEventos() {
 }
 
 // Exportar Relatório PDF
-function executarExportacaoPDF() {
+async function executarExportacaoPDF() {
   if (!snapshotTransactions) {
     alert("Aguarde o carregamento dos dados para gerar o relatório.");
     return;
@@ -127,7 +127,10 @@ function executarExportacaoPDF() {
 
   snapshotTransactions.forEach(docSnap => {
     const item = docSnap.data();
-    if (!item.date || item.date.substring(0, 7) !== mesSel) return;
+    if (!item.date) return;
+
+    const itemMes = item.date.substring(0, 7);
+    if (itemMes !== mesSel) return;
 
     const isSaida = item.type === "SAIDA";
     const contaObj = contasConfig[item.account_id];
@@ -145,10 +148,13 @@ function executarExportacaoPDF() {
     itensExibicao.push({ id: docSnap.id, item });
   });
 
+  // Ordena cronologicamente os lançamentos do mês
+  itensExibicao.sort((a, b) => a.item.date.localeCompare(b.item.date));
+
   const valorFaturaPendente = Math.max(0, totalFatura - totalPagtoFatura);
   const saldoLivre = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendente);
 
-  gerarRelatorioPDF(mesSel, totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivre, itensExibicao, envelopesConfig);
+  await gerarRelatorioPDF(mesSel, totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivre, itensExibicao, envelopesConfig);
 }
 
 // Modais e Auxiliares
