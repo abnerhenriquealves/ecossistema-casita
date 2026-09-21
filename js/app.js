@@ -35,8 +35,8 @@ let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
 // 📌 [Metadados de Build e Versão de Desenvolvimento]
-const APP_VERSION = "v2.6.5";
-const APP_BUILD_TIME = "21/09/2026 - 14:15";
+const APP_VERSION = "v2.6.6";
+const APP_BUILD_TIME = "21/09/2026 - 18:05";
 
 const elVersao = document.getElementById('app-version-display');
 if (elVersao) elVersao.textContent = APP_VERSION;
