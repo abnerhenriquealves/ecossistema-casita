@@ -22,6 +22,7 @@ import {
   atualizarSelectsContas,
   renderizarListaGerenciadorContas
 } from "./core/ui.js";
+import { gerarRelatorioPDF } from "./core/reports.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -108,6 +109,46 @@ function inicializarEscutadoresDeEventos() {
   if (formCategoria) formCategoria.addEventListener('submit', submeterCategoria);
   if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
   if (formConta) formConta.addEventListener('submit', submeterConta);
+
+  // Exportação em PDF
+  document.getElementById('btn-exportar-pdf')?.addEventListener('click', executarExportacaoPDF);
+}
+
+// Exportar Relatório PDF
+function executarExportacaoPDF() {
+  if (!snapshotTransactions) {
+    alert("Aguarde o carregamento dos dados para gerar o relatório.");
+    return;
+  }
+
+  const mesSel = filtroMesInput.value;
+  let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
+  const itensExibicao = [];
+
+  snapshotTransactions.forEach(docSnap => {
+    const item = docSnap.data();
+    if (!item.date || item.date.substring(0, 7) !== mesSel) return;
+
+    const isSaida = item.type === "SAIDA";
+    const contaObj = contasConfig[item.account_id];
+    const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
+    const isPagto = item.category_id === "CAT_FATURA_CARTAO";
+
+    if (isSaida) {
+      if (isCartao) totalFatura += item.amount;
+      else if (isPagto) totalPagtoFatura += item.amount;
+      else totalSaidasDiretas += item.amount;
+    } else {
+      totalEntradas += item.amount;
+    }
+
+    itensExibicao.push({ id: docSnap.id, item });
+  });
+
+  const valorFaturaPendente = Math.max(0, totalFatura - totalPagtoFatura);
+  const saldoLivre = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendente);
+
+  gerarRelatorioPDF(mesSel, totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivre, itensExibicao, envelopesConfig);
 }
 
 // Modais e Auxiliares

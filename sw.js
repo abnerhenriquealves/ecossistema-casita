@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dimdim-v2.6.2'; // 🟢 Incremente a versão
+const CACHE_NAME = 'dimdim-v2.6.3'; // 🟢 Incremente a versão
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const ASSETS_TO_CACHE = [
   './js/core/charts.js',
   './js/core/ui.js',
   './js/core/accounts.js',
+  './js/core/reports.js'
   './manifest.json'
 ];
 
