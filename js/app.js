@@ -34,6 +34,15 @@ let contasConfig = {};
 let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
+// 📌 [Metadados de Build e Versão de Desenvolvimento]
+const APP_VERSION = "v2.6.5";
+const APP_BUILD_TIME = "21/09/2026 - 14:15";
+
+const elVersao = document.getElementById('app-version-display');
+if (elVersao) elVersao.textContent = APP_VERSION;
+const elBuild = document.getElementById('app-build-date');
+if (elBuild) elBuild.textContent = APP_BUILD_TIME;
+
 // Elementos DOM
 const filtroMesInput = document.getElementById('filtro-mes');
 const formTransacao = document.getElementById('form-transacao');
@@ -66,6 +75,23 @@ function inicializarEscutadoresDeEventos() {
   // Sincronização em Lote com Google Sheets
   document.getElementById('btn-sincronizar-sheets-lote')?.addEventListener('click', () => {
     sincronizarTudoGoogleSheets(snapshotTransactions);
+  });
+
+  // 📌 Botão Forçar Atualização (DEV) - Limpa Caches PWA & Service Worker
+  document.getElementById('btn-forcar-atualizacao')?.addEventListener('click', async () => {
+    if (confirm("Deseja forçar a limpeza de cache do navegador e recarregar a versão mais recente?")) {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+        }
+      }
+      window.location.reload(true);
+    }
   });
 
   // Botão Adicionar Destino do Modal de Fechamento (Registrado uma única vez)
