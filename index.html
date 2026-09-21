@@ -518,92 +518,73 @@
 
   </div>
 
-  <!-- Modal / Assistente de Fechamento de Mês & Aporte de Sobra -->
+  <!-- Modal / Assistente de Fechamento de Mês & Aporte de Sobra (Versão Multi-Destino) -->
   <div id="modal-fechamento-mes"
     class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div
+      class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
 
+      <!-- Cabeçalho Modal -->
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <h3 class="text-base font-bold text-amber-400 flex items-center gap-2">
-            🔒 Fechamento de Mês Orçamentário
+            🔒 Fechamento de Mês (Orçamento Base Zero)
           </h3>
-          <p class="text-xs text-slate-400">Consolidação de caixa e destinação de sobra</p>
+          <p class="text-xs text-slate-400">Distribua a sobra de caixa até zerar o saldo pendente</p>
         </div>
-
         <button id="btn-fechar-modal-fechamento" type="button"
           class="text-slate-400 hover:text-slate-200 text-lg font-bold">✕</button>
       </div>
 
-      <div class="space-y-3 bg-slate-950/60 border border-slate-800 p-4 rounded-xl text-xs">
-        <div class="flex justify-between items-center text-slate-300">
-          <span>Mês Selecionado:</span>
-          <span id="txt-fechamento-mes-ref" class="font-bold text-emerald-400 font-mono text-sm">--/----</span>
-        </div>
-        <div class="flex justify-between items-center text-slate-300">
-          <span>Saldo Livre Remanescente em Conta:</span>
-          <span id="txt-fechamento-saldo-sobra" class="font-bold text-sky-400 font-mono text-sm">R$ 0,00</span>
-        </div>
-        
-        <!-- 🟢 Alerta de Fechamento Já Existente -->
-        <div id="box-alerta-ja-fechado"
-          class="hidden p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl space-y-2">
-          <p class="text-xs font-semibold text-amber-300">⚠️ Este mês já possui um fechamento registrado!</p>
-          <p class="text-[11px] text-slate-300">Para alterar o método de destinação da sobra, desfaza o fechamento
-            anterior primeiro.</p>
-          <button id="btn-desfazer-fechamento" type="button"
-            class="w-full py-1.5 bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-200 text-xs font-semibold rounded-lg transition-all">
-            🗑️ Desfazer Fechamento Anterior
-          </button>
-        </div>
+      <!-- Alerta de Fechamento Já Existente com Botão de Desfazer -->
+      <div id="box-alerta-ja-fechado"
+        class="hidden p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl space-y-2">
+        <p class="text-xs font-semibold text-amber-300">⚠️ Este mês já possui um fechamento registrado!</p>
+        <p class="text-[11px] text-slate-300">Para alterar as alocações de sobra, desfaça o fechamento anterior primeiro.</p>
+        <button id="btn-desfazer-fechamento" type="button"
+          class="w-full py-2 bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-200 text-xs font-semibold rounded-lg transition-all shadow">
+          🗑️ Desfazer Fechamento Anterior & Reabrir Mês
+        </button>
+      </div>
 
-        <div id="box-alerta-fatura-pendente"
-          class="hidden p-2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px]">
-          ⚠️ Existe fatura do cartão pendente de quitação neste mês. Recomendamos quitar a fatura antes do fechamento.
+      <!-- Alerta Fatura Pendente -->
+      <div id="box-alerta-fatura-pendente"
+        class="hidden p-2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px]">
+        ⚠️ Existe fatura do cartão pendente de quitação neste mês. Recomendamos quitar a fatura antes do fechamento.
+      </div>
+
+      <!-- Placar de Balanço do Fechamento -->
+      <div class="grid grid-cols-3 gap-2 bg-slate-950/60 border border-slate-800 p-3 rounded-xl text-center font-mono">
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Sobra do Mês</span>
+          <span id="txt-fechamento-sobra-total" class="text-xs font-bold text-sky-400">R$ 0,00</span>
+        </div>
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Alocado</span>
+          <span id="txt-fechamento-alocado" class="text-xs font-bold text-emerald-400">R$ 0,00</span>
+        </div>
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Pendente</span>
+          <span id="txt-fechamento-pendente" class="text-xs font-bold text-amber-400">R$ 0,00</span>
         </div>
       </div>
 
+      <!-- Formulário de Alocações Múltiplas -->
       <form id="form-fechamento-mes" class="space-y-4">
 
-        <!-- 🟢 Seleção do Destino da Sobra -->
         <div class="space-y-2">
-          <label class="block text-xs font-semibold text-slate-300">Como deseja destinar a sobra de caixa?</label>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <label
-              class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer hover:border-amber-500/60 transition-all select-none">
-              <input type="radio" name="tipo-fechamento" value="CAIXINHA" checked class="accent-amber-500">
-              <span class="text-xs text-slate-200 font-medium">🧰 Aportar em Caixinha</span>
-            </label>
-            <label
-              class="flex items-center gap-2 p-2.5 bg-slate-950 border border-slate-700 rounded-lg cursor-pointer hover:border-amber-500/60 transition-all select-none">
-              <input type="radio" name="tipo-fechamento" value="ROLLOVER" class="accent-amber-500">
-              <span class="text-xs text-slate-200 font-medium">🔄 Rollover p/ Próx. Mês</span>
-            </label>
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold text-slate-300">Destinos da Sobra:</label>
+            <button id="btn-add-destino-fechamento" type="button"
+              class="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1">
+              ➕ Adicionar Destino
+            </button>
           </div>
-        </div>
 
-        <!-- Bloco 1: Seleção de Caixinha (Exibido apenas no modo CAIXINHA) -->
-        <div id="box-destino-caixinha" class="space-y-1">
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Caixinha / Reserva de Destino:</label>
-          <select id="select-caixinha-destino"
-            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
-            <option value="">Carregando caixinhas disponíveis...</option>
-          </select>
-          <p class="text-[11px] text-slate-400">A sobra será lançada como **SAÍDA** no último dia do mês atual.</p>
-        </div>
-
-        <!-- Bloco 2: Mensagem Informativa do Rollover (Exibido apenas no modo ROLLOVER) -->
-        <div id="box-info-rollover"
-          class="hidden p-3 bg-slate-950/80 border border-slate-800 rounded-lg text-[11px] text-slate-300 space-y-1">
-          <p class="font-semibold text-amber-400">💡 Como funciona o Rollover:</p>
-          <p class="text-slate-400">A sobra será lançada automaticamente como **ENTRADA (+)** no dia **1º do mês
-            seguinte** com a descrição *"Saldo Anterior / Rollover"*, compondo o caixa inicial.</p>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Valor do Aporte / Transporte (R$):</label>
-          <input type="text" inputmode="numeric" id="input-valor-aporte-sobra" required placeholder="R$ 0,00"
-            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm font-mono text-emerald-400 font-bold focus:outline-none focus:border-amber-500">
+          <!-- Contêiner Dinâmico de Linhas de Alocação -->
+          <div id="container-linhas-alocacao" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <!-- Linhas inseridas via JS -->
+          </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2 border-t border-slate-800 justify-end">
@@ -612,11 +593,12 @@
             Cancelar
           </button>
           <button type="submit" id="btn-confirmar-fechamento"
-            class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-xs text-white font-bold rounded-lg transition-colors shadow">
+            class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-xs text-white font-bold rounded-lg transition-colors shadow disabled:opacity-40 disabled:cursor-not-allowed">
             Confirmar Fechamento
           </button>
         </div>
       </form>
+
     </div>
   </div>
 

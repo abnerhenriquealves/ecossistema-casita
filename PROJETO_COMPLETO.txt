@@ -546,49 +546,71 @@ input[type="month"]::-webkit-calendar-picker-indicator {
   <!-- Modal / Assistente de Fechamento de Mês & Aporte de Sobra -->
   <div id="modal-fechamento-mes"
     class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl">
+    <div
+      class="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+
+      <!-- Cabeçalho Modal -->
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
           <h3 class="text-base font-bold text-amber-400 flex items-center gap-2">
-            🔒 Fechamento de Mês Orçamentário
+            🔒 Fechamento de Mês (Orçamento Base Zero)
           </h3>
-          <p class="text-xs text-slate-400">Consolidação de caixa e destinação de sobra</p>
+          <p class="text-xs text-slate-400">Distribua a sobra de caixa até zerar o saldo pendente</p>
         </div>
         <button id="btn-fechar-modal-fechamento" type="button"
           class="text-slate-400 hover:text-slate-200 text-lg font-bold">✕</button>
       </div>
 
-      <div class="space-y-3 bg-slate-950/60 border border-slate-800 p-4 rounded-xl text-xs">
-        <div class="flex justify-between items-center text-slate-300">
-          <span>Mês Selecionado:</span>
-          <span id="txt-fechamento-mes-ref" class="font-bold text-emerald-400 font-mono text-sm">--/----</span>
+      <!-- 🟢 Alerta de Fechamento Já Existente com Botão de Desfazer -->
+      <div id="box-alerta-ja-fechado"
+        class="hidden p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl space-y-2">
+        <p class="text-xs font-semibold text-amber-300">⚠️ Este mês já possui um fechamento registrado!</p>
+        <p class="text-[11px] text-slate-300">Para alterar as alocações de sobra, desfaça o fechamento anterior
+          primeiro.</p>
+        <button id="btn-desfazer-fechamento" type="button"
+          class="w-full py-2 bg-rose-600/30 hover:bg-rose-600/50 border border-rose-500/40 text-rose-200 text-xs font-semibold rounded-lg transition-all shadow">
+          🗑️ Desfazer Fechamento Anterior & Reabrir Mês
+        </button>
+      </div>
+
+      <!-- Alerta Fatura Pendente -->
+      <div id="box-alerta-fatura-pendente"
+        class="hidden p-2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px]">
+        ⚠️ Existe fatura do cartão pendente de quitação neste mês. Recomendamos quitar a fatura antes do fechamento.
+      </div>
+
+      <!-- Placar de Balanço do Fechamento -->
+      <div class="grid grid-cols-3 gap-2 bg-slate-950/60 border border-slate-800 p-3 rounded-xl text-center font-mono">
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Sobra do Mês</span>
+          <span id="txt-fechamento-sobra-total" class="text-xs font-bold text-sky-400">R$ 0,00</span>
         </div>
-        <div class="flex justify-between items-center text-slate-300">
-          <span>Saldo Livre Remanescente em Conta:</span>
-          <span id="txt-fechamento-saldo-sobra" class="font-bold text-sky-400 font-mono text-sm">R$ 0,00</span>
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Alocado</span>
+          <span id="txt-fechamento-alocado" class="text-xs font-bold text-emerald-400">R$ 0,00</span>
         </div>
-        <div id="box-alerta-fatura-pendente"
-          class="hidden p-2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px]">
-          ⚠️ Existe fatura do cartão pendente de quitação neste mês. Recomendamos quitar a fatura antes do fechamento.
+        <div>
+          <span class="block text-[10px] text-slate-400 uppercase">Pendente</span>
+          <span id="txt-fechamento-pendente" class="text-xs font-bold text-amber-400">R$ 0,00</span>
         </div>
       </div>
 
+      <!-- Formulário de Alocações Múltiplas -->
       <form id="form-fechamento-mes" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Destinar Sobra de Caixa Para (Caixinha /
-            Reserva):</label>
-          <select id="select-caixinha-destino" required
-            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm text-slate-200 focus:outline-none focus:border-amber-500">
-            <option value="">Carregando caixinhas disponíveis...</option>
-          </select>
-          <p class="text-[11px] text-slate-400 mt-1">A sobra será transferida para esta caixinha e gravada no Firestore
-            + Google Sheets.</p>
-        </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Valor do Aporte (R$):</label>
-          <input type="text" inputmode="numeric" id="input-valor-aporte-sobra" required placeholder="R$ 0,00"
-            class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-sm font-mono text-emerald-400 font-bold focus:outline-none focus:border-amber-500">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold text-slate-300">Destinos da Sobra:</label>
+            <button id="btn-add-destino-fechamento" type="button"
+              class="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1">
+              ➕ Adicionar Destino
+            </button>
+          </div>
+
+          <!-- Contêiner Dinâmico de Linhas de Alocação -->
+          <div id="container-linhas-alocacao" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <!-- Linhas inseridas via JS -->
+          </div>
         </div>
 
         <div class="flex items-center gap-2 pt-2 border-t border-slate-800 justify-end">
@@ -597,11 +619,12 @@ input[type="month"]::-webkit-calendar-picker-indicator {
             Cancelar
           </button>
           <button type="submit" id="btn-confirmar-fechamento"
-            class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-xs text-white font-bold rounded-lg transition-colors shadow">
-            Confirmar Fechamento & Aporte
+            class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-xs text-white font-bold rounded-lg transition-colors shadow disabled:opacity-40 disabled:cursor-not-allowed">
+            Confirmar Fechamento
           </button>
         </div>
       </form>
+
     </div>
   </div>
 
@@ -616,14 +639,27 @@ input[type="month"]::-webkit-calendar-picker-indicator {
 import { db, collection, onSnapshot, query, orderBy } from "./firebase-config.js";
 import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirValorMascara } from "./core/formatters.js";
 import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
-import { salvarTransacao, removerTransacao, processarFechamentoMes } from "./core/transactions.js";
+import {
+  salvarTransacao,
+  removerTransacao,
+  sincronizarTudoGoogleSheets,
+  obterFechamentosExistentes,
+  removerFechamentoAnterior,
+  processarFechamentoMultiplosDestinos
+} from "./core/transactions.js";
 import { restaurarCategoriasPadrao, salvarCategoria, removerCategoria, agruparPorMacroGrupo } from "./core/envelopes.js";
-import { restaurarContasPadrao } from "./core/accounts.js";
+import { restaurarContasPadrao, salvarConta, removerConta } from "./core/accounts.js";
 import { renderizarGraficoMacroGrupos, renderizarGraficoOrcadoVsRealizado, renderizarGraficoHistoricoMensal } from "./core/charts.js";
-import { atualizarCardsSaldo, renderizarExtrato, atualizarSelectsCategorias, renderizarEnvelopesAgrupados, atualizarMargemEManobraUI, atualizarVelocimetroPacingUI, atualizarSelectsContas } from "./core/ui.js";
-import { salvarConta, removerConta } from "./core/accounts.js";
-import { renderizarListaGerenciadorContas } from "./core/ui.js";
-import { salvarTransacao, removerTransacao, processarFechamentoMes, sincronizarTudoGoogleSheets } from "./core/transactions.js";
+import {
+  atualizarCardsSaldo,
+  renderizarExtrato,
+  atualizarSelectsCategorias,
+  renderizarEnvelopesAgrupados,
+  atualizarMargemEManobraUI,
+  atualizarVelocimetroPacingUI,
+  atualizarSelectsContas,
+  renderizarListaGerenciadorContas
+} from "./core/ui.js";
 
 const hoje = new Date();
 const anoAtual = hoje.getFullYear();
@@ -640,6 +676,7 @@ const filtroMesInput = document.getElementById('filtro-mes');
 const formTransacao = document.getElementById('form-transacao');
 const formCategoria = document.getElementById('form-categoria');
 const formFechamentoMes = document.getElementById('form-fechamento-mes');
+const formConta = document.getElementById('form-conta');
 const modalFechamentoMes = document.getElementById('modal-fechamento-mes');
 
 // Inicialização de Máscaras
@@ -647,8 +684,9 @@ aplicarMascaraMoeda(document.getElementById('valor'));
 aplicarMascaraMoeda(document.getElementById('cat-teto'));
 aplicarMascaraMoeda(document.getElementById('input-valor-aporte-sobra'));
 
-filtroMesInput.value = `${anoAtual}-${mesAtual}`;
-document.getElementById('data').value = hoje.toISOString().split('T')[0];
+if (filtroMesInput) filtroMesInput.value = `${anoAtual}-${mesAtual}`;
+const inputData = document.getElementById('data');
+if (inputData) inputData.value = hoje.toISOString().split('T')[0];
 
 // Centralizador Unificado de Escutadores de Eventos
 function inicializarEscutadoresDeEventos() {
@@ -660,10 +698,29 @@ function inicializarEscutadoresDeEventos() {
   });
   filtroMesInput?.addEventListener('change', processarDados);
 
-  document.getElementById('btn-sincronizar-sheets-lote')?.addEventListener('click', () => {
-  sincronizarTudoGoogleSheets(snapshotTransactions);
-});
+  // Alternador de Modo do Fechamento de Mês (Caixinha vs. Rollover)
+  document.querySelectorAll('input[name="tipo-fechamento"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const modo = e.target.value;
+      const boxCaixinha = document.getElementById('box-destino-caixinha');
+      const boxRollover = document.getElementById('box-info-rollover');
 
+      if (modo === 'ROLLOVER') {
+        boxCaixinha?.classList.add('hidden');
+        boxRollover?.classList.remove('hidden');
+      } else {
+        boxCaixinha?.classList.remove('hidden');
+        boxRollover?.classList.add('hidden');
+      }
+    });
+  });
+
+  // Sincronização em Lote com Google Sheets
+  document.getElementById('btn-sincronizar-sheets-lote')?.addEventListener('click', () => {
+    sincronizarTudoGoogleSheets(snapshotTransactions);
+  });
+
+  // Painel de Categorias
   document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
     document.getElementById('painel-gerenciar-categorias')?.classList.toggle('aberto');
   });
@@ -672,13 +729,20 @@ function inicializarEscutadoresDeEventos() {
   });
   document.getElementById('btn-cancelar-cat')?.addEventListener('click', resetarFormCategoria);
 
+  // Painel de Contas
+  document.getElementById('btn-toggle-gerenciar-contas')?.addEventListener('click', () => {
+    document.getElementById('painel-gerenciar-contas')?.classList.toggle('aberto');
+  });
+  document.getElementById('btn-cancelar-conta')?.addEventListener('click', resetarFormConta);
+
+  // Fechamento e Quitação
   document.getElementById('btn-abrir-fechamento-mes')?.addEventListener('click', abrirModalFechamento);
   document.getElementById('btn-fechar-modal-fechamento')?.addEventListener('click', fecharModalFechamento);
   document.getElementById('btn-cancelar-fechamento')?.addEventListener('click', fecharModalFechamento);
-
   document.getElementById('btn-quitar-fatura')?.addEventListener('click', executarQuitacaoFatura);
   document.getElementById('btn-cancelar-edicao')?.addEventListener('click', resetarFormTransacao);
 
+  // Filtros
   ['busca-extrato', 'filtro-usuario-extrato', 'filtro-conta-extrato', 'filtro-tipo-extrato'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -687,40 +751,14 @@ function inicializarEscutadoresDeEventos() {
     }
   });
 
+  // Submissão de Formulários
   if (formTransacao) formTransacao.addEventListener('submit', submeterTransacao);
   if (formCategoria) formCategoria.addEventListener('submit', submeterCategoria);
   if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
+  if (formConta) formConta.addEventListener('submit', submeterConta);
 }
 
 // Modais e Auxiliares
-function abrirModalFechamento() {
-  document.getElementById('txt-fechamento-mes-ref').textContent = filtroMesInput.value;
-  document.getElementById('txt-fechamento-saldo-sobra').textContent = formatarMoeda(saldoLivreMemoria);
-  definirValorMascara(document.getElementById('input-valor-aporte-sobra'), Math.max(0, saldoLivreMemoria));
-
-  const boxAlerta = document.getElementById('box-alerta-fatura-pendente');
-  if (boxAlerta) {
-    if (valorFaturaPendenteAtual > 0) boxAlerta.classList.remove('hidden');
-    else boxAlerta.classList.add('hidden');
-  }
-
-  const selectDestino = document.getElementById('select-caixinha-destino');
-  selectDestino.innerHTML = "";
-  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
-
-  if (caixinhas.length === 0) {
-    selectDestino.innerHTML = `<option value="">Nenhuma caixinha/reserva configurada</option>`;
-  } else {
-    caixinhas.forEach(catId => {
-      const opt = document.createElement('option');
-      opt.value = catId;
-      opt.textContent = `🧰 ${envelopesConfig[catId].nome}`;
-      selectDestino.appendChild(opt);
-    });
-  }
-
-  modalFechamentoMes.classList.remove('hidden');
-}
 
 function fecharModalFechamento() {
   modalFechamentoMes.classList.add('hidden');
@@ -752,7 +790,14 @@ function resetarFormCategoria() {
   document.getElementById('btn-cancelar-cat').classList.add('hidden');
 }
 
-// Global Window Functions
+function resetarFormConta() {
+  document.getElementById('conta-id').value = "";
+  if (formConta) formConta.reset();
+  document.getElementById('titulo-form-conta').textContent = "Nova Conta / Cartão";
+  document.getElementById('btn-cancelar-conta').classList.add('hidden');
+}
+
+// Window Functions para Ações de Tabela
 window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
   document.getElementById('transacao-id').value = id;
   document.getElementById('data').value = data;
@@ -798,7 +843,7 @@ window.excluirConta = async (id, nome) => {
   if (confirm(`Deseja excluir a conta "${nome}"?`)) await removerConta(id);
 };
 
-// Submissões
+// Handlers de Submissão
 async function submeterTransacao(e) {
   e.preventDefault();
   const idEditando = document.getElementById('transacao-id').value;
@@ -829,26 +874,154 @@ async function submeterCategoria(e) {
   });
   resetarFormCategoria();
 }
+let listaAlocacoesFechamento = [];
+
+function criarLinhaAlocacaoDOM(idLinha, valorPadrao = 0) {
+  const container = document.getElementById('container-linhas-alocacao');
+  if (!container) return;
+
+  const row = document.createElement('div');
+  row.className = "flex items-center gap-2 bg-slate-950 p-2 rounded-lg border border-slate-800 item-alocacao-row";
+  row.dataset.idLinha = idLinha;
+
+  const caixinhas = Object.keys(envelopesConfig).filter(id => envelopesConfig[id].is_sinking_fund);
+  let optionsHtml = `<option value="ROLLOVER">🔄 Rollover p/ Próx. Mês</option>`;
+  caixinhas.forEach(catId => {
+    optionsHtml += `<option value="${catId}">🧰 ${envelopesConfig[catId].nome}</option>`;
+  });
+
+  row.innerHTML = `
+    <select class="select-destino-tipo w-1/2 bg-slate-900 border border-slate-700 rounded p-1.5 text-xs text-slate-200 focus:outline-none">
+      ${optionsHtml}
+    </select>
+    <input type="text" inputmode="numeric" class="input-destino-valor w-1/2 bg-slate-900 border border-slate-700 rounded p-1.5 text-xs font-mono text-emerald-400 font-bold focus:outline-none" placeholder="R$ 0,00">
+    <button type="button" class="btn-remover-linha-alocacao text-slate-500 hover:text-rose-400 text-xs px-1">✕</button>
+  `;
+
+  container.appendChild(row);
+
+  const inputValor = row.querySelector('.input-destino-valor');
+  aplicarMascaraMoeda(inputValor);
+  if (valorPadrao > 0) definirValorMascara(inputValor, valorPadrao);
+
+  inputValor.addEventListener('input', recalcularBalançoFechamento);
+  row.querySelector('.select-destino-tipo').addEventListener('change', recalcularBalançoFechamento);
+  row.querySelector('.btn-remover-linha-alocacao').addEventListener('click', () => {
+    row.remove();
+    recalcularBalançoFechamento();
+  });
+
+  recalcularBalançoFechamento();
+}
+
+function recalcularBalançoFechamento() {
+  const sobraTotal = Math.max(0, saldoLivreMemoria);
+  let totalAlocado = 0;
+
+  document.querySelectorAll('.item-alocacao-row').forEach(row => {
+    const inputVal = row.querySelector('.input-destino-valor');
+    totalAlocado += obterValorNumericoMascara(inputVal);
+  });
+
+  const pendente = sobraTotal - totalAlocado;
+
+  document.getElementById('txt-fechamento-sobra-total').textContent = formatarMoeda(sobraTotal);
+  document.getElementById('txt-fechamento-alocado').textContent = formatarMoeda(totalAlocado);
+
+  const elPendente = document.getElementById('txt-fechamento-pendente');
+  elPendente.textContent = formatarMoeda(pendente);
+
+  const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
+
+  // Trava de Saldo Zero: Permite fechar apenas se pendente for EXATAMENTE zero e alocado > 0
+  if (Math.abs(pendente) < 0.01 && totalAlocado > 0) {
+    elPendente.className = "text-xs font-bold text-emerald-400";
+    if (btnConfirmar) btnConfirmar.disabled = false;
+  } else {
+    elPendente.className = "text-xs font-bold text-amber-400";
+    if (btnConfirmar) btnConfirmar.disabled = true;
+  }
+}
+
+function abrirModalFechamento() {
+  const mesSel = filtroMesInput.value;
+  document.getElementById('container-linhas-alocacao').innerHTML = "";
+
+  // 1. Fatura Pendente
+  const boxAlerta = document.getElementById('box-alerta-fatura-pendente');
+  if (boxAlerta) {
+    if (valorFaturaPendenteAtual > 0) boxAlerta.classList.remove('hidden');
+    else boxAlerta.classList.add('hidden');
+  }
+
+  // 2. Trava e Ação de Desfazer Fechamento Anterior
+  const fechamentosExistentes = obterFechamentosExistentes(snapshotTransactions, mesSel);
+  const boxJaFechado = document.getElementById('box-alerta-ja-fechado');
+  const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
+
+  if (fechamentosExistentes.length > 0) {
+    boxJaFechado?.classList.remove('hidden');
+    if (btnConfirmar) btnConfirmar.disabled = true;
+
+    const btnDesfazer = document.getElementById('btn-desfazer-fechamento');
+    if (btnDesfazer) {
+      btnDesfazer.onclick = async () => {
+        if (confirm(`Deseja realmente desfazer o fechamento de ${mesSel} e remover os ${fechamentosExistentes.length} lançamentos gerados?`)) {
+          await removerFechamentoAnterior(fechamentosExistentes);
+          alert("Fechamento anterior desfeito com sucesso! O mês foi reaberto.");
+          fecharModalFechamento();
+        }
+      };
+    }
+  } else {
+    boxJaFechado?.classList.add('hidden');
+    // Cria a primeira linha de alocação preenchida com o saldo livre total
+    criarLinhaAlocacaoDOM(Date.now(), Math.max(0, saldoLivreMemoria));
+  }
+
+  modalFechamentoMes.classList.remove('hidden');
+}
 
 async function submeterFechamentoMes(e) {
   e.preventDefault();
   const mesSel = filtroMesInput.value;
-  const catDestinoId = document.getElementById('select-caixinha-destino').value;
-  const valorAporte = obterValorNumericoMascara(document.getElementById('input-valor-aporte-sobra'));
-  const nomeCaixinha = envelopesConfig[catDestinoId]?.nome || "Caixinha";
   const contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value || "ACC_BRADESCO_ABNER";
 
-  if (!catDestinoId || valorAporte <= 0) {
-    alert("Selecione uma caixinha e informe um valor maior que zero.");
+  const alocacoes = [];
+  document.querySelectorAll('.item-alocacao-row').forEach(row => {
+    const tipoCat = row.querySelector('.select-destino-tipo').value;
+    const valor = obterValorNumericoMascara(row.querySelector('.input-destino-valor'));
+
+    if (valor > 0) {
+      if (tipoCat === 'ROLLOVER') {
+        alocacoes.push({ tipo: 'ROLLOVER', catDestinoId: 'CAT_RESERVAS', valor });
+      } else {
+        const nomeCaixinha = envelopesConfig[tipoCat]?.nome || "Caixinha";
+        alocacoes.push({ tipo: 'CAIXINHA', catDestinoId: tipoCat, valor, nomeCaixinha });
+      }
+    }
+  });
+
+  if (alocacoes.length === 0) {
+    alert("Adicione ao menos um destino válido com valor maior que zero.");
     return;
   }
 
-  await processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, document.getElementById('usuario').value, contaDebitoId);
-  fecharModalFechamento(); // 🟢 Fecha o modal após a gravação
-  alert(`Fechamento concluído! ${formatarMoeda(valorAporte)} aportados na caixinha "${nomeCaixinha}".`);
+  await processarFechamentoMultiplosDestinos(mesSel, alocacoes, document.getElementById('usuario').value, contaDebitoId);
+  fecharModalFechamento();
+  alert(`Fechamento de ${mesSel} concluído com sucesso! ${alocacoes.length} alocação(ões) processada(s).`);
 }
 
-// 📌 [Executa a quitação da fatura utilizando a conta selecionada pelo usuário]
+async function submeterConta(e) {
+  e.preventDefault();
+  const id = document.getElementById('conta-id').value;
+  await salvarConta(id, {
+    nome: document.getElementById('conta-nome').value.trim(),
+    tipo: document.getElementById('conta-tipo').value
+  });
+  resetarFormConta();
+}
+
 async function executarQuitacaoFatura() {
   if (valorFaturaPendenteAtual <= 0) return;
   const mesSel = filtroMesInput.value;
@@ -871,7 +1044,7 @@ async function executarQuitacaoFatura() {
       amount: valorFaturaPendenteAtual,
       description: `Quitação Fatura Cartão (${mesSel})`,
       category_id: "CAT_FATURA_CARTAO",
-      account_id: contaPagadoraId, // 🟢 Dinâmico
+      account_id: contaPagadoraId,
       status: "VALIDATED",
       user_owner: document.getElementById('usuario').value || "Abner",
       source_satellite: "core_dimdim",
@@ -880,30 +1053,6 @@ async function executarQuitacaoFatura() {
     });
   }
 }
-
-// No inicializarEscutadoresDeEventos():
-document.getElementById('btn-toggle-gerenciar-contas')?.addEventListener('click', () => {
-  document.getElementById('painel-gerenciar-contas')?.classList.toggle('aberto');
-});
-
-document.getElementById('btn-cancelar-conta')?.addEventListener('click', () => {
-  document.getElementById('conta-id').value = "";
-  document.getElementById('form-conta').reset();
-  document.getElementById('titulo-form-conta').textContent = "Nova Conta / Cartão";
-  document.getElementById('btn-cancelar-conta').classList.add('hidden');
-});
-
-document.getElementById('form-conta')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = document.getElementById('conta-id').value;
-  await salvarConta(id, {
-    nome: document.getElementById('conta-nome').value.trim(),
-    tipo: document.getElementById('conta-tipo').value
-  });
-  document.getElementById('conta-id').value = "";
-  document.getElementById('form-conta').reset();
-  document.getElementById('btn-cancelar-conta').classList.add('hidden');
-});
 
 // Processamento Central
 function processarDados() {
@@ -1041,7 +1190,6 @@ function processarDados() {
 // Subscrições Firestore e Start
 inicializarEscutadoresDeEventos();
 
-// 📌 [Escuta mudanças em Accounts e popula todos os seletores]
 onSnapshot(collection(db, "accounts"), (snapshot) => {
   contasConfig = {};
   if (snapshot.empty) restaurarContasPadrao();
@@ -1072,6 +1220,9 @@ onSnapshot(collection(db, "categories"), (snapshot) => {
 onSnapshot(query(collection(db, "transactions"), orderBy("date", "desc")), (snapshot) => {
   snapshotTransactions = snapshot;
   processarDados();
+  document.getElementById('btn-add-destino-fechamento')?.addEventListener('click', () => {
+    criarLinhaAlocacaoDOM(Date.now(), 0);
+  });
 });
 === FIM_ARQUIVO: js/app.js ===
 
@@ -1473,27 +1624,144 @@ export async function removerTransacao(id) {
   sincronizarGoogleSheets({ action: "DELETE", id });
 }
 
-export async function processarFechamentoMes(mesSel, catDestinoId, valorAporte, nomeCaixinha, usuario, contaId = "ACC_BRADESCO_ABNER") {
+// 📌 [Processa o fechamento de mês: Aporte em Caixinha (SAIDA) ou Rollover (ENTRADA no prox. mês)]
+export async function processarFechamentoMes(mesSel, tipoFechamento, catDestinoId, valorAporte, nomeCaixinha, usuario, contaId = "ACC_BRADESCO_ABNER") {
+  const [anoSel, mSel] = mesSel.split('-').map(Number);
+  let dadosLancamento = {};
+
+  if (tipoFechamento === 'ROLLOVER') {
+    // 📌 Rollover: Gera lançamento de ENTRADA no dia 01 do mês seguinte
+    const dataProxMes = new Date(anoSel, mSel, 1);
+    const anoProx = dataProxMes.getFullYear();
+    const mesProx = String(dataProxMes.getMonth() + 1).padStart(2, '0');
+    const dataPrimeiroDiaProxMes = `${anoProx}-${mesProx}-01`;
+
+    dadosLancamento = {
+      date: dataPrimeiroDiaProxMes,
+      type: "ENTRADA",
+      amount: valorAporte,
+      description: `Saldo Anterior / Rollover (${mesSel})`,
+      category_id: catDestinoId || "CAT_RESERVAS",
+      account_id: contaId,
+      status: "VALIDATED",
+      user_owner: usuario || "Abner",
+      source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  } else {
+    // 📌 Caixinha: Gera lançamento de SAÍDA no último dia do mês atual
+    const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
+    const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
+
+    dadosLancamento = {
+      date: dataUltimoDiaMes,
+      type: "SAIDA",
+      amount: valorAporte,
+      description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
+      category_id: catDestinoId,
+      account_id: contaId,
+      status: "VALIDATED",
+      user_owner: usuario || "Abner",
+      source_satellite: "core_dimdim",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  }
+
+  const docRef = await addDoc(collection(db, "transactions"), dadosLancamento);
+  sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosLancamento });
+}
+
+// 📌 [Busca TODOS os lançamentos gerados pelo fechamento do mês (Caixinhas ou Rollovers)]
+export function obterFechamentosExistentes(snapshotTransactions, mesSel) {
+  if (!snapshotTransactions || snapshotTransactions.empty) return [];
+
+  const [anoSel, mSel] = mesSel.split('-').map(Number);
+  const dataProxMes = new Date(anoSel, mSel, 1);
+  const anoProx = dataProxMes.getFullYear();
+  const mesProx = String(dataProxMes.getMonth() + 1).padStart(2, '0');
+  const dataPrimeiroDiaProxMes = `${anoProx}-${mesProx}-01`;
+
+  const lancamentosEncontrados = [];
+
+  snapshotTransactions.forEach(docSnap => {
+    const item = docSnap.data();
+    const id = docSnap.id;
+
+    // Aporte em Caixinha no mês atual
+    if (item.date && item.date.substring(0, 7) === mesSel && item.description && item.description.includes(`Aporte Sobra Fechamento Mês (${mesSel})`)) {
+      lancamentosEncontrados.push({ id, ...item });
+    }
+
+    // Rollover de Saldo no 1º dia do mês seguinte
+    if (item.date === dataPrimeiroDiaProxMes && item.description && item.description.includes(`Saldo Anterior / Rollover (${mesSel})`)) {
+      lancamentosEncontrados.push({ id, ...item });
+    }
+  });
+
+  return lancamentosEncontrados;
+}
+
+// 📌 [Desfaz e apaga todos os lançamentos de um fechamento anterior]
+export async function removerFechamentoAnterior(listaFechamentos) {
+  if (!Array.isArray(listaFechamentos) || listaFechamentos.length === 0) return;
+  for (const item of listaFechamentos) {
+    await removerTransacao(item.id);
+  }
+}
+
+// 📌 [Grava em lote as múltiplas alocações do fechamento de mês]
+export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, usuario, contaId = "ACC_BRADESCO_ABNER") {
   const [anoSel, mSel] = mesSel.split('-').map(Number);
   const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
   const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
 
-  const dadosAporte = {
-    date: dataUltimoDiaMes,
-    type: "SAIDA",
-    amount: valorAporte,
-    description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
-    category_id: catDestinoId,
-    account_id: contaId,
-    status: "VALIDATED",
-    user_owner: usuario || "Abner",
-    source_satellite: "core_dimdim",
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+  const dataProxMes = new Date(anoSel, mSel, 1);
+  const dataPrimeiroDiaProxMes = `${dataProxMes.getFullYear()}-${String(dataProxMes.getMonth() + 1).padStart(2, '0')}-01`;
 
-  const docRef = await addDoc(collection(db, "transactions"), dadosAporte);
-  sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosAporte });
+  for (const aloc of alocacoes) {
+    let dadosLancamento = {};
+
+    if (aloc.tipo === 'ROLLOVER') {
+      dadosLancamento = {
+        date: dataPrimeiroDiaProxMes,
+        type: "ENTRADA",
+        amount: aloc.valor,
+        description: `Saldo Anterior / Rollover (${mesSel})`,
+        category_id: aloc.catDestinoId || "CAT_RESERVAS",
+        account_id: contaId,
+        status: "VALIDATED",
+        user_owner: usuario || "Abner",
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    } else {
+      dadosLancamento = {
+        date: dataUltimoDiaMes,
+        type: "SAIDA",
+        amount: aloc.valor,
+        description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${aloc.nomeCaixinha}`,
+        category_id: aloc.catDestinoId,
+        account_id: contaId,
+        status: "VALIDATED",
+        user_owner: usuario || "Abner",
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    }
+
+    const docRef = await addDoc(collection(db, "transactions"), dadosLancamento);
+    sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosLancamento });
+  }
+}
+
+// 📌 [Remove um fechamento prévio para permitir refazer a operação com segurança]
+export async function removerFechamentoAnterior(idFechamento) {
+  if (!idFechamento) return;
+  await removerTransacao(idFechamento);
 }
 === FIM_ARQUIVO: js/core/transactions.js ===
 
