@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCjGBOUUThDgCqAOQJtXYeKdq2Pb0IG7PU",
@@ -12,4 +12,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy };
+
+// 📌 writeBatch adicionado às exportações para uso no fechamento de mês
+export { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, writeBatch };

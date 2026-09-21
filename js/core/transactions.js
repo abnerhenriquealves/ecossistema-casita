@@ -1,4 +1,4 @@
-import { db, collection, addDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+import { db, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "../firebase-config.js";
 import { atualizarStatusSyncUI } from "./ui.js";
 
 const GOOGLE_SHEETS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbx18ow_I8Clf0K1hw4X3QnBQjfbfX2ZHLD__-sYuDqJPp37l0i0pPepAL4DG1Nzj0TS/exec";
@@ -60,15 +60,21 @@ export async function sincronizarTudoGoogleSheets(snapshotTransactions) {
   alert(`Sincronização concluída! ${enviados} de ${total} lançamentos processados na planilha.`);
 }
 
-// 📌 [Salva ou atualiza uma transação no Firestore + Google Sheets]
+// 📌 [Fase 1: Salva ou atualiza uma transação com ID Determinístico (Idempotência)]
 export async function salvarTransacao(idEditando, dadosTransacao) {
   if (idEditando) {
+    dadosTransacao.updated_at = new Date().toISOString();
     await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
     sincronizarGoogleSheets({ action: "UPSERT", id: idEditando, ...dadosTransacao });
   } else {
+    // Criação de ID único e determinístico no cliente antes de enviar
+    const novoId = "TXN_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
     dadosTransacao.created_at = new Date().toISOString();
-    const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
-    sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
+    dadosTransacao.updated_at = new Date().toISOString();
+    
+    // Substituição de addDoc por setDoc: previne duplicação se houver clique duplo ou retry de rede
+    await setDoc(doc(db, "transactions", novoId), dadosTransacao);
+    sincronizarGoogleSheets({ action: "UPSERT", id: novoId, ...dadosTransacao });
   }
 }
 
@@ -94,12 +100,10 @@ export function obterFechamentosExistentes(snapshotTransactions, mesSel) {
     const item = docSnap.data();
     const id = docSnap.id;
 
-    // Aporte em Caixinha no mês atual
     if (item.date && item.date.substring(0, 7) === mesSel && item.description && item.description.includes(`Aporte Sobra Fechamento Mês (${mesSel})`)) {
       lancamentosEncontrados.push({ id, ...item });
     }
 
-    // Rollover de Saldo no 1º dia do mês seguinte
     if (item.date === dataPrimeiroDiaProxMes && item.description && item.description.includes(`Saldo Anterior / Rollover (${mesSel})`)) {
       lancamentosEncontrados.push({ id, ...item });
     }
@@ -108,7 +112,7 @@ export function obterFechamentosExistentes(snapshotTransactions, mesSel) {
   return lancamentosEncontrados;
 }
 
-// 📌 [Desfaz e apaga fechamentos prévios (aceita tanto Array de objetos quanto ID/String individual)]
+// 📌 [Desfaz e apaga fechamentos prévios]
 export async function removerFechamentoAnterior(alvoFechamento) {
   if (!alvoFechamento) return;
 
@@ -127,8 +131,8 @@ export async function removerFechamentoAnterior(alvoFechamento) {
   }
 }
 
-// 📌 [Grava em lote as múltiplas alocações do fechamento de mês (Zero-Based Budgeting)]
-export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, usuario, contaId = "ACC_BRADESCO_ABNER") {
+// 📌 [Fase 1: Lote Atômico (Batch) para Múltiplas Alocações do Fechamento]
+export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, usuario, contaId) {
   const [anoSel, mSel] = mesSel.split('-').map(Number);
   const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
   const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
@@ -136,8 +140,14 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
   const dataProxMes = new Date(anoSel, mSel, 1);
   const dataPrimeiroDiaProxMes = `${dataProxMes.getFullYear()}-${String(dataProxMes.getMonth() + 1).padStart(2, '0')}-01`;
 
+  // Prepara a transação em lote
+  const batch = writeBatch(db);
+  const filaPlanilha = [];
+
   for (const aloc of alocacoes) {
     let dadosLancamento = {};
+    const novoIdFechamento = "TXN_FECH_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+    const refDoc = doc(db, "transactions", novoIdFechamento);
 
     if (aloc.tipo === 'ROLLOVER') {
       dadosLancamento = {
@@ -146,7 +156,7 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
         amount: aloc.valor,
         description: `Saldo Anterior / Rollover (${mesSel})`,
         category_id: aloc.catDestinoId || "CAT_RESERVAS",
-        account_id: contaId,
+        account_id: contaId || "ACC_BRADESCO_ABNER",
         status: "VALIDATED",
         user_owner: usuario || "Abner",
         source_satellite: "core_dimdim",
@@ -160,7 +170,7 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
         amount: aloc.valor,
         description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${aloc.nomeCaixinha}`,
         category_id: aloc.catDestinoId,
-        account_id: contaId,
+        account_id: contaId || "ACC_BRADESCO_ABNER",
         status: "VALIDATED",
         user_owner: usuario || "Abner",
         source_satellite: "core_dimdim",
@@ -169,7 +179,18 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
       };
     }
 
-    const docRef = await addDoc(collection(db, "transactions"), dadosLancamento);
-    sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosLancamento });
+    // Adiciona a operação ao lote (ainda não salva no banco)
+    batch.set(refDoc, dadosLancamento);
+    
+    // Coloca a operação na fila para o Google Sheets
+    filaPlanilha.push({ action: "UPSERT", id: novoIdFechamento, ...dadosLancamento });
+  }
+
+  // Comita o lote atômico inteiro: ou salva tudo junto perfeitamente, ou não salva nada
+  await batch.commit();
+
+  // Se o commit no Firestore foi um sucesso absoluto, reflete os dados no Google Sheets
+  for (const payload of filaPlanilha) {
+    sincronizarGoogleSheets(payload);
   }
 }

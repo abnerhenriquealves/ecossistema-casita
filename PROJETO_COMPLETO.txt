@@ -1,7 +1,7 @@
 === INICIO_ARQUIVO: build.py ===
 import re
 import sys
-import datetime
+from datetime import datetime, timezone, timedelta
 import subprocess
 
 def executar_build():
@@ -22,8 +22,9 @@ def executar_build():
     novo_patch = patch + 1
     nova_versao = f"v{major}.{minor}.{novo_patch}"
 
-    # 3. Pega a data e hora exatas do sistema
-    agora = datetime.datetime.now().strftime("%d/%m/%Y - %H:%M")
+    # 3. Pega a data e hora exatas fixando o fuso horário de São Paulo (UTC-3)
+    fuso_sp = timezone(timedelta(hours=-3))
+    agora = datetime.now(fuso_sp).strftime("%d/%m/%Y - %H:%M")
 
     # 4. Atualiza as constantes no js/app.js
     conteudo_app = re.sub(
@@ -768,8 +769,8 @@ let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
 // 📌 [Metadados de Build e Versão de Desenvolvimento]
-const APP_VERSION = "v2.6.7";
-const APP_BUILD_TIME = "21/09/2026 - 18:18";
+const APP_VERSION = "v2.6.8";
+const APP_BUILD_TIME = "21/09/2026 - 15:44";
 
 const elVersao = document.getElementById('app-version-display');
 if (elVersao) elVersao.textContent = APP_VERSION;
@@ -2388,7 +2389,7 @@ export { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, quer
 
 
 === INICIO_ARQUIVO: sw.js ===
-const CACHE_NAME = 'dimdim-v2.6.7';
+const CACHE_NAME = 'dimdim-v2.6.8';
 
 const ASSETS_TO_CACHE = [
   './',
