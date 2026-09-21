@@ -60,6 +60,7 @@ export async function sincronizarTudoGoogleSheets(snapshotTransactions) {
   alert(`Sincronização concluída! ${enviados} de ${total} lançamentos processados na planilha.`);
 }
 
+// 📌 [Salva ou atualiza uma transação no Firestore + Google Sheets]
 export async function salvarTransacao(idEditando, dadosTransacao) {
   if (idEditando) {
     await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
@@ -71,62 +72,15 @@ export async function salvarTransacao(idEditando, dadosTransacao) {
   }
 }
 
+// 📌 [Remove uma transação no Firestore + Google Sheets]
 export async function removerTransacao(id) {
   await deleteDoc(doc(db, "transactions", id));
   sincronizarGoogleSheets({ action: "DELETE", id });
 }
 
-// 📌 [Processa o fechamento de mês: Aporte em Caixinha (SAIDA) ou Rollover (ENTRADA no prox. mês)]
-export async function processarFechamentoMes(mesSel, tipoFechamento, catDestinoId, valorAporte, nomeCaixinha, usuario, contaId = "ACC_BRADESCO_ABNER") {
-  const [anoSel, mSel] = mesSel.split('-').map(Number);
-  let dadosLancamento = {};
-
-  if (tipoFechamento === 'ROLLOVER') {
-    // 📌 Rollover: Gera lançamento de ENTRADA no dia 01 do mês seguinte
-    const dataProxMes = new Date(anoSel, mSel, 1);
-    const anoProx = dataProxMes.getFullYear();
-    const mesProx = String(dataProxMes.getMonth() + 1).padStart(2, '0');
-    const dataPrimeiroDiaProxMes = `${anoProx}-${mesProx}-01`;
-
-    dadosLancamento = {
-      date: dataPrimeiroDiaProxMes,
-      type: "ENTRADA",
-      amount: valorAporte,
-      description: `Saldo Anterior / Rollover (${mesSel})`,
-      category_id: catDestinoId || "CAT_RESERVAS",
-      account_id: contaId,
-      status: "VALIDATED",
-      user_owner: usuario || "Abner",
-      source_satellite: "core_dimdim",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  } else {
-    // 📌 Caixinha: Gera lançamento de SAÍDA no último dia do mês atual
-    const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
-    const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
-
-    dadosLancamento = {
-      date: dataUltimoDiaMes,
-      type: "SAIDA",
-      amount: valorAporte,
-      description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${nomeCaixinha}`,
-      category_id: catDestinoId,
-      account_id: contaId,
-      status: "VALIDATED",
-      user_owner: usuario || "Abner",
-      source_satellite: "core_dimdim",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  }
-
-  const docRef = await addDoc(collection(db, "transactions"), dadosLancamento);
-  sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosLancamento });
-}
-// 📌 [Verifica se o mês selecionado já possui lançamento de fechamento ou rollover]
-export function obterFechamentoExistente(snapshotTransactions, mesSel) {
-  if (!snapshotTransactions || snapshotTransactions.empty) return null;
+// 📌 [Busca TODOS os lançamentos gerados pelo fechamento do mês (Caixinhas ou Rollovers)]
+export function obterFechamentosExistentes(snapshotTransactions, mesSel) {
+  if (!snapshotTransactions || snapshotTransactions.empty) return [];
 
   const [anoSel, mSel] = mesSel.split('-').map(Number);
   const dataProxMes = new Date(anoSel, mSel, 1);
@@ -134,28 +88,88 @@ export function obterFechamentoExistente(snapshotTransactions, mesSel) {
   const mesProx = String(dataProxMes.getMonth() + 1).padStart(2, '0');
   const dataPrimeiroDiaProxMes = `${anoProx}-${mesProx}-01`;
 
-  let lancamentoEncontrado = null;
+  const lancamentosEncontrados = [];
 
   snapshotTransactions.forEach(docSnap => {
     const item = docSnap.data();
     const id = docSnap.id;
 
-    // Procura fecho por caixinha no mês atual
+    // Aporte em Caixinha no mês atual
     if (item.date && item.date.substring(0, 7) === mesSel && item.description && item.description.includes(`Aporte Sobra Fechamento Mês (${mesSel})`)) {
-      lancamentoEncontrado = { id, type: 'CAIXINHA', ...item };
+      lancamentosEncontrados.push({ id, ...item });
     }
 
-    // Procura fecho por rollover no primeiro dia do mês seguinte
+    // Rollover de Saldo no 1º dia do mês seguinte
     if (item.date === dataPrimeiroDiaProxMes && item.description && item.description.includes(`Saldo Anterior / Rollover (${mesSel})`)) {
-      lancamentoEncontrado = { id, type: 'ROLLOVER', ...item };
+      lancamentosEncontrados.push({ id, ...item });
     }
   });
 
-  return lancamentoEncontrado;
+  return lancamentosEncontrados;
 }
 
-// 📌 [Remove um fechamento prévio para permitir refazer a operação com segurança]
-export async function removerFechamentoAnterior(idFechamento) {
-  if (!idFechamento) return;
-  await removerTransacao(idFechamento);
+// 📌 [Desfaz e apaga fechamentos prévios (aceita tanto Array de objetos quanto ID/String individual)]
+export async function removerFechamentoAnterior(alvoFechamento) {
+  if (!alvoFechamento) return;
+
+  if (Array.isArray(alvoFechamento)) {
+    for (const item of alvoFechamento) {
+      if (item && item.id) {
+        await removerTransacao(item.id);
+      } else if (typeof item === 'string') {
+        await removerTransacao(item);
+      }
+    }
+  } else if (typeof alvoFechamento === 'string') {
+    await removerTransacao(alvoFechamento);
+  } else if (typeof alvoFechamento === 'object' && alvoFechamento.id) {
+    await removerTransacao(alvoFechamento.id);
+  }
+}
+
+// 📌 [Grava em lote as múltiplas alocações do fechamento de mês (Zero-Based Budgeting)]
+export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, usuario, contaId = "ACC_BRADESCO_ABNER") {
+  const [anoSel, mSel] = mesSel.split('-').map(Number);
+  const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
+  const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
+
+  const dataProxMes = new Date(anoSel, mSel, 1);
+  const dataPrimeiroDiaProxMes = `${dataProxMes.getFullYear()}-${String(dataProxMes.getMonth() + 1).padStart(2, '0')}-01`;
+
+  for (const aloc of alocacoes) {
+    let dadosLancamento = {};
+
+    if (aloc.tipo === 'ROLLOVER') {
+      dadosLancamento = {
+        date: dataPrimeiroDiaProxMes,
+        type: "ENTRADA",
+        amount: aloc.valor,
+        description: `Saldo Anterior / Rollover (${mesSel})`,
+        category_id: aloc.catDestinoId || "CAT_RESERVAS",
+        account_id: contaId,
+        status: "VALIDATED",
+        user_owner: usuario || "Abner",
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    } else {
+      dadosLancamento = {
+        date: dataUltimoDiaMes,
+        type: "SAIDA",
+        amount: aloc.valor,
+        description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${aloc.nomeCaixinha}`,
+        category_id: aloc.catDestinoId,
+        account_id: contaId,
+        status: "VALIDATED",
+        user_owner: usuario || "Abner",
+        source_satellite: "core_dimdim",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    }
+
+    const docRef = await addDoc(collection(db, "transactions"), dadosLancamento);
+    sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosLancamento });
+  }
 }
