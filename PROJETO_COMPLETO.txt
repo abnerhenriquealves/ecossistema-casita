@@ -3,17 +3,54 @@ import re
 import sys
 from datetime import datetime, timezone, timedelta
 import subprocess
+import os
+import glob
+
+
+def gerar_projeto_completo():
+    """Regenera o arquivo-espelho com todo o código do projeto."""
+    exts = ['.html', '.js', '.css', '.json', '.py']
+
+    files = [
+        f for f in glob.glob('**/*', recursive=True)
+        if os.path.isfile(f)
+        and any(f.endswith(e) for e in exts)
+        and 'node_modules' not in f
+        and '.git' not in f
+        and f != 'PROJETO_COMPLETO.txt'
+    ]
+
+    with open('PROJETO_COMPLETO.txt', 'w', encoding='utf-8') as saida:
+        for f in sorted(files):
+            with open(f, 'r', encoding='utf-8', errors='ignore') as arquivo:
+                conteudo = arquivo.read()
+
+            saida.write(
+                f'=== INICIO_ARQUIVO: {f} ===\n'
+                + conteudo
+                + f'\n=== FIM_ARQUIVO: {f} ===\n\n'
+            )
+
+    print("📦 PROJETO_COMPLETO.txt regenerado com sucesso.")
+
 
 def executar_build():
-    # 1. Pega a mensagem do commit enviada pelo terminal (ou usa uma padrão)
-    mensagem_commit = sys.argv[1] if len(sys.argv) > 1 else "feat: atualizacao do sistema"
+    mensagem_commit = (
+        sys.argv[1]
+        if len(sys.argv) > 1
+        else "feat: atualizacao do sistema"
+    )
 
-    # 2. Ler o js/app.js para extrair e incrementar o número da versão
     caminho_app = "js/app.js"
+
     with open(caminho_app, "r", encoding="utf-8") as f:
         conteudo_app = f.read()
 
-    match_versao = re.search(r'const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)";', conteudo_app)
+    match_versao = re.search(
+        r'const APP_VERSION = "v(\d+)\.(\d+)\.(\d+)";',
+        conteudo_app
+    )
+
     if not match_versao:
         print("❌ Erro: Não foi possível localizar a constante APP_VERSION em js/app.js")
         return
@@ -22,16 +59,15 @@ def executar_build():
     novo_patch = patch + 1
     nova_versao = f"v{major}.{minor}.{novo_patch}"
 
-    # 3. Pega a data e hora exatas fixando o fuso horário de São Paulo (UTC-3)
     fuso_sp = timezone(timedelta(hours=-3))
     agora = datetime.now(fuso_sp).strftime("%d/%m/%Y - %H:%M")
 
-    # 4. Atualiza as constantes no js/app.js
     conteudo_app = re.sub(
         r'const APP_VERSION = "v[^"]+";',
         f'const APP_VERSION = "{nova_versao}";',
         conteudo_app
     )
+
     conteudo_app = re.sub(
         r'const APP_BUILD_TIME = "[^"]+";',
         f'const APP_BUILD_TIME = "{agora}";',
@@ -41,8 +77,8 @@ def executar_build():
     with open(caminho_app, "w", encoding="utf-8") as f:
         f.write(conteudo_app)
 
-    # 5. Atualiza o CACHE_NAME no sw.js
     caminho_sw = "sw.js"
+
     with open(caminho_sw, "r", encoding="utf-8") as f:
         conteudo_sw = f.read()
 
@@ -57,19 +93,28 @@ def executar_build():
 
     print(f"✨ Versão incrementada automaticamente: {nova_versao} ({agora})")
 
-    # 6. Executa a sequência do Git
+    gerar_projeto_completo()
+
     try:
         subprocess.run(["git", "add", "."], check=True)
-        subprocess.run(["git", "commit", "-m", f"{mensagem_commit} ({nova_versao})"], check=True)
+
+        subprocess.run(
+            ["git", "commit", "-m", f"{mensagem_commit} ({nova_versao})"],
+            check=True
+        )
+
         subprocess.run(["git", "push"], check=True)
-        print("🚀 Código versionado e publicado no GitHub com sucesso!")
+
+        print(f"🚀 Código versionado e publicado no GitHub com sucesso! ({nova_versao})")
+
     except subprocess.CalledProcessError as err:
         print(f"⚠️ Falha durante a execução do Git: {err}")
 
+
 if __name__ == "__main__":
     executar_build()
-=== FIM_ARQUIVO: build.py ===
 
+=== FIM_ARQUIVO: build.py ===
 
 === INICIO_ARQUIVO: css/styles.css ===
 /* Customizações CSS para o Dimdim */
@@ -93,7 +138,6 @@ input[type="month"]::-webkit-calendar-picker-indicator {
   margin-top: 1rem;
 }
 === FIM_ARQUIVO: css/styles.css ===
-
 
 === INICIO_ARQUIVO: index.html ===
 <!DOCTYPE html>
@@ -730,11 +774,10 @@ input[type="month"]::-webkit-calendar-picker-indicator {
 </html>
 === FIM_ARQUIVO: index.html ===
 
-
 === INICIO_ARQUIVO: js/app.js ===
 import { db, collection, onSnapshot, query, orderBy } from "./firebase-config.js";
 import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirValorMascara } from "./core/formatters.js";
-import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
+import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre, processarMotorFinanceiro } from "./core/engine.js";
 import {
   salvarTransacao,
   removerTransacao,
@@ -769,8 +812,8 @@ let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
 // 📌 [Metadados de Build e Versão de Desenvolvimento]
-const APP_VERSION = "v2.6.8";
-const APP_BUILD_TIME = "21/09/2026 - 15:44";
+const APP_VERSION = "v2.6.14"; // Ajustado para seguir cronologia rigorosa
+const APP_BUILD_TIME = "22/09/2026 - 12:24";
 
 const elVersao = document.getElementById('app-version-display');
 if (elVersao) elVersao.textContent = APP_VERSION;
@@ -796,7 +839,6 @@ if (filtroMesInput) filtroMesInput.value = `${anoAtual}-${mesAtual}`;
 const inputData = document.getElementById('data');
 if (inputData) inputData.value = hoje.toISOString().split('T')[0];
 
-// Centralizador Unificado de Escutadores de Eventos
 function inicializarEscutadoresDeEventos() {
   document.getElementById('btn-mes-anterior')?.addEventListener('click', () => alterarMes(-1));
   document.getElementById('btn-mes-proximo')?.addEventListener('click', () => alterarMes(1));
@@ -806,12 +848,10 @@ function inicializarEscutadoresDeEventos() {
   });
   filtroMesInput?.addEventListener('change', processarDados);
 
-  // Sincronização em Lote com Google Sheets
   document.getElementById('btn-sincronizar-sheets-lote')?.addEventListener('click', () => {
     sincronizarTudoGoogleSheets(snapshotTransactions);
   });
 
-  // 📌 Botão Forçar Atualização (DEV) - Limpa Caches PWA & Service Worker
   document.getElementById('btn-forcar-atualizacao')?.addEventListener('click', async () => {
     if (confirm("Deseja forçar a limpeza de cache do navegador e recarregar a versão mais recente?")) {
       if ('caches' in window) {
@@ -828,12 +868,10 @@ function inicializarEscutadoresDeEventos() {
     }
   });
 
-  // Botão Adicionar Destino do Modal de Fechamento (Registrado uma única vez)
   document.getElementById('btn-add-destino-fechamento')?.addEventListener('click', () => {
     criarLinhaAlocacaoDOM(Date.now(), 0);
   });
 
-  // Painel de Categorias
   document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
     document.getElementById('painel-gerenciar-categorias')?.classList.toggle('aberto');
   });
@@ -842,20 +880,17 @@ function inicializarEscutadoresDeEventos() {
   });
   document.getElementById('btn-cancelar-cat')?.addEventListener('click', resetarFormCategoria);
 
-  // Painel de Contas
   document.getElementById('btn-toggle-gerenciar-contas')?.addEventListener('click', () => {
     document.getElementById('painel-gerenciar-contas')?.classList.toggle('aberto');
   });
   document.getElementById('btn-cancelar-conta')?.addEventListener('click', resetarFormConta);
 
-  // Fechamento e Quitação
   document.getElementById('btn-abrir-fechamento-mes')?.addEventListener('click', abrirModalFechamento);
   document.getElementById('btn-fechar-modal-fechamento')?.addEventListener('click', fecharModalFechamento);
   document.getElementById('btn-cancelar-fechamento')?.addEventListener('click', fecharModalFechamento);
   document.getElementById('btn-quitar-fatura')?.addEventListener('click', executarQuitacaoFatura);
   document.getElementById('btn-cancelar-edicao')?.addEventListener('click', resetarFormTransacao);
 
-  // Filtros
   ['busca-extrato', 'filtro-usuario-extrato', 'filtro-conta-extrato', 'filtro-tipo-extrato'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -864,60 +899,54 @@ function inicializarEscutadoresDeEventos() {
     }
   });
 
-  // Submissão de Formulários
   if (formTransacao) formTransacao.addEventListener('submit', submeterTransacao);
   if (formCategoria) formCategoria.addEventListener('submit', submeterCategoria);
   if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
   if (formConta) formConta.addEventListener('submit', submeterConta);
 
-  // Exportação em PDF
   document.getElementById('btn-exportar-pdf')?.addEventListener('click', executarExportacaoPDF);
+
+  document.getElementById('lista-transacoes')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ds = btn.dataset;
+    if (ds.action === 'edit-txn') prepararEdicao(ds.id, ds.date, ds.type, ds.amount, ds.desc, ds.cat, ds.acc, ds.user);
+    if (ds.action === 'delete-txn') excluirTransacao(ds.id, ds.desc);
+  });
+
+  document.getElementById('lista-gerenciador-categorias')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ds = btn.dataset;
+    if (ds.action === 'edit-cat') prepararEdicaoCat(ds.id, ds.nome, ds.teto, ds.macro, ds.rigidez, ds.acumulativa === 'true');
+    if (ds.action === 'delete-cat') excluirCat(ds.id, ds.nome);
+  });
+
+  document.getElementById('lista-gerenciador-contas')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ds = btn.dataset;
+    if (ds.action === 'edit-acc') prepararEdicaoConta(ds.id, ds.nome, ds.tipo);
+    if (ds.action === 'delete-acc') excluirConta(ds.id, ds.nome);
+  });
 }
 
-// Exportar Relatório PDF
 async function executarExportacaoPDF() {
   if (!snapshotTransactions) {
     alert("Aguarde o carregamento dos dados para gerar o relatório.");
     return;
   }
-
   const mesSel = filtroMesInput.value;
-  let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
-  const itensExibicao = [];
+  // Para PDF, rodamos um filtro focado sem as restrições da barra de busca do extrato
+  const config = { contasConfig, envelopesConfig };
+  const filtros = { mesSel, termoBusca: "", usrFiltro: "TODOS", contaFiltro: "TODAS", tipoFiltro: "TODOS" };
+  const dados = processarMotorFinanceiro(snapshotTransactions, filtros, config);
 
-  snapshotTransactions.forEach(docSnap => {
-    const item = docSnap.data();
-    if (!item.date) return;
+  dados.itensExibicao.sort((a, b) => a.item.date.localeCompare(b.item.date));
 
-    const itemMes = item.date.substring(0, 7);
-    if (itemMes !== mesSel) return;
-
-    const isSaida = item.type === "SAIDA";
-    const contaObj = contasConfig[item.account_id];
-    const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
-    const isPagto = item.category_id === "CAT_FATURA_CARTAO";
-
-    if (isSaida) {
-      if (isCartao) totalFatura += item.amount;
-      else if (isPagto) totalPagtoFatura += item.amount;
-      else totalSaidasDiretas += item.amount;
-    } else {
-      totalEntradas += item.amount;
-    }
-
-    itensExibicao.push({ id: docSnap.id, item });
-  });
-
-  // Ordena cronologicamente os lançamentos do mês
-  itensExibicao.sort((a, b) => a.item.date.localeCompare(b.item.date));
-
-  const valorFaturaPendente = Math.max(0, totalFatura - totalPagtoFatura);
-  const saldoLivre = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendente);
-
-  await gerarRelatorioPDF(mesSel, totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivre, itensExibicao, envelopesConfig);
+  await gerarRelatorioPDF(mesSel, dados.totalEntradas, dados.totalSaidasDiretas + dados.totalPagtoFatura, dados.totalFatura, dados.saldoLivre, dados.itensExibicao, envelopesConfig);
 }
 
-// Modais e Auxiliares
 function fecharModalFechamento() {
   modalFechamentoMes?.classList.add('hidden');
 }
@@ -955,12 +984,11 @@ function resetarFormConta() {
   document.getElementById('btn-cancelar-conta').classList.add('hidden');
 }
 
-// Window Functions para Ações de Tabela
-window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
+function prepararEdicao(id, data, tipo, valor, descricao, categoria, conta, usuario) {
   document.getElementById('transacao-id').value = id;
   document.getElementById('data').value = data;
   document.getElementById('tipo').value = tipo;
-  definirValorMascara(document.getElementById('valor'), valor);
+  definirValorMascara(document.getElementById('valor'), parseFloat(valor));
   document.getElementById('descricao').value = descricao;
   document.getElementById('categoria').value = categoria;
   document.getElementById('conta').value = conta;
@@ -968,40 +996,45 @@ window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usu
   document.getElementById('titulo-form').textContent = "Editar Lançamento";
   document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
   document.getElementById('secao-formulario').scrollIntoView({ behavior: 'smooth', block: 'center' });
-};
+}
 
-window.excluirTransacao = async (id, descricao) => {
+async function excluirTransacao(id, descricao) {
   if (confirm(`Deseja realmente excluir "${descricao}"?`)) await removerTransacao(id);
-};
+}
 
-window.prepararEdicaoCat = (id, nome, teto, macro, rigidez, isAcumulativa) => {
+function prepararEdicaoCat(id, nome, teto, macro, rigidez, isAcumulativa) {
   document.getElementById('cat-id').value = id;
   document.getElementById('cat-nome').value = nome;
-  definirValorMascara(document.getElementById('cat-teto'), teto);
+  definirValorMascara(document.getElementById('cat-teto'), parseFloat(teto));
   document.getElementById('cat-macro').value = macro || "Reservas & Outros";
   document.getElementById('cat-rigidez').value = rigidez || "RIGIDO";
-  document.getElementById('cat-acumulativa').checked = !!isAcumulativa;
+  document.getElementById('cat-acumulativa').checked = isAcumulativa;
   document.getElementById('titulo-form-cat').textContent = "Editar Envelope / Categoria";
   document.getElementById('btn-cancelar-cat').classList.remove('hidden');
-};
+}
 
-window.excluirCat = async (id, nome) => {
-  if (confirm(`Deseja excluir a categoria "${nome}"?`)) await removerCategoria(id);
-};
+async function excluirCat(id, nome) {
+  if (confirm(`Deseja excluir a categoria "${nome}"?`)) {
+    const success = await removerCategoria(id);
+    if (success) alert(`Envelope "${nome}" removido com sucesso.`);
+  }
+}
 
-window.prepararEdicaoConta = (id, nome, tipo) => {
+function prepararEdicaoConta(id, nome, tipo) {
   document.getElementById('conta-id').value = id;
   document.getElementById('conta-nome').value = nome;
   document.getElementById('conta-tipo').value = tipo;
   document.getElementById('titulo-form-conta').textContent = "Editar Conta / Cartão";
   document.getElementById('btn-cancelar-conta').classList.remove('hidden');
-};
+}
 
-window.excluirConta = async (id, nome) => {
-  if (confirm(`Deseja excluir a conta "${nome}"?`)) await removerConta(id);
-};
+async function excluirConta(id, nome) {
+  if (confirm(`Deseja excluir a conta "${nome}"?`)) {
+    const success = await removerConta(id);
+    if (success) alert(`Conta "${nome}" removida com sucesso.`);
+  }
+}
 
-// Handlers de Submissão
 async function submeterTransacao(e) {
   e.preventDefault();
   const idEditando = document.getElementById('transacao-id').value;
@@ -1033,7 +1066,19 @@ async function submeterCategoria(e) {
   resetarFormCategoria();
 }
 
-// 📌 [Lógica de Distribuição Multi-Destino & Orçamento Base Zero]
+async function submeterConta(e) {
+  e.preventDefault();
+
+  const idEditando = document.getElementById('conta-id').value;
+
+  await salvarConta(idEditando, {
+    nome: document.getElementById('conta-nome').value.trim(),
+    tipo: document.getElementById('conta-tipo').value
+  });
+
+  resetarFormConta();
+}
+
 function criarLinhaAlocacaoDOM(idLinha, valorPadrao = 0) {
   const container = document.getElementById('container-linhas-alocacao');
   if (!container) return;
@@ -1085,16 +1130,13 @@ function recalcularBalançoFechamento() {
 
   const elSobra = document.getElementById('txt-fechamento-sobra-total');
   if (elSobra) elSobra.textContent = formatarMoeda(sobraTotal);
-
   const elAlocado = document.getElementById('txt-fechamento-alocado');
   if (elAlocado) elAlocado.textContent = formatarMoeda(totalAlocado);
-
   const elPendente = document.getElementById('txt-fechamento-pendente');
   if (elPendente) elPendente.textContent = formatarMoeda(pendente);
 
   const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
 
-  // Trava de Saldo Zero: Permite fechar apenas se pendente for EXATAMENTE zero e alocado > 0
   if (Math.abs(pendente) < 0.01 && totalAlocado > 0) {
     if (elPendente) elPendente.className = "text-xs font-bold text-emerald-400";
     if (btnConfirmar) btnConfirmar.disabled = false;
@@ -1109,14 +1151,12 @@ function abrirModalFechamento() {
   const containerLinhas = document.getElementById('container-linhas-alocacao');
   if (containerLinhas) containerLinhas.innerHTML = "";
 
-  // 1. Fatura Pendente
   const boxAlerta = document.getElementById('box-alerta-fatura-pendente');
   if (boxAlerta) {
     if (valorFaturaPendenteAtual > 0) boxAlerta.classList.remove('hidden');
     else boxAlerta.classList.add('hidden');
   }
 
-  // 2. Trava e Ação de Desfazer Fechamento Anterior
   const fechamentosExistentes = obterFechamentosExistentes(snapshotTransactions, mesSel);
   const boxJaFechado = document.getElementById('box-alerta-ja-fechado');
   const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
@@ -1137,7 +1177,6 @@ function abrirModalFechamento() {
     }
   } else {
     boxJaFechado?.classList.add('hidden');
-    // Cria a primeira linha de alocação preenchida com o saldo livre total
     criarLinhaAlocacaoDOM(Date.now(), Math.max(0, saldoLivreMemoria));
   }
 
@@ -1147,9 +1186,20 @@ function abrirModalFechamento() {
 async function submeterFechamentoMes(e) {
   e.preventDefault();
   const mesSel = filtroMesInput.value;
-  const contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value || "ACC_BRADESCO_ABNER";
 
-  // 📌 Agrupador dinâmico para consolidar valores de mesmos destinos
+  // 📌 Fase 5: Erradicação do hardcode "ACC_BRADESCO_ABNER" 
+  let contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value;
+
+  if (!contaDebitoId) {
+    const contasCorrentes = Object.keys(contasConfig).filter(id => contasConfig[id].tipo === "CORRENTE");
+    if (contasCorrentes.length > 0) {
+      contaDebitoId = contasCorrentes[0]; // Seleciona dinamicamente a primeira conta corrente existente
+    } else {
+      alert("⚠️ Erro: Você não possui nenhuma Conta Corrente cadastrada para realizar o fechamento do mês.");
+      return;
+    }
+  }
+
   const mapaAlocacoes = {};
 
   document.querySelectorAll('.item-alocacao-row').forEach(row => {
@@ -1179,16 +1229,6 @@ async function submeterFechamentoMes(e) {
   await processarFechamentoMultiplosDestinos(mesSel, alocacoes, document.getElementById('usuario').value, contaDebitoId);
   fecharModalFechamento();
   alert(`Fechamento de ${mesSel} concluído! ${alocacoes.length} lançamento(s) consolidado(s) gravado(s).`);
-}
-
-async function submeterConta(e) {
-  e.preventDefault();
-  const id = document.getElementById('conta-id').value;
-  await salvarConta(id, {
-    nome: document.getElementById('conta-nome').value.trim(),
-    tipo: document.getElementById('conta-tipo').value
-  });
-  resetarFormConta();
 }
 
 async function executarQuitacaoFatura() {
@@ -1223,73 +1263,35 @@ async function executarQuitacaoFatura() {
   }
 }
 
-// Processamento Central
+// 📌 Fase 5: O Controlador magro e limpo delegando para o Motor
 function processarDados() {
   if (!snapshotTransactions) return;
+
   const mesSel = filtroMesInput.value;
-  const anoSel = mesSel.substring(0, 4);
 
-  let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
-  const acmCatMes = {}, acmHistMes = {}, acmCatSaidaHist = {}, acmCatEntradaHist = {};
-  const itensExibicao = [];
+  // 1. Coleta os parâmetros da Interface
+  const filtros = {
+    mesSel,
+    termoBusca: document.getElementById('busca-extrato')?.value.toLowerCase().trim() || "",
+    usrFiltro: document.getElementById('filtro-usuario-extrato')?.value || "TODOS",
+    contaFiltro: document.getElementById('filtro-conta-extrato')?.value || "TODAS",
+    tipoFiltro: document.getElementById('filtro-tipo-extrato')?.value || "TODOS"
+  };
 
-  const termoBusca = document.getElementById('busca-extrato')?.value.toLowerCase().trim() || "";
-  const usrFiltro = document.getElementById('filtro-usuario-extrato')?.value || "TODOS";
-  const contaFiltro = document.getElementById('filtro-conta-extrato')?.value || "TODAS";
-  const tipoFiltro = document.getElementById('filtro-tipo-extrato')?.value || "TODOS";
+  const config = { contasConfig, envelopesConfig };
 
-  snapshotTransactions.forEach(docSnap => {
-    const item = docSnap.data();
-    const id = docSnap.id;
-    if (!item.date) return;
+  // 2. Delega todo o cálculo pesado para a Engine Pura
+  const dados = processarMotorFinanceiro(snapshotTransactions, filtros, config);
 
-    const itemMes = item.date.substring(0, 7);
-    const isSaida = item.type === "SAIDA";
-    const contaObj = contasConfig[item.account_id];
-    const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
-    const isPagto = item.category_id === "CAT_FATURA_CARTAO";
+  // 3. Atualiza estado local essencial
+  valorFaturaPendenteAtual = dados.valorFaturaPendente;
+  saldoLivreMemoria = dados.saldoLivre;
 
-    if (item.date.substring(0, 4) === anoSel && isSaida && !isPagto) {
-      const mChave = item.date.substring(5, 7);
-      acmHistMes[mChave] = (acmHistMes[mChave] || 0) + item.amount;
-    }
-
-    if (itemMes <= mesSel && item.category_id && !isPagto) {
-      if (isSaida) acmCatSaidaHist[item.category_id] = (acmCatSaidaHist[item.category_id] || 0) + item.amount;
-      else acmCatEntradaHist[item.category_id] = (acmCatEntradaHist[item.category_id] || 0) + item.amount;
-    }
-
-    if (itemMes === mesSel) {
-      const usuarioItem = item.user_owner || 'Abner';
-
-      if (isSaida) {
-        if (isCartao) totalFatura += item.amount;
-        else if (isPagto) totalPagtoFatura += item.amount;
-        else totalSaidasDiretas += item.amount;
-        if (!isPagto) acmCatMes[item.category_id] = (acmCatMes[item.category_id] || 0) + item.amount;
-      } else {
-        totalEntradas += item.amount;
-      }
-
-      const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagto ? '💳 Quitação de Fatura' : item.category_id);
-      const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
-      const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
-      const matchConta = contaFiltro === "TODAS" || item.account_id === contaFiltro;
-      const matchTipo = tipoFiltro === "TODOS" || item.type === tipoFiltro;
-
-      if (matchBusca && matchUsuario && matchConta && matchTipo) {
-        itensExibicao.push({ id, item });
-      }
-    }
-  });
-
-  valorFaturaPendenteAtual = Math.max(0, totalFatura - totalPagtoFatura);
-  saldoLivreMemoria = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendenteAtual);
-
+  // 4. Delega as reações visuais para a UI
   const btnQuitar = document.getElementById('btn-quitar-fatura');
   const badgeFatura = document.getElementById('badge-fatura-status');
   if (btnQuitar && badgeFatura) {
-    if (totalFatura > 0 && valorFaturaPendenteAtual === 0) {
+    if (dados.totalFatura > 0 && valorFaturaPendenteAtual === 0) {
       badgeFatura.classList.remove('hidden');
       btnQuitar.classList.add('hidden');
     } else if (valorFaturaPendenteAtual > 0) {
@@ -1307,18 +1309,18 @@ function processarDados() {
     document.getElementById('total-saidas'),
     document.getElementById('fatura-cartao'),
     document.getElementById('saldo-atual'),
-    totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivreMemoria
+    dados.totalEntradas, dados.totalSaidasDiretas + dados.totalPagtoFatura, dados.totalFatura, saldoLivreMemoria
   );
 
-  renderizarExtrato(document.getElementById('lista-transacoes'), itensExibicao, envelopesConfig);
-  renderizarEnvelopesAgrupados(document.getElementById('lista-envelopes'), envelopesConfig, acmCatMes, acmCatSaidaHist, acmCatEntradaHist);
+  renderizarExtrato(document.getElementById('lista-transacoes'), dados.itensExibicao, envelopesConfig);
+  renderizarEnvelopesAgrupados(document.getElementById('lista-envelopes'), envelopesConfig, dados.acmCatMes, dados.acmCatSaidaHist, dados.acmCatEntradaHist);
 
-  const { gastosMacro, tetosMacro } = agruparPorMacroGrupo(envelopesConfig, acmCatMes);
+  const { gastosMacro, tetosMacro } = agruparPorMacroGrupo(envelopesConfig, dados.acmCatMes);
   renderizarGraficoMacroGrupos(gastosMacro);
   renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro);
-  renderizarGraficoHistoricoMensal(acmHistMes);
+  renderizarGraficoHistoricoMensal(dados.acmHistMes);
 
-  const metricas = calcularMetricasOrcamento(envelopesConfig, acmCatMes);
+  const metricas = calcularMetricasOrcamento(envelopesConfig, dados.acmCatMes);
   const pacing = calcularVelocimetroPacing(mesSel, metricas.gastoFlexivelMes, metricas.tetoFlexivelTotal);
 
   atualizarMargemEManobraUI(
@@ -1344,19 +1346,18 @@ function processarDados() {
     metricas.tetoFlexivelTotal
   );
 
-  const totalDespesasMes = totalSaidasDiretas + totalPagtoFatura + totalFatura;
-  const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
+  const totalDespesasMes = dados.totalSaidasDiretas + dados.totalPagtoFatura + dados.totalFatura;
+  const pctComprometimento = dados.totalEntradas > 0 ? Math.round((totalDespesasMes / dados.totalEntradas) * 100) : 0;
   const resumoEl = document.getElementById('resumo-executivo-texto');
   if (resumoEl) {
     resumoEl.innerHTML = `
-      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(totalEntradas)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(dados.totalEntradas)}</span></div>
       <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">${formatarMoeda(totalDespesasMes)}</span></div>
       <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
     `;
   }
 }
 
-// Subscrições Firestore e Start
 inicializarEscutadoresDeEventos();
 
 onSnapshot(collection(db, "accounts"), (snapshot) => {
@@ -1392,9 +1393,8 @@ onSnapshot(query(collection(db, "transactions"), orderBy("date", "desc")), (snap
 });
 === FIM_ARQUIVO: js/app.js ===
 
-
 === INICIO_ARQUIVO: js/core/accounts.js ===
-import { db, setDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+import { db, setDoc, doc, updateDoc, deleteDoc, collection, query, where, getDocs } from "../firebase-config.js";
 
 // Semente das Contas Padrão
 export async function restaurarContasPadrao() {
@@ -1419,7 +1419,12 @@ export async function salvarConta(id, dadosConta) {
       updated_at: new Date().toISOString()
     });
   } else {
-    const novoId = "ACC_" + dadosConta.nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+    // Sanitização de ID: Remove acentos e caracteres especiais, garantindo índice limpo no Firestore
+    const baseNome = (dadosConta.nome || "ACC")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().replace(/[^A-Z0-9]/g, "_");
+    const novoId = "ACC_" + baseNome + "_" + Date.now();
+    
     await setDoc(doc(db, "accounts", novoId), {
       ...dadosConta,
       created_at: new Date().toISOString()
@@ -1428,10 +1433,19 @@ export async function salvarConta(id, dadosConta) {
 }
 
 export async function removerConta(id) {
+  // 📌 Fase 2: Integridade Relacional (Guardião de Orfandade)
+  const q = query(collection(db, "transactions"), where("account_id", "==", id));
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    alert(`⛔ BLOQUEIO DE INTEGRIDADE:\nNão é possível excluir esta conta pois existem ${snapshot.size} lançamento(s) vinculado(s) a ela.\nExclua ou altere a conta pagadora destes lançamentos primeiro.`);
+    return false;
+  }
+
   await deleteDoc(doc(db, "accounts", id));
+  return true;
 }
 === FIM_ARQUIVO: js/core/accounts.js ===
-
 
 === INICIO_ARQUIVO: js/core/charts.js ===
 import { formatarMoeda } from "./formatters.js";
@@ -1556,61 +1570,155 @@ export function renderizarGraficoHistoricoMensal(dadosPorMes) {
 }
 === FIM_ARQUIVO: js/core/charts.js ===
 
-
 === INICIO_ARQUIVO: js/core/engine.js ===
-import { formatarMoeda } from "./formatters.js";
+// 📌 Fase 5: Motor Financeiro Isolado (Funções Puras sem acoplamento de DOM)
 
-export function calcularMetricasOrcamento(envelopesConfig, acmCategoriasMes) {
+export function calcularSaldoLivre(entradas, saidasDiretas, pagamentosFatura, faturaPendente) {
+  return entradas - saidasDiretas - pagamentosFatura - faturaPendente;
+}
+
+export function calcularMetricasOrcamento(envelopesConfig, acmCatMes) {
   let tetoRigidoTotal = 0;
   let tetoFlexivelTotal = 0;
   let gastoFlexivelMes = 0;
 
-  Object.keys(envelopesConfig).forEach(catId => {
-    const cat = envelopesConfig[catId];
-    if (cat.rigidez === "FLEXIVEL") {
-      tetoFlexivelTotal += cat.teto;
-      gastoFlexivelMes += (acmCategoriasMes[catId] || 0);
+  Object.keys(envelopesConfig).forEach(id => {
+    const cat = envelopesConfig[id];
+    if (cat.rigidez === "RIGIDO") {
+      tetoRigidoTotal += (cat.teto || 0);
     } else {
-      tetoRigidoTotal += cat.teto;
+      tetoFlexivelTotal += (cat.teto || 0);
+      gastoFlexivelMes += (acmCatMes[id] || 0);
     }
   });
 
   return { tetoRigidoTotal, tetoFlexivelTotal, gastoFlexivelMes };
 }
 
-export function calcularVelocimetroPacing(mesSelecionado, gastoFlexivelMes, tetoFlexivelTotal) {
+export function calcularVelocimetroPacing(mesSel, gastoFlexivel, tetoFlexivel) {
   const hoje = new Date();
-  const anoAtual = hoje.getFullYear();
-  const mesAtualChave = String(hoje.getMonth() + 1).padStart(2, '0');
+  const [anoSel, mSel] = mesSel.split('-').map(Number);
+  const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
 
-  const [selAno, selMes] = mesSelecionado.split('-').map(Number);
-  const totalDiasNoMes = new Date(selAno, selMes, 0).getDate();
-
-  let diasDecorridos = 0;
-  if (selAno === anoAtual && selMes === Number(mesAtualChave)) {
+  let diasDecorridos = ultimoDiaMes;
+  // Se o mês selecionado for o mês atual, limitamos o progresso ao dia de hoje
+  if (anoSel === hoje.getFullYear() && mSel === (hoje.getMonth() + 1)) {
     diasDecorridos = hoje.getDate();
-  } else if (selAno < anoAtual || (selAno === anoAtual && selMes < Number(mesAtualChave))) {
-    diasDecorridos = totalDiasNoMes;
-  } else {
-    diasDecorridos = 0;
   }
 
-  const pctTempo = Math.round((diasDecorridos / totalDiasNoMes) * 100);
-  const pctConsumoFlexivel = tetoFlexivelTotal > 0 ? Math.round((gastoFlexivelMes / tetoFlexivelTotal) * 100) : 0;
+  const pctTempo = Math.round((diasDecorridos / ultimoDiaMes) * 100);
+  const pctConsumoFlexivel = tetoFlexivel > 0 ? Math.round((gastoFlexivel / tetoFlexivel) * 100) : 0;
   const deltaPacing = pctConsumoFlexivel - pctTempo;
 
-  return { totalDiasNoMes, diasDecorridos, pctTempo, pctConsumoFlexivel, deltaPacing };
+  return {
+    diasDecorridos,
+    totalDiasNoMes: ultimoDiaMes,
+    pctTempo,
+    pctConsumoFlexivel,
+    deltaPacing
+  };
 }
 
-export function calcularSaldoLivre(entradas, saídasSemFatura, pagamentosFatura, faturaPendente) {
-  const saídasTotais = saídasSemFatura + pagamentosFatura;
-  return entradas - saídasTotais - faturaPendente;
+// 📌 O Novo Coração do Sistema: Processamento centralizado de transações em Lote
+export function processarMotorFinanceiro(snapshotTransactions, filtros, config) {
+  // Proteção contra corrida de inicialização:
+  // contas/categorias podem chegar antes do snapshot de transações.
+  if (!snapshotTransactions || typeof snapshotTransactions.forEach !== "function") {
+    return {
+      totalEntradas: 0,
+      totalSaidasDiretas: 0,
+      totalFatura: 0,
+      totalPagtoFatura: 0,
+      valorFaturaPendente: 0,
+      saldoLivre: 0,
+      acmCatMes: {},
+      acmHistMes: {},
+      acmCatSaidaHist: {},
+      acmCatEntradaHist: {},
+      itensExibicao: []
+    };
+  }
+  const { mesSel, termoBusca, usrFiltro, contaFiltro, tipoFiltro } = filtros;
+  const { contasConfig, envelopesConfig } = config;
+  const anoSel = mesSel.substring(0, 4);
+
+  let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
+  const acmCatMes = {}, acmHistMes = {}, acmCatSaidaHist = {}, acmCatEntradaHist = {};
+  const itensExibicao = [];
+
+  snapshotTransactions.forEach(docSnap => {
+    const item = docSnap.data();
+    const id = docSnap.id;
+    if (!item.date) return;
+
+    const itemMes = item.date.substring(0, 7);
+    const isSaida = item.type === "SAIDA";
+
+    // Tratamento de segurança: Fallback caso a conta tenha sido excluída previamente e tornado a transação órfã
+    const contaObj = contasConfig[item.account_id];
+    const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
+    const isPagto = item.category_id === "CAT_FATURA_CARTAO";
+
+    // Acumulador de Histórico Anual para Gráficos (somente saídas, exceto pagamento de fatura para não duplicar)
+    if (item.date.substring(0, 4) === anoSel && isSaida && !isPagto) {
+      const mChave = item.date.substring(5, 7);
+      acmHistMes[mChave] = (acmHistMes[mChave] || 0) + item.amount;
+    }
+
+    // Acumulador Histórico de Caixinhas (Sinking Funds)
+    if (itemMes <= mesSel && item.category_id && !isPagto) {
+      if (isSaida) acmCatSaidaHist[item.category_id] = (acmCatSaidaHist[item.category_id] || 0) + item.amount;
+      else acmCatEntradaHist[item.category_id] = (acmCatEntradaHist[item.category_id] || 0) + item.amount;
+    }
+
+    // Cálculo exclusivo do Mês Selecionado
+    if (itemMes === mesSel) {
+      const usuarioItem = item.user_owner || 'Abner';
+
+      if (isSaida) {
+        if (isCartao) totalFatura += item.amount;
+        else if (isPagto) totalPagtoFatura += item.amount;
+        else totalSaidasDiretas += item.amount;
+
+        if (!isPagto) acmCatMes[item.category_id] = (acmCatMes[item.category_id] || 0) + item.amount;
+      } else {
+        totalEntradas += item.amount;
+      }
+
+      // Filtros de Exibição do Extrato
+      const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagto ? '💳 Quitação de Fatura' : item.category_id);
+      const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
+      const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
+      const matchConta = contaFiltro === "TODAS" || item.account_id === contaFiltro;
+      const matchTipo = tipoFiltro === "TODOS" || item.type === tipoFiltro;
+
+      if (matchBusca && matchUsuario && matchConta && matchTipo) {
+        itensExibicao.push({ id, item });
+      }
+    }
+  });
+
+  const valorFaturaPendente = Math.max(0, totalFatura - totalPagtoFatura);
+  const saldoLivre = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendente);
+
+  return {
+    totalEntradas,
+    totalSaidasDiretas,
+    totalFatura,
+    totalPagtoFatura,
+    valorFaturaPendente,
+    saldoLivre,
+    acmCatMes,
+    acmHistMes,
+    acmCatSaidaHist,
+    acmCatEntradaHist,
+    itensExibicao
+  };
 }
 === FIM_ARQUIVO: js/core/engine.js ===
 
-
 === INICIO_ARQUIVO: js/core/envelopes.js ===
-import { db, setDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+import { db, setDoc, doc, updateDoc, deleteDoc, collection, query, where, getDocs } from "../firebase-config.js";
 
 // Semente dos Envelopes Padrão
 export async function restaurarCategoriasPadrao() {
@@ -1643,7 +1751,12 @@ export async function salvarCategoria(catId, dadosCat) {
       updated_at: new Date().toISOString() 
     });
   } else {
-    const novoId = "CAT_" + dadosCat.nome.toUpperCase().replace(/[^A-Z0-9]/g, "_") + "_" + Date.now();
+    // Sanitização de ID: Remove acentos e caracteres especiais, garantindo índice limpo no Firestore
+    const baseNome = (dadosCat.nome || "CAT")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase().replace(/[^A-Z0-9]/g, "_");
+    const novoId = "CAT_" + baseNome + "_" + Date.now();
+    
     await setDoc(doc(db, "categories", novoId), { 
       ...dadosCat, 
       created_at: new Date().toISOString() 
@@ -1652,7 +1765,17 @@ export async function salvarCategoria(catId, dadosCat) {
 }
 
 export async function removerCategoria(catId) {
+  // 📌 Fase 2: Integridade Relacional (Guardião de Orfandade)
+  const q = query(collection(db, "transactions"), where("category_id", "==", catId));
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    alert(`⛔ BLOQUEIO DE INTEGRIDADE:\nNão é possível excluir este envelope pois existem ${snapshot.size} lançamento(s) vinculado(s) a ele.\nAltere a classificação destes lançamentos antes de excluir.`);
+    return false;
+  }
+
   await deleteDoc(doc(db, "categories", catId));
+  return true;
 }
 
 // Agrupador para Gráficos e Envelopes
@@ -1674,7 +1797,6 @@ export function agruparPorMacroGrupo(envelopesConfig, acmCatMes) {
   return { gastosMacro, tetosMacro };
 }
 === FIM_ARQUIVO: js/core/envelopes.js ===
-
 
 === INICIO_ARQUIVO: js/core/formatters.js ===
 export function formatarMoeda(valor) {
@@ -1709,7 +1831,6 @@ export function definirValorMascara(inputEl, valorNumerico) {
   inputEl.value = formatarMoeda(valorNumerico);
 }
 === FIM_ARQUIVO: js/core/formatters.js ===
-
 
 === INICIO_ARQUIVO: js/core/reports.js ===
 import { formatarMoeda } from "./formatters.js";
@@ -1842,26 +1963,30 @@ export async function gerarRelatorioPDF(mesSel, totalEntradas, totalSaidas, tota
 }
 === FIM_ARQUIVO: js/core/reports.js ===
 
-
 === INICIO_ARQUIVO: js/core/transactions.js ===
-import { db, collection, addDoc, doc, updateDoc, deleteDoc } from "../firebase-config.js";
+import { db, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "../firebase-config.js";
 import { atualizarStatusSyncUI } from "./ui.js";
 
 const GOOGLE_SHEETS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbx18ow_I8Clf0K1hw4X3QnBQjfbfX2ZHLD__-sYuDqJPp37l0i0pPepAL4DG1Nzj0TS/exec";
 
-// 📌 [Transmite um lançamento individual para o Webhook com feedback visual]
+// 📌 [Fase 3: Transmite um lançamento com handshake real (sem no-cors) e valida o HTTP 200]
 export async function sincronizarGoogleSheets(payload) {
   if (!GOOGLE_SHEETS_WEBHOOK_URL) return;
   atualizarStatusSyncUI('ENVIANDO');
 
   try {
-    await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
+    const response = await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
       method: "POST",
-      mode: "no-cors",
+      // Removido o mode: "no-cors" para o navegador ler a resposta real do Google
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     });
-    setTimeout(() => atualizarStatusSyncUI('SUCESSO'), 800);
+
+    if (response.ok) {
+      atualizarStatusSyncUI('SUCESSO');
+    } else {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
   } catch (err) {
     console.warn("[Sheets Sync] Erro no espelhamento:", err);
     atualizarStatusSyncUI('ERRO', '🔴 Falha Sync');
@@ -1906,15 +2031,19 @@ export async function sincronizarTudoGoogleSheets(snapshotTransactions) {
   alert(`Sincronização concluída! ${enviados} de ${total} lançamentos processados na planilha.`);
 }
 
-// 📌 [Salva ou atualiza uma transação no Firestore + Google Sheets]
+// 📌 [Fase 1: Salva ou atualiza uma transação com ID Determinístico (Idempotência)]
 export async function salvarTransacao(idEditando, dadosTransacao) {
   if (idEditando) {
+    dadosTransacao.updated_at = new Date().toISOString();
     await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
     sincronizarGoogleSheets({ action: "UPSERT", id: idEditando, ...dadosTransacao });
   } else {
+    const novoId = "TXN_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
     dadosTransacao.created_at = new Date().toISOString();
-    const docRef = await addDoc(collection(db, "transactions"), dadosTransacao);
-    sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosTransacao });
+    dadosTransacao.updated_at = new Date().toISOString();
+    
+    await setDoc(doc(db, "transactions", novoId), dadosTransacao);
+    sincronizarGoogleSheets({ action: "UPSERT", id: novoId, ...dadosTransacao });
   }
 }
 
@@ -1940,12 +2069,10 @@ export function obterFechamentosExistentes(snapshotTransactions, mesSel) {
     const item = docSnap.data();
     const id = docSnap.id;
 
-    // Aporte em Caixinha no mês atual
     if (item.date && item.date.substring(0, 7) === mesSel && item.description && item.description.includes(`Aporte Sobra Fechamento Mês (${mesSel})`)) {
       lancamentosEncontrados.push({ id, ...item });
     }
 
-    // Rollover de Saldo no 1º dia do mês seguinte
     if (item.date === dataPrimeiroDiaProxMes && item.description && item.description.includes(`Saldo Anterior / Rollover (${mesSel})`)) {
       lancamentosEncontrados.push({ id, ...item });
     }
@@ -1954,7 +2081,7 @@ export function obterFechamentosExistentes(snapshotTransactions, mesSel) {
   return lancamentosEncontrados;
 }
 
-// 📌 [Desfaz e apaga fechamentos prévios (aceita tanto Array de objetos quanto ID/String individual)]
+// 📌 [Desfaz e apaga fechamentos prévios]
 export async function removerFechamentoAnterior(alvoFechamento) {
   if (!alvoFechamento) return;
 
@@ -1973,8 +2100,8 @@ export async function removerFechamentoAnterior(alvoFechamento) {
   }
 }
 
-// 📌 [Grava em lote as múltiplas alocações do fechamento de mês (Zero-Based Budgeting)]
-export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, usuario, contaId = "ACC_BRADESCO_ABNER") {
+// 📌 [Fase 1: Lote Atômico (Batch) para Múltiplas Alocações do Fechamento]
+export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, usuario, contaId) {
   const [anoSel, mSel] = mesSel.split('-').map(Number);
   const ultimoDiaMes = new Date(anoSel, mSel, 0).getDate();
   const dataUltimoDiaMes = `${mesSel}-${String(ultimoDiaMes).padStart(2, '0')}`;
@@ -1982,8 +2109,13 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
   const dataProxMes = new Date(anoSel, mSel, 1);
   const dataPrimeiroDiaProxMes = `${dataProxMes.getFullYear()}-${String(dataProxMes.getMonth() + 1).padStart(2, '0')}-01`;
 
+  const batch = writeBatch(db);
+  const filaPlanilha = [];
+
   for (const aloc of alocacoes) {
     let dadosLancamento = {};
+    const novoIdFechamento = "TXN_FECH_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
+    const refDoc = doc(db, "transactions", novoIdFechamento);
 
     if (aloc.tipo === 'ROLLOVER') {
       dadosLancamento = {
@@ -1992,7 +2124,7 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
         amount: aloc.valor,
         description: `Saldo Anterior / Rollover (${mesSel})`,
         category_id: aloc.catDestinoId || "CAT_RESERVAS",
-        account_id: contaId,
+        account_id: contaId || "ACC_BRADESCO_ABNER",
         status: "VALIDATED",
         user_owner: usuario || "Abner",
         source_satellite: "core_dimdim",
@@ -2006,7 +2138,7 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
         amount: aloc.valor,
         description: `Aporte Sobra Fechamento Mês (${mesSel}) ➔ ${aloc.nomeCaixinha}`,
         category_id: aloc.catDestinoId,
-        account_id: contaId,
+        account_id: contaId || "ACC_BRADESCO_ABNER",
         status: "VALIDATED",
         user_owner: usuario || "Abner",
         source_satellite: "core_dimdim",
@@ -2015,12 +2147,17 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
       };
     }
 
-    const docRef = await addDoc(collection(db, "transactions"), dadosLancamento);
-    sincronizarGoogleSheets({ action: "UPSERT", id: docRef.id, ...dadosLancamento });
+    batch.set(refDoc, dadosLancamento);
+    filaPlanilha.push({ action: "UPSERT", id: novoIdFechamento, ...dadosLancamento });
+  }
+
+  await batch.commit();
+
+  for (const payload of filaPlanilha) {
+    sincronizarGoogleSheets(payload);
   }
 }
 === FIM_ARQUIVO: js/core/transactions.js ===
-
 
 === INICIO_ARQUIVO: js/core/ui.js ===
 import { formatarMoeda } from "./formatters.js";
@@ -2119,15 +2256,13 @@ export function renderizarExtrato(listaEl, itens, envelopesConfig) {
     const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
     const nomeCat = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id);
 
-    // 📌 Sanitização defensiva contra aspas e quebras de linha inline
-    const descSanitizada = (item.description || "")
-      .replace(/\\/g, "\\\\")
-      .replace(/'/g, "\\'")
-      .replace(/"/g, "&quot;")
-      .replace(/\n/g, " ");
+    // Sanitização para data-attributes (Fase 4)
+    const descSanitizada = (item.description || "").replace(/"/g, "&quot;");
 
     const card = document.createElement('div');
     card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
+    
+    // 📌 Fase 4: Substituição do onclick por atributos de dados estruturados
     card.innerHTML = `
       <div class="space-y-0.5 overflow-hidden">
         <p class="font-medium text-slate-200 truncate">${item.description}</p>
@@ -2136,8 +2271,8 @@ export function renderizarExtrato(listaEl, itens, envelopesConfig) {
       <div class="flex items-center gap-3 shrink-0">
         <p class="font-bold font-mono ${corValor}">${sinal} ${formatarMoeda(item.amount)}</p>
         <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
-          <button onclick="prepararEdicao('${id}', '${item.date}', '${item.type}', ${item.amount}, '${descSanitizada}', '${item.category_id}', '${item.account_id}', '${usuarioItem}')" class="p-1 text-slate-400 hover:text-sky-400">✏️</button>
-          <button onclick="excluirTransacao('${id}', '${descSanitizada}')" class="p-1 text-slate-400 hover:text-rose-400">🗑️</button>
+          <button data-action="edit-txn" data-id="${id}" data-date="${item.date}" data-type="${item.type}" data-amount="${item.amount}" data-desc="${descSanitizada}" data-cat="${item.category_id}" data-acc="${item.account_id}" data-user="${usuarioItem}" class="p-1 text-slate-400 hover:text-sky-400">✏️</button>
+          <button data-action="delete-txn" data-id="${id}" data-desc="${descSanitizada}" class="p-1 text-slate-400 hover:text-rose-400">🗑️</button>
         </div>
       </div>
     `;
@@ -2160,13 +2295,18 @@ export function atualizarSelectsCategorias(selectCategoria, listaGerenciadorCat,
 
     if (listaGerenciadorCat) {
       const nomeCat = data.nome || "Sem Nome";
+      const nomeSanitizado = nomeCat.replace(/"/g, "&quot;");
+      const macroSanitizado = macro.replace(/"/g, "&quot;");
+
       const itemCat = document.createElement('div');
       itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+      
+      // 📌 Fase 4: Substituição do onclick
       itemCat.innerHTML = `
         <span class="text-slate-200 font-medium">[${macro}] ${nomeCat} - <span class="text-emerald-400 font-mono">${formatarMoeda(data.teto)}</span></span>
         <div class="flex items-center gap-2">
-          <button onclick="prepararEdicaoCat('${id}', '${nomeCat.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', '${data.rigidez}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
-          <button onclick="excluirCat('${id}', '${nomeCat.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+          <button data-action="edit-cat" data-id="${id}" data-nome="${nomeSanitizado}" data-teto="${data.teto}" data-macro="${macroSanitizado}" data-rigidez="${data.rigidez}" data-acumulativa="${!!data.is_sinking_fund}" class="text-slate-400 hover:text-sky-400">✏️</button>
+          <button data-action="delete-cat" data-id="${id}" data-nome="${nomeSanitizado}" class="text-slate-400 hover:text-rose-400">🗑️</button>
         </div>
       `;
       listaGerenciadorCat.appendChild(itemCat);
@@ -2305,23 +2445,25 @@ export function renderizarListaGerenciadorContas(listaEl, contasConfig) {
   Object.keys(contasConfig).forEach(id => {
     const acc = contasConfig[id];
     const nomeConta = acc.nome || "Conta Sem Nome";
+    const nomeSanitizado = nomeConta.replace(/"/g, "&quot;");
     const tipoConta = acc.tipo || "CORRENTE";
     const selo = tipoConta === "CARTAO" ? "💳" : "🏦";
 
     const itemAcc = document.createElement('div');
     itemAcc.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+    
+    // 📌 Fase 4: Substituição do onclick
     itemAcc.innerHTML = `
       <span class="text-slate-200 font-medium">${selo} ${nomeConta} <span class="text-slate-500">(${tipoConta})</span></span>
       <div class="flex items-center gap-2">
-        <button onclick="prepararEdicaoConta('${id}', '${nomeConta.replace(/'/g, "\\'")}', '${tipoConta}')" class="text-slate-400 hover:text-sky-400">✏️</button>
-        <button onclick="excluirConta('${id}', '${nomeConta.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+        <button data-action="edit-acc" data-id="${id}" data-nome="${nomeSanitizado}" data-tipo="${tipoConta}" class="text-slate-400 hover:text-sky-400">✏️</button>
+        <button data-action="delete-acc" data-id="${id}" data-nome="${nomeSanitizado}" class="text-slate-400 hover:text-rose-400">🗑️</button>
       </div>
     `;
     listaEl.appendChild(itemAcc);
   });
 }
 
-// 📌 [Atualiza visualmente o status da sincronização com o Google Sheets]
 export function atualizarStatusSyncUI(status, mensagem = "") {
   const badgeEl = document.getElementById('sync-badge');
   if (!badgeEl) return;
@@ -2339,10 +2481,9 @@ export function atualizarStatusSyncUI(status, mensagem = "") {
 }
 === FIM_ARQUIVO: js/core/ui.js ===
 
-
 === INICIO_ARQUIVO: js/firebase-config.js ===
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, writeBatch, where, getDocs } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCjGBOUUThDgCqAOQJtXYeKdq2Pb0IG7PU",
@@ -2355,9 +2496,10 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy };
-=== FIM_ARQUIVO: js/firebase-config.js ===
 
+// 📌 Exportamos where e getDocs para as validações de orfandade
+export { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, query, orderBy, writeBatch, where, getDocs };
+=== FIM_ARQUIVO: js/firebase-config.js ===
 
 === INICIO_ARQUIVO: manifest.json ===
 {
@@ -2387,9 +2529,8 @@ export { collection, addDoc, doc, updateDoc, deleteDoc, setDoc, onSnapshot, quer
 }
 === FIM_ARQUIVO: manifest.json ===
 
-
 === INICIO_ARQUIVO: sw.js ===
-const CACHE_NAME = 'dimdim-v2.6.8';
+const CACHE_NAME = 'dimdim-v2.6.14';
 
 const ASSETS_TO_CACHE = [
   './',
@@ -2447,5 +2588,4 @@ self.addEventListener('fetch', (event) => {
   );
 });
 === FIM_ARQUIVO: sw.js ===
-
 

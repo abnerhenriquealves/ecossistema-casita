@@ -35,8 +35,8 @@ let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
 // 📌 [Metadados de Build e Versão de Desenvolvimento]
-const APP_VERSION = "v2.6.13"; // Ajustado para seguir cronologia rigorosa
-const APP_BUILD_TIME = "22/09/2026 - 09:10";
+const APP_VERSION = "v2.6.14"; // Ajustado para seguir cronologia rigorosa
+const APP_BUILD_TIME = "22/09/2026 - 12:24";
 
 const elVersao = document.getElementById('app-version-display');
 if (elVersao) elVersao.textContent = APP_VERSION;
@@ -164,9 +164,9 @@ async function executarExportacaoPDF() {
   const config = { contasConfig, envelopesConfig };
   const filtros = { mesSel, termoBusca: "", usrFiltro: "TODOS", contaFiltro: "TODAS", tipoFiltro: "TODOS" };
   const dados = processarMotorFinanceiro(snapshotTransactions, filtros, config);
-  
+
   dados.itensExibicao.sort((a, b) => a.item.date.localeCompare(b.item.date));
-  
+
   await gerarRelatorioPDF(mesSel, dados.totalEntradas, dados.totalSaidasDiretas + dados.totalPagtoFatura, dados.totalFatura, dados.saldoLivre, dados.itensExibicao, envelopesConfig);
 }
 
@@ -289,6 +289,19 @@ async function submeterCategoria(e) {
   resetarFormCategoria();
 }
 
+async function submeterConta(e) {
+  e.preventDefault();
+
+  const idEditando = document.getElementById('conta-id').value;
+
+  await salvarConta(idEditando, {
+    nome: document.getElementById('conta-nome').value.trim(),
+    tipo: document.getElementById('conta-tipo').value
+  });
+
+  resetarFormConta();
+}
+
 function criarLinhaAlocacaoDOM(idLinha, valorPadrao = 0) {
   const container = document.getElementById('container-linhas-alocacao');
   if (!container) return;
@@ -396,10 +409,10 @@ function abrirModalFechamento() {
 async function submeterFechamentoMes(e) {
   e.preventDefault();
   const mesSel = filtroMesInput.value;
-  
+
   // 📌 Fase 5: Erradicação do hardcode "ACC_BRADESCO_ABNER" 
   let contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value;
-  
+
   if (!contaDebitoId) {
     const contasCorrentes = Object.keys(contasConfig).filter(id => contasConfig[id].tipo === "CORRENTE");
     if (contasCorrentes.length > 0) {
@@ -476,7 +489,7 @@ async function executarQuitacaoFatura() {
 // 📌 Fase 5: O Controlador magro e limpo delegando para o Motor
 function processarDados() {
   if (!snapshotTransactions) return;
-  
+
   const mesSel = filtroMesInput.value;
 
   // 1. Coleta os parâmetros da Interface
@@ -487,7 +500,7 @@ function processarDados() {
     contaFiltro: document.getElementById('filtro-conta-extrato')?.value || "TODAS",
     tipoFiltro: document.getElementById('filtro-tipo-extrato')?.value || "TODOS"
   };
-  
+
   const config = { contasConfig, envelopesConfig };
 
   // 2. Delega todo o cálculo pesado para a Engine Pura

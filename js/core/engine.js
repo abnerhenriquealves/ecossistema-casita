@@ -48,6 +48,23 @@ export function calcularVelocimetroPacing(mesSel, gastoFlexivel, tetoFlexivel) {
 
 // 📌 O Novo Coração do Sistema: Processamento centralizado de transações em Lote
 export function processarMotorFinanceiro(snapshotTransactions, filtros, config) {
+  // Proteção contra corrida de inicialização:
+  // contas/categorias podem chegar antes do snapshot de transações.
+  if (!snapshotTransactions || typeof snapshotTransactions.forEach !== "function") {
+    return {
+      totalEntradas: 0,
+      totalSaidasDiretas: 0,
+      totalFatura: 0,
+      totalPagtoFatura: 0,
+      valorFaturaPendente: 0,
+      saldoLivre: 0,
+      acmCatMes: {},
+      acmHistMes: {},
+      acmCatSaidaHist: {},
+      acmCatEntradaHist: {},
+      itensExibicao: []
+    };
+  }
   const { mesSel, termoBusca, usrFiltro, contaFiltro, tipoFiltro } = filtros;
   const { contasConfig, envelopesConfig } = config;
   const anoSel = mesSel.substring(0, 4);
@@ -63,7 +80,7 @@ export function processarMotorFinanceiro(snapshotTransactions, filtros, config) 
 
     const itemMes = item.date.substring(0, 7);
     const isSaida = item.type === "SAIDA";
-    
+
     // Tratamento de segurança: Fallback caso a conta tenha sido excluída previamente e tornado a transação órfã
     const contaObj = contasConfig[item.account_id];
     const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
@@ -89,7 +106,7 @@ export function processarMotorFinanceiro(snapshotTransactions, filtros, config) 
         if (isCartao) totalFatura += item.amount;
         else if (isPagto) totalPagtoFatura += item.amount;
         else totalSaidasDiretas += item.amount;
-        
+
         if (!isPagto) acmCatMes[item.category_id] = (acmCatMes[item.category_id] || 0) + item.amount;
       } else {
         totalEntradas += item.amount;
@@ -112,16 +129,16 @@ export function processarMotorFinanceiro(snapshotTransactions, filtros, config) 
   const saldoLivre = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendente);
 
   return {
-    totalEntradas, 
-    totalSaidasDiretas, 
-    totalFatura, 
+    totalEntradas,
+    totalSaidasDiretas,
+    totalFatura,
     totalPagtoFatura,
-    valorFaturaPendente, 
+    valorFaturaPendente,
     saldoLivre,
-    acmCatMes, 
-    acmHistMes, 
-    acmCatSaidaHist, 
-    acmCatEntradaHist, 
+    acmCatMes,
+    acmHistMes,
+    acmCatSaidaHist,
+    acmCatEntradaHist,
     itensExibicao
   };
 }
