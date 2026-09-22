@@ -94,15 +94,13 @@ export function renderizarExtrato(listaEl, itens, envelopesConfig) {
     const seloConta = isCartao ? "💳 Cartão" : "🏦 Conta Corrente";
     const nomeCat = envelopesConfig[item.category_id]?.nome || (isPagtoFatura ? '💳 Quitação de Fatura' : item.category_id);
 
-    // 📌 Sanitização defensiva contra aspas e quebras de linha inline
-    const descSanitizada = (item.description || "")
-      .replace(/\\/g, "\\\\")
-      .replace(/'/g, "\\'")
-      .replace(/"/g, "&quot;")
-      .replace(/\n/g, " ");
+    // Sanitização para data-attributes (Fase 4)
+    const descSanitizada = (item.description || "").replace(/"/g, "&quot;");
 
     const card = document.createElement('div');
     card.className = "bg-slate-950/60 border border-slate-800 p-3 rounded-lg flex items-center justify-between text-sm gap-2";
+    
+    // 📌 Fase 4: Substituição do onclick por atributos de dados estruturados
     card.innerHTML = `
       <div class="space-y-0.5 overflow-hidden">
         <p class="font-medium text-slate-200 truncate">${item.description}</p>
@@ -111,8 +109,8 @@ export function renderizarExtrato(listaEl, itens, envelopesConfig) {
       <div class="flex items-center gap-3 shrink-0">
         <p class="font-bold font-mono ${corValor}">${sinal} ${formatarMoeda(item.amount)}</p>
         <div class="flex items-center gap-1 border-l border-slate-800 pl-2">
-          <button onclick="prepararEdicao('${id}', '${item.date}', '${item.type}', ${item.amount}, '${descSanitizada}', '${item.category_id}', '${item.account_id}', '${usuarioItem}')" class="p-1 text-slate-400 hover:text-sky-400">✏️</button>
-          <button onclick="excluirTransacao('${id}', '${descSanitizada}')" class="p-1 text-slate-400 hover:text-rose-400">🗑️</button>
+          <button data-action="edit-txn" data-id="${id}" data-date="${item.date}" data-type="${item.type}" data-amount="${item.amount}" data-desc="${descSanitizada}" data-cat="${item.category_id}" data-acc="${item.account_id}" data-user="${usuarioItem}" class="p-1 text-slate-400 hover:text-sky-400">✏️</button>
+          <button data-action="delete-txn" data-id="${id}" data-desc="${descSanitizada}" class="p-1 text-slate-400 hover:text-rose-400">🗑️</button>
         </div>
       </div>
     `;
@@ -135,13 +133,18 @@ export function atualizarSelectsCategorias(selectCategoria, listaGerenciadorCat,
 
     if (listaGerenciadorCat) {
       const nomeCat = data.nome || "Sem Nome";
+      const nomeSanitizado = nomeCat.replace(/"/g, "&quot;");
+      const macroSanitizado = macro.replace(/"/g, "&quot;");
+
       const itemCat = document.createElement('div');
       itemCat.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+      
+      // 📌 Fase 4: Substituição do onclick
       itemCat.innerHTML = `
         <span class="text-slate-200 font-medium">[${macro}] ${nomeCat} - <span class="text-emerald-400 font-mono">${formatarMoeda(data.teto)}</span></span>
         <div class="flex items-center gap-2">
-          <button onclick="prepararEdicaoCat('${id}', '${nomeCat.replace(/'/g, "\\'")}', ${data.teto}, '${macro.replace(/'/g, "\\'")}', '${data.rigidez}', ${!!data.is_sinking_fund})" class="text-slate-400 hover:text-sky-400">✏️</button>
-          <button onclick="excluirCat('${id}', '${nomeCat.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+          <button data-action="edit-cat" data-id="${id}" data-nome="${nomeSanitizado}" data-teto="${data.teto}" data-macro="${macroSanitizado}" data-rigidez="${data.rigidez}" data-acumulativa="${!!data.is_sinking_fund}" class="text-slate-400 hover:text-sky-400">✏️</button>
+          <button data-action="delete-cat" data-id="${id}" data-nome="${nomeSanitizado}" class="text-slate-400 hover:text-rose-400">🗑️</button>
         </div>
       `;
       listaGerenciadorCat.appendChild(itemCat);
@@ -280,23 +283,25 @@ export function renderizarListaGerenciadorContas(listaEl, contasConfig) {
   Object.keys(contasConfig).forEach(id => {
     const acc = contasConfig[id];
     const nomeConta = acc.nome || "Conta Sem Nome";
+    const nomeSanitizado = nomeConta.replace(/"/g, "&quot;");
     const tipoConta = acc.tipo || "CORRENTE";
     const selo = tipoConta === "CARTAO" ? "💳" : "🏦";
 
     const itemAcc = document.createElement('div');
     itemAcc.className = "flex items-center justify-between text-xs bg-slate-900 border border-slate-800 p-2 rounded";
+    
+    // 📌 Fase 4: Substituição do onclick
     itemAcc.innerHTML = `
       <span class="text-slate-200 font-medium">${selo} ${nomeConta} <span class="text-slate-500">(${tipoConta})</span></span>
       <div class="flex items-center gap-2">
-        <button onclick="prepararEdicaoConta('${id}', '${nomeConta.replace(/'/g, "\\'")}', '${tipoConta}')" class="text-slate-400 hover:text-sky-400">✏️</button>
-        <button onclick="excluirConta('${id}', '${nomeConta.replace(/'/g, "\\'")}')" class="text-slate-400 hover:text-rose-400">🗑️</button>
+        <button data-action="edit-acc" data-id="${id}" data-nome="${nomeSanitizado}" data-tipo="${tipoConta}" class="text-slate-400 hover:text-sky-400">✏️</button>
+        <button data-action="delete-acc" data-id="${id}" data-nome="${nomeSanitizado}" class="text-slate-400 hover:text-rose-400">🗑️</button>
       </div>
     `;
     listaEl.appendChild(itemAcc);
   });
 }
 
-// 📌 [Atualiza visualmente o status da sincronização com o Google Sheets]
 export function atualizarStatusSyncUI(status, mensagem = "") {
   const badgeEl = document.getElementById('sync-badge');
   if (!badgeEl) return;

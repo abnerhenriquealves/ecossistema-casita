@@ -35,8 +35,8 @@ let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
 // 📌 [Metadados de Build e Versão de Desenvolvimento]
-const APP_VERSION = "v2.6.11";
-const APP_BUILD_TIME = "22/09/2026 - 08:47";
+const APP_VERSION = "v2.6.8"; // A build.py cuidará do incremento na publicação
+const APP_BUILD_TIME = "22/09/2026 - 08:54";
 
 const elVersao = document.getElementById('app-version-display');
 if (elVersao) elVersao.textContent = APP_VERSION;
@@ -72,12 +72,10 @@ function inicializarEscutadoresDeEventos() {
   });
   filtroMesInput?.addEventListener('change', processarDados);
 
-  // Sincronização em Lote com Google Sheets
   document.getElementById('btn-sincronizar-sheets-lote')?.addEventListener('click', () => {
     sincronizarTudoGoogleSheets(snapshotTransactions);
   });
 
-  // 📌 Botão Forçar Atualização (DEV) - Limpa Caches PWA & Service Worker
   document.getElementById('btn-forcar-atualizacao')?.addEventListener('click', async () => {
     if (confirm("Deseja forçar a limpeza de cache do navegador e recarregar a versão mais recente?")) {
       if ('caches' in window) {
@@ -94,12 +92,10 @@ function inicializarEscutadoresDeEventos() {
     }
   });
 
-  // Botão Adicionar Destino do Modal de Fechamento (Registrado uma única vez)
   document.getElementById('btn-add-destino-fechamento')?.addEventListener('click', () => {
     criarLinhaAlocacaoDOM(Date.now(), 0);
   });
 
-  // Painel de Categorias
   document.getElementById('btn-toggle-gerenciar-cat')?.addEventListener('click', () => {
     document.getElementById('painel-gerenciar-categorias')?.classList.toggle('aberto');
   });
@@ -108,20 +104,17 @@ function inicializarEscutadoresDeEventos() {
   });
   document.getElementById('btn-cancelar-cat')?.addEventListener('click', resetarFormCategoria);
 
-  // Painel de Contas
   document.getElementById('btn-toggle-gerenciar-contas')?.addEventListener('click', () => {
     document.getElementById('painel-gerenciar-contas')?.classList.toggle('aberto');
   });
   document.getElementById('btn-cancelar-conta')?.addEventListener('click', resetarFormConta);
 
-  // Fechamento e Quitação
   document.getElementById('btn-abrir-fechamento-mes')?.addEventListener('click', abrirModalFechamento);
   document.getElementById('btn-fechar-modal-fechamento')?.addEventListener('click', fecharModalFechamento);
   document.getElementById('btn-cancelar-fechamento')?.addEventListener('click', fecharModalFechamento);
   document.getElementById('btn-quitar-fatura')?.addEventListener('click', executarQuitacaoFatura);
   document.getElementById('btn-cancelar-edicao')?.addEventListener('click', resetarFormTransacao);
 
-  // Filtros
   ['busca-extrato', 'filtro-usuario-extrato', 'filtro-conta-extrato', 'filtro-tipo-extrato'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -130,17 +123,39 @@ function inicializarEscutadoresDeEventos() {
     }
   });
 
-  // Submissão de Formulários
   if (formTransacao) formTransacao.addEventListener('submit', submeterTransacao);
   if (formCategoria) formCategoria.addEventListener('submit', submeterCategoria);
   if (formFechamentoMes) formFechamentoMes.addEventListener('submit', submeterFechamentoMes);
   if (formConta) formConta.addEventListener('submit', submeterConta);
 
-  // Exportação em PDF
   document.getElementById('btn-exportar-pdf')?.addEventListener('click', executarExportacaoPDF);
+
+  // 📌 Fase 4: Delegação de Eventos (Event Delegation Centralizado)
+  document.getElementById('lista-transacoes')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ds = btn.dataset;
+    if (ds.action === 'edit-txn') prepararEdicao(ds.id, ds.date, ds.type, ds.amount, ds.desc, ds.cat, ds.acc, ds.user);
+    if (ds.action === 'delete-txn') excluirTransacao(ds.id, ds.desc);
+  });
+
+  document.getElementById('lista-gerenciador-categorias')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ds = btn.dataset;
+    if (ds.action === 'edit-cat') prepararEdicaoCat(ds.id, ds.nome, ds.teto, ds.macro, ds.rigidez, ds.acumulativa === 'true');
+    if (ds.action === 'delete-cat') excluirCat(ds.id, ds.nome);
+  });
+
+  document.getElementById('lista-gerenciador-contas')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const ds = btn.dataset;
+    if (ds.action === 'edit-acc') prepararEdicaoConta(ds.id, ds.nome, ds.tipo);
+    if (ds.action === 'delete-acc') excluirConta(ds.id, ds.nome);
+  });
 }
 
-// Exportar Relatório PDF
 async function executarExportacaoPDF() {
   if (!snapshotTransactions) {
     alert("Aguarde o carregamento dos dados para gerar o relatório.");
@@ -174,7 +189,6 @@ async function executarExportacaoPDF() {
     itensExibicao.push({ id: docSnap.id, item });
   });
 
-  // Ordena cronologicamente os lançamentos do mês
   itensExibicao.sort((a, b) => a.item.date.localeCompare(b.item.date));
 
   const valorFaturaPendente = Math.max(0, totalFatura - totalPagtoFatura);
@@ -183,7 +197,6 @@ async function executarExportacaoPDF() {
   await gerarRelatorioPDF(mesSel, totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivre, itensExibicao, envelopesConfig);
 }
 
-// Modais e Auxiliares
 function fecharModalFechamento() {
   modalFechamentoMes?.classList.add('hidden');
 }
@@ -221,12 +234,12 @@ function resetarFormConta() {
   document.getElementById('btn-cancelar-conta').classList.add('hidden');
 }
 
-// Window Functions para Ações de Tabela
-window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usuario) => {
+// 📌 Fase 4: Funções tornadas Locais (Removidas do escopo 'window')
+function prepararEdicao(id, data, tipo, valor, descricao, categoria, conta, usuario) {
   document.getElementById('transacao-id').value = id;
   document.getElementById('data').value = data;
   document.getElementById('tipo').value = tipo;
-  definirValorMascara(document.getElementById('valor'), valor);
+  definirValorMascara(document.getElementById('valor'), parseFloat(valor));
   document.getElementById('descricao').value = descricao;
   document.getElementById('categoria').value = categoria;
   document.getElementById('conta').value = conta;
@@ -234,40 +247,45 @@ window.prepararEdicao = (id, data, tipo, valor, descricao, categoria, conta, usu
   document.getElementById('titulo-form').textContent = "Editar Lançamento";
   document.getElementById('btn-cancelar-edicao').classList.remove('hidden');
   document.getElementById('secao-formulario').scrollIntoView({ behavior: 'smooth', block: 'center' });
-};
+}
 
-window.excluirTransacao = async (id, descricao) => {
+async function excluirTransacao(id, descricao) {
   if (confirm(`Deseja realmente excluir "${descricao}"?`)) await removerTransacao(id);
-};
+}
 
-window.prepararEdicaoCat = (id, nome, teto, macro, rigidez, isAcumulativa) => {
+function prepararEdicaoCat(id, nome, teto, macro, rigidez, isAcumulativa) {
   document.getElementById('cat-id').value = id;
   document.getElementById('cat-nome').value = nome;
-  definirValorMascara(document.getElementById('cat-teto'), teto);
+  definirValorMascara(document.getElementById('cat-teto'), parseFloat(teto));
   document.getElementById('cat-macro').value = macro || "Reservas & Outros";
   document.getElementById('cat-rigidez').value = rigidez || "RIGIDO";
-  document.getElementById('cat-acumulativa').checked = !!isAcumulativa;
+  document.getElementById('cat-acumulativa').checked = isAcumulativa;
   document.getElementById('titulo-form-cat').textContent = "Editar Envelope / Categoria";
   document.getElementById('btn-cancelar-cat').classList.remove('hidden');
-};
+}
 
-window.excluirCat = async (id, nome) => {
-  if (confirm(`Deseja excluir a categoria "${nome}"?`)) await removerCategoria(id);
-};
+async function excluirCat(id, nome) {
+  if (confirm(`Deseja excluir a categoria "${nome}"?`)) {
+    const success = await removerCategoria(id);
+    if (success) alert(`Envelope "${nome}" removido com sucesso.`);
+  }
+}
 
-window.prepararEdicaoConta = (id, nome, tipo) => {
+function prepararEdicaoConta(id, nome, tipo) {
   document.getElementById('conta-id').value = id;
   document.getElementById('conta-nome').value = nome;
   document.getElementById('conta-tipo').value = tipo;
   document.getElementById('titulo-form-conta').textContent = "Editar Conta / Cartão";
   document.getElementById('btn-cancelar-conta').classList.remove('hidden');
-};
+}
 
-window.excluirConta = async (id, nome) => {
-  if (confirm(`Deseja excluir a conta "${nome}"?`)) await removerConta(id);
-};
+async function excluirConta(id, nome) {
+  if (confirm(`Deseja excluir a conta "${nome}"?`)) {
+    const success = await removerConta(id);
+    if (success) alert(`Conta "${nome}" removida com sucesso.`);
+  }
+}
 
-// Handlers de Submissão
 async function submeterTransacao(e) {
   e.preventDefault();
   const idEditando = document.getElementById('transacao-id').value;
@@ -299,7 +317,6 @@ async function submeterCategoria(e) {
   resetarFormCategoria();
 }
 
-// 📌 [Lógica de Distribuição Multi-Destino & Orçamento Base Zero]
 function criarLinhaAlocacaoDOM(idLinha, valorPadrao = 0) {
   const container = document.getElementById('container-linhas-alocacao');
   if (!container) return;
@@ -360,7 +377,6 @@ function recalcularBalançoFechamento() {
 
   const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
 
-  // Trava de Saldo Zero: Permite fechar apenas se pendente for EXATAMENTE zero e alocado > 0
   if (Math.abs(pendente) < 0.01 && totalAlocado > 0) {
     if (elPendente) elPendente.className = "text-xs font-bold text-emerald-400";
     if (btnConfirmar) btnConfirmar.disabled = false;
@@ -375,14 +391,12 @@ function abrirModalFechamento() {
   const containerLinhas = document.getElementById('container-linhas-alocacao');
   if (containerLinhas) containerLinhas.innerHTML = "";
 
-  // 1. Fatura Pendente
   const boxAlerta = document.getElementById('box-alerta-fatura-pendente');
   if (boxAlerta) {
     if (valorFaturaPendenteAtual > 0) boxAlerta.classList.remove('hidden');
     else boxAlerta.classList.add('hidden');
   }
 
-  // 2. Trava e Ação de Desfazer Fechamento Anterior
   const fechamentosExistentes = obterFechamentosExistentes(snapshotTransactions, mesSel);
   const boxJaFechado = document.getElementById('box-alerta-ja-fechado');
   const btnConfirmar = document.getElementById('btn-confirmar-fechamento');
@@ -403,7 +417,6 @@ function abrirModalFechamento() {
     }
   } else {
     boxJaFechado?.classList.add('hidden');
-    // Cria a primeira linha de alocação preenchida com o saldo livre total
     criarLinhaAlocacaoDOM(Date.now(), Math.max(0, saldoLivreMemoria));
   }
 
@@ -415,7 +428,6 @@ async function submeterFechamentoMes(e) {
   const mesSel = filtroMesInput.value;
   const contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value || "ACC_BRADESCO_ABNER";
 
-  // 📌 Agrupador dinâmico para consolidar valores de mesmos destinos
   const mapaAlocacoes = {};
 
   document.querySelectorAll('.item-alocacao-row').forEach(row => {
@@ -489,7 +501,6 @@ async function executarQuitacaoFatura() {
   }
 }
 
-// Processamento Central
 function processarDados() {
   if (!snapshotTransactions) return;
   const mesSel = filtroMesInput.value;
@@ -622,7 +633,6 @@ function processarDados() {
   }
 }
 
-// Subscrições Firestore e Start
 inicializarEscutadoresDeEventos();
 
 onSnapshot(collection(db, "accounts"), (snapshot) => {
