@@ -3,19 +3,24 @@ import { atualizarStatusSyncUI } from "./ui.js";
 
 const GOOGLE_SHEETS_WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbx18ow_I8Clf0K1hw4X3QnBQjfbfX2ZHLD__-sYuDqJPp37l0i0pPepAL4DG1Nzj0TS/exec";
 
-// 📌 [Transmite um lançamento individual para o Webhook com feedback visual]
+// 📌 [Fase 3: Transmite um lançamento com handshake real (sem no-cors) e valida o HTTP 200]
 export async function sincronizarGoogleSheets(payload) {
   if (!GOOGLE_SHEETS_WEBHOOK_URL) return;
   atualizarStatusSyncUI('ENVIANDO');
 
   try {
-    await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
+    const response = await fetch(GOOGLE_SHEETS_WEBHOOK_URL, {
       method: "POST",
-      mode: "no-cors",
+      // Removido o mode: "no-cors" para o navegador ler a resposta real do Google
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(payload)
     });
-    setTimeout(() => atualizarStatusSyncUI('SUCESSO'), 800);
+
+    if (response.ok) {
+      atualizarStatusSyncUI('SUCESSO');
+    } else {
+      throw new Error(`HTTP Error: ${response.status}`);
+    }
   } catch (err) {
     console.warn("[Sheets Sync] Erro no espelhamento:", err);
     atualizarStatusSyncUI('ERRO', '🔴 Falha Sync');
@@ -67,12 +72,10 @@ export async function salvarTransacao(idEditando, dadosTransacao) {
     await updateDoc(doc(db, "transactions", idEditando), dadosTransacao);
     sincronizarGoogleSheets({ action: "UPSERT", id: idEditando, ...dadosTransacao });
   } else {
-    // Criação de ID único e determinístico no cliente antes de enviar
     const novoId = "TXN_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
     dadosTransacao.created_at = new Date().toISOString();
     dadosTransacao.updated_at = new Date().toISOString();
     
-    // Substituição de addDoc por setDoc: previne duplicação se houver clique duplo ou retry de rede
     await setDoc(doc(db, "transactions", novoId), dadosTransacao);
     sincronizarGoogleSheets({ action: "UPSERT", id: novoId, ...dadosTransacao });
   }
@@ -140,7 +143,6 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
   const dataProxMes = new Date(anoSel, mSel, 1);
   const dataPrimeiroDiaProxMes = `${dataProxMes.getFullYear()}-${String(dataProxMes.getMonth() + 1).padStart(2, '0')}-01`;
 
-  // Prepara a transação em lote
   const batch = writeBatch(db);
   const filaPlanilha = [];
 
@@ -179,17 +181,12 @@ export async function processarFechamentoMultiplosDestinos(mesSel, alocacoes, us
       };
     }
 
-    // Adiciona a operação ao lote (ainda não salva no banco)
     batch.set(refDoc, dadosLancamento);
-    
-    // Coloca a operação na fila para o Google Sheets
     filaPlanilha.push({ action: "UPSERT", id: novoIdFechamento, ...dadosLancamento });
   }
 
-  // Comita o lote atômico inteiro: ou salva tudo junto perfeitamente, ou não salva nada
   await batch.commit();
 
-  // Se o commit no Firestore foi um sucesso absoluto, reflete os dados no Google Sheets
   for (const payload of filaPlanilha) {
     sincronizarGoogleSheets(payload);
   }
