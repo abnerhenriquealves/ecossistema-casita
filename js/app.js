@@ -1,6 +1,6 @@
 import { db, collection, onSnapshot, query, orderBy } from "./firebase-config.js";
 import { formatarMoeda, aplicarMascaraMoeda, obterValorNumericoMascara, definirValorMascara } from "./core/formatters.js";
-import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre } from "./core/engine.js";
+import { calcularMetricasOrcamento, calcularVelocimetroPacing, calcularSaldoLivre, processarMotorFinanceiro } from "./core/engine.js";
 import {
   salvarTransacao,
   removerTransacao,
@@ -35,8 +35,8 @@ let snapshotTransactions = null;
 let valorFaturaPendenteAtual = 0;
 
 // 📌 [Metadados de Build e Versão de Desenvolvimento]
-const APP_VERSION = "v2.6.12"; // A build.py cuidará do incremento na publicação
-const APP_BUILD_TIME = "22/09/2026 - 09:02";
+const APP_VERSION = "v2.6.13"; // Ajustado para seguir cronologia rigorosa
+const APP_BUILD_TIME = "22/09/2026 - 09:10";
 
 const elVersao = document.getElementById('app-version-display');
 if (elVersao) elVersao.textContent = APP_VERSION;
@@ -62,7 +62,6 @@ if (filtroMesInput) filtroMesInput.value = `${anoAtual}-${mesAtual}`;
 const inputData = document.getElementById('data');
 if (inputData) inputData.value = hoje.toISOString().split('T')[0];
 
-// Centralizador Unificado de Escutadores de Eventos
 function inicializarEscutadoresDeEventos() {
   document.getElementById('btn-mes-anterior')?.addEventListener('click', () => alterarMes(-1));
   document.getElementById('btn-mes-proximo')?.addEventListener('click', () => alterarMes(1));
@@ -130,7 +129,6 @@ function inicializarEscutadoresDeEventos() {
 
   document.getElementById('btn-exportar-pdf')?.addEventListener('click', executarExportacaoPDF);
 
-  // 📌 Fase 4: Delegação de Eventos (Event Delegation Centralizado)
   document.getElementById('lista-transacoes')?.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
@@ -161,40 +159,15 @@ async function executarExportacaoPDF() {
     alert("Aguarde o carregamento dos dados para gerar o relatório.");
     return;
   }
-
   const mesSel = filtroMesInput.value;
-  let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
-  const itensExibicao = [];
-
-  snapshotTransactions.forEach(docSnap => {
-    const item = docSnap.data();
-    if (!item.date) return;
-
-    const itemMes = item.date.substring(0, 7);
-    if (itemMes !== mesSel) return;
-
-    const isSaida = item.type === "SAIDA";
-    const contaObj = contasConfig[item.account_id];
-    const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
-    const isPagto = item.category_id === "CAT_FATURA_CARTAO";
-
-    if (isSaida) {
-      if (isCartao) totalFatura += item.amount;
-      else if (isPagto) totalPagtoFatura += item.amount;
-      else totalSaidasDiretas += item.amount;
-    } else {
-      totalEntradas += item.amount;
-    }
-
-    itensExibicao.push({ id: docSnap.id, item });
-  });
-
-  itensExibicao.sort((a, b) => a.item.date.localeCompare(b.item.date));
-
-  const valorFaturaPendente = Math.max(0, totalFatura - totalPagtoFatura);
-  const saldoLivre = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendente);
-
-  await gerarRelatorioPDF(mesSel, totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivre, itensExibicao, envelopesConfig);
+  // Para PDF, rodamos um filtro focado sem as restrições da barra de busca do extrato
+  const config = { contasConfig, envelopesConfig };
+  const filtros = { mesSel, termoBusca: "", usrFiltro: "TODOS", contaFiltro: "TODAS", tipoFiltro: "TODOS" };
+  const dados = processarMotorFinanceiro(snapshotTransactions, filtros, config);
+  
+  dados.itensExibicao.sort((a, b) => a.item.date.localeCompare(b.item.date));
+  
+  await gerarRelatorioPDF(mesSel, dados.totalEntradas, dados.totalSaidasDiretas + dados.totalPagtoFatura, dados.totalFatura, dados.saldoLivre, dados.itensExibicao, envelopesConfig);
 }
 
 function fecharModalFechamento() {
@@ -234,7 +207,6 @@ function resetarFormConta() {
   document.getElementById('btn-cancelar-conta').classList.add('hidden');
 }
 
-// 📌 Fase 4: Funções tornadas Locais (Removidas do escopo 'window')
 function prepararEdicao(id, data, tipo, valor, descricao, categoria, conta, usuario) {
   document.getElementById('transacao-id').value = id;
   document.getElementById('data').value = data;
@@ -368,10 +340,8 @@ function recalcularBalançoFechamento() {
 
   const elSobra = document.getElementById('txt-fechamento-sobra-total');
   if (elSobra) elSobra.textContent = formatarMoeda(sobraTotal);
-
   const elAlocado = document.getElementById('txt-fechamento-alocado');
   if (elAlocado) elAlocado.textContent = formatarMoeda(totalAlocado);
-
   const elPendente = document.getElementById('txt-fechamento-pendente');
   if (elPendente) elPendente.textContent = formatarMoeda(pendente);
 
@@ -426,7 +396,19 @@ function abrirModalFechamento() {
 async function submeterFechamentoMes(e) {
   e.preventDefault();
   const mesSel = filtroMesInput.value;
-  const contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value || "ACC_BRADESCO_ABNER";
+  
+  // 📌 Fase 5: Erradicação do hardcode "ACC_BRADESCO_ABNER" 
+  let contaDebitoId = document.getElementById('select-conta-pagadora-fatura')?.value || document.getElementById('conta')?.value;
+  
+  if (!contaDebitoId) {
+    const contasCorrentes = Object.keys(contasConfig).filter(id => contasConfig[id].tipo === "CORRENTE");
+    if (contasCorrentes.length > 0) {
+      contaDebitoId = contasCorrentes[0]; // Seleciona dinamicamente a primeira conta corrente existente
+    } else {
+      alert("⚠️ Erro: Você não possui nenhuma Conta Corrente cadastrada para realizar o fechamento do mês.");
+      return;
+    }
+  }
 
   const mapaAlocacoes = {};
 
@@ -457,16 +439,6 @@ async function submeterFechamentoMes(e) {
   await processarFechamentoMultiplosDestinos(mesSel, alocacoes, document.getElementById('usuario').value, contaDebitoId);
   fecharModalFechamento();
   alert(`Fechamento de ${mesSel} concluído! ${alocacoes.length} lançamento(s) consolidado(s) gravado(s).`);
-}
-
-async function submeterConta(e) {
-  e.preventDefault();
-  const id = document.getElementById('conta-id').value;
-  await salvarConta(id, {
-    nome: document.getElementById('conta-nome').value.trim(),
-    tipo: document.getElementById('conta-tipo').value
-  });
-  resetarFormConta();
 }
 
 async function executarQuitacaoFatura() {
@@ -501,72 +473,35 @@ async function executarQuitacaoFatura() {
   }
 }
 
+// 📌 Fase 5: O Controlador magro e limpo delegando para o Motor
 function processarDados() {
   if (!snapshotTransactions) return;
+  
   const mesSel = filtroMesInput.value;
-  const anoSel = mesSel.substring(0, 4);
 
-  let totalEntradas = 0, totalSaidasDiretas = 0, totalFatura = 0, totalPagtoFatura = 0;
-  const acmCatMes = {}, acmHistMes = {}, acmCatSaidaHist = {}, acmCatEntradaHist = {};
-  const itensExibicao = [];
+  // 1. Coleta os parâmetros da Interface
+  const filtros = {
+    mesSel,
+    termoBusca: document.getElementById('busca-extrato')?.value.toLowerCase().trim() || "",
+    usrFiltro: document.getElementById('filtro-usuario-extrato')?.value || "TODOS",
+    contaFiltro: document.getElementById('filtro-conta-extrato')?.value || "TODAS",
+    tipoFiltro: document.getElementById('filtro-tipo-extrato')?.value || "TODOS"
+  };
+  
+  const config = { contasConfig, envelopesConfig };
 
-  const termoBusca = document.getElementById('busca-extrato')?.value.toLowerCase().trim() || "";
-  const usrFiltro = document.getElementById('filtro-usuario-extrato')?.value || "TODOS";
-  const contaFiltro = document.getElementById('filtro-conta-extrato')?.value || "TODAS";
-  const tipoFiltro = document.getElementById('filtro-tipo-extrato')?.value || "TODOS";
+  // 2. Delega todo o cálculo pesado para a Engine Pura
+  const dados = processarMotorFinanceiro(snapshotTransactions, filtros, config);
 
-  snapshotTransactions.forEach(docSnap => {
-    const item = docSnap.data();
-    const id = docSnap.id;
-    if (!item.date) return;
+  // 3. Atualiza estado local essencial
+  valorFaturaPendenteAtual = dados.valorFaturaPendente;
+  saldoLivreMemoria = dados.saldoLivre;
 
-    const itemMes = item.date.substring(0, 7);
-    const isSaida = item.type === "SAIDA";
-    const contaObj = contasConfig[item.account_id];
-    const isCartao = contaObj ? contaObj.tipo === "CARTAO" : item.account_id === "ACC_CARTAO_CREDITO";
-    const isPagto = item.category_id === "CAT_FATURA_CARTAO";
-
-    if (item.date.substring(0, 4) === anoSel && isSaida && !isPagto) {
-      const mChave = item.date.substring(5, 7);
-      acmHistMes[mChave] = (acmHistMes[mChave] || 0) + item.amount;
-    }
-
-    if (itemMes <= mesSel && item.category_id && !isPagto) {
-      if (isSaida) acmCatSaidaHist[item.category_id] = (acmCatSaidaHist[item.category_id] || 0) + item.amount;
-      else acmCatEntradaHist[item.category_id] = (acmCatEntradaHist[item.category_id] || 0) + item.amount;
-    }
-
-    if (itemMes === mesSel) {
-      const usuarioItem = item.user_owner || 'Abner';
-
-      if (isSaida) {
-        if (isCartao) totalFatura += item.amount;
-        else if (isPagto) totalPagtoFatura += item.amount;
-        else totalSaidasDiretas += item.amount;
-        if (!isPagto) acmCatMes[item.category_id] = (acmCatMes[item.category_id] || 0) + item.amount;
-      } else {
-        totalEntradas += item.amount;
-      }
-
-      const nomeCatExibicao = envelopesConfig[item.category_id]?.nome || (isPagto ? '💳 Quitação de Fatura' : item.category_id);
-      const matchBusca = !termoBusca || item.description.toLowerCase().includes(termoBusca) || (nomeCatExibicao && nomeCatExibicao.toLowerCase().includes(termoBusca));
-      const matchUsuario = usrFiltro === "TODOS" || usuarioItem === usrFiltro;
-      const matchConta = contaFiltro === "TODAS" || item.account_id === contaFiltro;
-      const matchTipo = tipoFiltro === "TODOS" || item.type === tipoFiltro;
-
-      if (matchBusca && matchUsuario && matchConta && matchTipo) {
-        itensExibicao.push({ id, item });
-      }
-    }
-  });
-
-  valorFaturaPendenteAtual = Math.max(0, totalFatura - totalPagtoFatura);
-  saldoLivreMemoria = calcularSaldoLivre(totalEntradas, totalSaidasDiretas, totalPagtoFatura, valorFaturaPendenteAtual);
-
+  // 4. Delega as reações visuais para a UI
   const btnQuitar = document.getElementById('btn-quitar-fatura');
   const badgeFatura = document.getElementById('badge-fatura-status');
   if (btnQuitar && badgeFatura) {
-    if (totalFatura > 0 && valorFaturaPendenteAtual === 0) {
+    if (dados.totalFatura > 0 && valorFaturaPendenteAtual === 0) {
       badgeFatura.classList.remove('hidden');
       btnQuitar.classList.add('hidden');
     } else if (valorFaturaPendenteAtual > 0) {
@@ -584,18 +519,18 @@ function processarDados() {
     document.getElementById('total-saidas'),
     document.getElementById('fatura-cartao'),
     document.getElementById('saldo-atual'),
-    totalEntradas, totalSaidasDiretas + totalPagtoFatura, totalFatura, saldoLivreMemoria
+    dados.totalEntradas, dados.totalSaidasDiretas + dados.totalPagtoFatura, dados.totalFatura, saldoLivreMemoria
   );
 
-  renderizarExtrato(document.getElementById('lista-transacoes'), itensExibicao, envelopesConfig);
-  renderizarEnvelopesAgrupados(document.getElementById('lista-envelopes'), envelopesConfig, acmCatMes, acmCatSaidaHist, acmCatEntradaHist);
+  renderizarExtrato(document.getElementById('lista-transacoes'), dados.itensExibicao, envelopesConfig);
+  renderizarEnvelopesAgrupados(document.getElementById('lista-envelopes'), envelopesConfig, dados.acmCatMes, dados.acmCatSaidaHist, dados.acmCatEntradaHist);
 
-  const { gastosMacro, tetosMacro } = agruparPorMacroGrupo(envelopesConfig, acmCatMes);
+  const { gastosMacro, tetosMacro } = agruparPorMacroGrupo(envelopesConfig, dados.acmCatMes);
   renderizarGraficoMacroGrupos(gastosMacro);
   renderizarGraficoOrcadoVsRealizado(tetosMacro, gastosMacro);
-  renderizarGraficoHistoricoMensal(acmHistMes);
+  renderizarGraficoHistoricoMensal(dados.acmHistMes);
 
-  const metricas = calcularMetricasOrcamento(envelopesConfig, acmCatMes);
+  const metricas = calcularMetricasOrcamento(envelopesConfig, dados.acmCatMes);
   const pacing = calcularVelocimetroPacing(mesSel, metricas.gastoFlexivelMes, metricas.tetoFlexivelTotal);
 
   atualizarMargemEManobraUI(
@@ -621,12 +556,12 @@ function processarDados() {
     metricas.tetoFlexivelTotal
   );
 
-  const totalDespesasMes = totalSaidasDiretas + totalPagtoFatura + totalFatura;
-  const pctComprometimento = totalEntradas > 0 ? Math.round((totalDespesasMes / totalEntradas) * 100) : 0;
+  const totalDespesasMes = dados.totalSaidasDiretas + dados.totalPagtoFatura + dados.totalFatura;
+  const pctComprometimento = dados.totalEntradas > 0 ? Math.round((totalDespesasMes / dados.totalEntradas) * 100) : 0;
   const resumoEl = document.getElementById('resumo-executivo-texto');
   if (resumoEl) {
     resumoEl.innerHTML = `
-      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(totalEntradas)}</span></div>
+      <div class="flex justify-between items-center"><span class="text-slate-400">Total de Entradas:</span> <span class="font-mono font-bold text-emerald-400">${formatarMoeda(dados.totalEntradas)}</span></div>
       <div class="flex justify-between items-center"><span class="text-slate-400">Total de Despesas (Conta + Cartão):</span> <span class="font-mono font-bold text-rose-400">${formatarMoeda(totalDespesasMes)}</span></div>
       <div class="flex justify-between items-center pt-1 border-t border-slate-800"><span class="text-slate-300 font-medium">Comprometimento da Renda:</span> <span class="font-mono font-bold text-amber-400">${pctComprometimento}%</span></div>
     `;
